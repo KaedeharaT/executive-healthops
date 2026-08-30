@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python 3.11 tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LOCAL_LLM_ENABLED: "false"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      - name: Build isolated portfolio demo data
+        run: python scripts/build_portfolio_demo.py
+
+      - name: Run deterministic regression suite
+        run: python -m pytest -q

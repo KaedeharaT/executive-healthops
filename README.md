@@ -12,7 +12,7 @@ not depend on it. A provider or model change requires fresh validation.
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-316%20passed-2c7a5f)
+[![CI](https://github.com/KaedeharaT/executive-healthops/actions/workflows/ci.yml/badge.svg)](https://github.com/KaedeharaT/executive-healthops/actions/workflows/ci.yml)
 
 Executive HealthOps 将体检报告、连续健康数据、确定性风险分流、健康管理师与医生协同、健康计划及长期健康历程整合为一套可追溯的 HealthOps 闭环。
 
@@ -137,7 +137,7 @@ flowchart TB
 - [Demo 视频脚本（中文）](portfolio/DEMO_VIDEO_SCRIPT_ZH.md)
 - [Demo 数据说明](portfolio/DEMO_DATA_DESCRIPTION.md)
 - [Portfolio Release Notes](portfolio/PORTFOLIO_RELEASE_NOTES.md)
-- [API documentation](http://127.0.0.1:8000/docs)（本地运行后）
+- 本地 FastAPI 文档：`http://127.0.0.1:8000/docs`（启动后访问）
 
 ## Testing
 
@@ -147,8 +147,10 @@ flowchart TB
 pytest -q
 ```
 
-当前 v0.9 作品集发布验收：**316 passed / 0 failed**。发布前始终要求 0 failures。
+当前 v0.9.0 作品集发布验收：**316 passed / 0 failed**。发布前始终要求 0 failures。
 
 ## License and Data
 
 仓库不得提交真实成员资料、原始检查报告、数据库、上传文件、`.env` 或 token。作品集演示数据库与所有健康资料均由可重复的匿名化 / synthetic fixture 构建。
+
+代码以 [MIT License](LICENSE) 发布。MedlinePlus、RxNorm、openFDA、WHO ICD-11 等第三方医学知识来源继续适用各自的许可、使用条款与归属要求。

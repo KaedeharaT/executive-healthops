@@ -29,6 +29,9 @@ htmlcov/
 data/raw/
 knowledge_uploads/
 report_uploads/
+uploads/
+reports/
+storage/
 logs/
 .runtime/
 *.log
