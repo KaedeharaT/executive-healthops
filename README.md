@@ -51,6 +51,15 @@ flowchart LR
 
 ### Start on Windows
 
+One-time setup:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+```
+
+Then start the isolated demo:
+
 ```powershell
 ./scripts/start_portfolio_demo.ps1 -Rebuild
 ```
