@@ -82,7 +82,7 @@ These are deliberately outside this Portfolio closure and do not block the five-
 - Rebuilt the isolated Portfolio database from `scripts/build_portfolio_demo.py --rebuild`.
 - Exercised the Streamlit `更多 → 知识库` and `今日` paths with `AppTest`; no duplicate widget-key exception occurred.
 - Added regression coverage for active-risk continuity, worklist de-duplication, plan choice hand-off, service lifecycle, outcome decisions, baseline routing, knowledge key scopes and freshness copy.
-- Full regression suite: **321 passed, 0 failed**.
+- Full regression suite: **322 passed, 0 failed**.
 
 ## 7. Top 10 Audit Fixes
 

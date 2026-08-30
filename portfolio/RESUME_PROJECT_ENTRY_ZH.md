@@ -8,7 +8,7 @@
 
 - 构建体检报告解析与 Evidence Traceability 链路：将规则解析与本地开源大模型 语义辅助结果整理为可人工确认的健康资料，并回溯至来源页码、表格或原始片段。
 - 设计“确定性规则 + Human-in-the-loop”健康运营闭环：风险执行与 LLM 分离，支持健康管理师工作台、内部医生复核、计划任务和长期健康历程。
-- 基于 Streamlit、FastAPI、SQLAlchemy、Alembic 与本地 Ollama/open-source LLM 实现可运行原型，并建立 **316 条自动化回归测试**保障核心流程（v0.9.0 作品集验收）。
+- 基于 Streamlit、FastAPI、SQLAlchemy、Alembic 与本地 Ollama/open-source LLM 实现可运行原型，并建立 **322 条自动化回归测试**保障核心流程（v0.9.0 作品集验收）。
 
 ## 5 条详细版本
 
