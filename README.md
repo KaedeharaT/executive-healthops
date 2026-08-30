@@ -1,5 +1,10 @@
 # Executive HealthOps
 
+AI semantic assistance uses a configurable, model-agnostic LLM interface for local
+or compatible API providers. Qwen is currently used as one local validation model;
+Canonical Health Data, deterministic risk logic, review, and HealthOps workflows do
+not depend on it. A provider or model change requires fresh validation.
+
 **AI-assisted longitudinal health operations platform for executive healthcare**
 
 企业高管 AI 健康运营平台（Research / Portfolio Prototype）
@@ -7,7 +12,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-315%20passed-2c7a5f)
+![Tests](https://img.shields.io/badge/tests-316%20passed-2c7a5f)
 
 Executive HealthOps 将体检报告、连续健康数据、确定性风险分流、健康管理师与医生协同、健康计划及长期健康历程整合为一套可追溯的 HealthOps 闭环。
 
@@ -24,7 +29,7 @@ Executive HealthOps turns those inputs into a continuous workflow: members see t
 ## Key capabilities
 
 - 多格式体检报告结构化与人工确认
-- 本地开源大模型 / Ollama 语义辅助（非诊断、非处方）
+- 可配置大语言模型语义辅助（支持本地或兼容 API；非诊断、非处方）
 - Evidence Traceability：结果 → 文件 / 页码 / 表格 / 原始片段
 - Canonical Health Data 与连续健康数据趋势
 - Deterministic Risk Engine 与 TEST / CLINICAL 治理边界
@@ -38,7 +43,7 @@ Executive HealthOps turns those inputs into a continuous workflow: members see t
 
 ```mermaid
 flowchart LR
-    A[匿名化体检报告] --> B[规则解析 + 本地开源大模型语义辅助]
+    A[匿名化体检报告] --> B[规则解析 + 可配置 LLM 语义辅助]
     B --> C[主要发现与查看依据]
     C --> D[人工确认与健康基线]
     D --> E[确定性演示风险分流]
@@ -64,6 +69,18 @@ Then start the isolated demo:
 ./scripts/start_portfolio_demo.ps1 -Rebuild
 ```
 
+LLM assistance is optional. To enable it, configure the provider, model, and endpoint in `.env`:
+
+```dotenv
+LOCAL_LLM_ENABLED=true
+LOCAL_LLM_PROVIDER=local
+LOCAL_LLM_MODEL=<your-model>
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+# For a compatible API instead: LOCAL_LLM_PROVIDER=openai_compatible and LLM_API_BASE=...
+```
+
+Ollama is one local deployment option. External endpoints remain disabled for health data unless `ALLOW_EXTERNAL_PHI_LLM=true` is explicitly set after privacy review.
+
 启动脚本会创建独立的 `data/portfolio_demo.db`，设置 `PORTFOLIO_DEMO=true`，并启动：
 
 - Streamlit：`http://127.0.0.1:8501`
@@ -79,6 +96,7 @@ flowchart TB
     O[健康管理师 / 内部医生] --> P
     D[健康设备与连续数据] --> C[统一健康数据]
     R[体检与医疗资料] --> X[解析、候选与依据]
+    L[可配置 LLM Provider] -.可选语义辅助.-> X
     C --> P
     X --> P
     P --> H[长期健康档案]
@@ -98,7 +116,7 @@ flowchart TB
 | API | FastAPI |
 | Persistence | SQLAlchemy, Alembic, SQLite demo database |
 | Data | Canonical observations, raw-ingestion provenance, report candidates |
-| AI | Local open-source LLM through Ollama (optional semantic assistance) |
+| AI | Configurable local or compatible-API LLM (optional semantic assistance) |
 | Validation | pytest regression suite |
 
 ## Safety Boundaries
@@ -129,7 +147,7 @@ flowchart TB
 pytest -q
 ```
 
-当前 v0.9 作品集发布验收：**315 passed / 0 failed**。发布前始终要求 0 failures。
+当前 v0.9 作品集发布验收：**316 passed / 0 failed**。发布前始终要求 0 failures。
 
 ## License and Data
 

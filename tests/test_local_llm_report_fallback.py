@@ -46,6 +46,34 @@ def test_local_llm_client_refuses_non_loopback_endpoint_without_making_a_request
         client.generate_structured(task="report_semantic_fallback", system_prompt="system", user_prompt="合成文本", document_id="synthetic-doc", page=1)
 
 
+def test_openai_compatible_provider_uses_configured_adapter_contract() -> None:
+    class CompatibleResponse:
+        ok = True
+        def raise_for_status(self) -> None: pass
+        def json(self):
+            return {
+                "data": [{"id": "test-model"}],
+                "choices": [{"message": {"content": '{"exam_name":"synthetic"}'}}],
+            }
+
+    calls: list[tuple[str, dict]] = []
+    def request(url: str, **kwargs):
+        calls.append((url, kwargs))
+        return CompatibleResponse()
+
+    settings = LocalLLMSettings(
+        True, "openai_compatible", "http://127.0.0.1:8000", "test-model", 3, 3000
+    )
+    client = LocalLLMClient(settings, http_post=request, http_get=request)
+    assert client.available()
+    assert client.generate_structured(
+        task="report_semantic_fallback", system_prompt="system", user_prompt="synthetic",
+        document_id="synthetic-doc", page=1,
+    ) == {"exam_name": "synthetic"}
+    assert calls[0][0].endswith("/v1/models")
+    assert calls[1][0].endswith("/v1/chat/completions")
+
+
 def test_sanitizer_and_json_parser_do_not_keep_common_direct_identifiers() -> None:
     text = "姓名：合成成员\n电话：00000000000\n档案号：ABC-123\n左肺见小结节"
     sanitized = sanitize_for_llm(text)

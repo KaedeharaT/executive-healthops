@@ -25,24 +25,43 @@ class LocalLLMSettings:
     model: str
     timeout_seconds: int
     max_input_chars: int
+    api_key: str = ""
+    allow_external_phi: bool = False
 
     @classmethod
     def from_environment(cls) -> "LocalLLMSettings":
+        provider = os.getenv("LOCAL_LLM_PROVIDER", "local").strip().lower()
+        base_url = (
+            os.getenv("LLM_API_BASE", "").strip()
+            if provider in {"openai_compatible", "compatible_api"}
+            else os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").strip()
+        )
         return cls(
             enabled=os.getenv("LOCAL_LLM_ENABLED", "false").lower() == "true",
-            provider=os.getenv("LOCAL_LLM_PROVIDER", "local").strip().lower(),
-            base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/"),
+            provider=provider,
+            base_url=base_url.rstrip("/"),
             model=os.getenv("LOCAL_LLM_MODEL", "").strip(),
             # Keep the validated research-client default.  A local model may need
             # longer than a minute for a first (cold) inference, while the feature
             # remains opt-in and failures still fall back to human review.
             timeout_seconds=max(1, int(os.getenv("LOCAL_LLM_TIMEOUT_SECONDS", "600"))),
             max_input_chars=max(200, int(os.getenv("LOCAL_LLM_MAX_INPUT_CHARS", "3000"))),
+            api_key=os.getenv("LLM_API_KEY", "").strip(),
+            allow_external_phi=os.getenv("ALLOW_EXTERNAL_PHI_LLM", "false").lower() == "true",
         )
 
     def is_local_ollama(self) -> bool:
         parsed = urlparse(self.base_url)
         return self.provider in {"local", "ollama", "local_llm"} and parsed.scheme == "http" and parsed.hostname in _LOCAL_HOSTS
+
+    def is_openai_compatible(self) -> bool:
+        return self.provider in {"openai_compatible", "compatible_api"}
+
+    def endpoint_allowed(self) -> bool:
+        parsed = urlparse(self.base_url)
+        return parsed.scheme in {"http", "https"} and (
+            parsed.hostname in _LOCAL_HOSTS or self.allow_external_phi
+        )
 
 
 class LocalLLMUnavailable(RuntimeError):
@@ -86,7 +105,7 @@ def parse_json_object(text: str) -> dict[str, Any]:
 
 
 class LocalLLMClient:
-    """Local-only Ollama chat client. It never includes an API key in requests."""
+    """Configurable semantic LLM client for local or OpenAI-compatible endpoints."""
 
     def __init__(self, settings: LocalLLMSettings | None = None, http_post=requests.post, http_get=requests.get) -> None:
         self.settings = settings or LocalLLMSettings.from_environment()
@@ -102,41 +121,61 @@ class LocalLLMClient:
             return LocalLLMHealth(False, False, self.settings.provider, self.settings.model, self.settings.base_url, "本地语义模型未启用")
         if not self.settings.model:
             return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "尚未配置本地模型")
-        if not self.settings.is_local_ollama():
-            return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "本地语义模型地址不是受允许的环回 Ollama 地址")
+        if not self.settings.endpoint_allowed():
+            return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "LLM 地址不符合隐私安全策略")
         try:
-            response = self._http_get(f"{self.settings.base_url}/api/tags", timeout=min(3, self.settings.timeout_seconds))
+            if self.settings.is_local_ollama():
+                url = f"{self.settings.base_url}/api/tags"
+                headers = None
+            elif self.settings.is_openai_compatible():
+                url = f"{self.settings.base_url}/v1/models"
+                headers = {"Authorization": f"Bearer {self.settings.api_key}"} if self.settings.api_key else None
+            else:
+                return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "不支持的 LLM Provider")
+            response = self._http_get(url, headers=headers, timeout=min(3, self.settings.timeout_seconds))
             if not response.ok:
-                return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "无法连接本地 Ollama")
-            models = response.json().get("models", [])
-            model_names = {str(item.get("name", "")) for item in models if isinstance(item, dict)}
+                return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "无法连接 LLM Provider")
+            payload = response.json()
+            models = payload.get("models", []) if self.settings.is_local_ollama() else payload.get("data", [])
+            key = "name" if self.settings.is_local_ollama() else "id"
+            model_names = {str(item.get(key, "")) for item in models if isinstance(item, dict)}
             if self.settings.model not in model_names:
                 return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "本地未安装指定模型")
             return LocalLLMHealth(True, True, self.settings.provider, self.settings.model, self.settings.base_url)
         except (requests.RequestException, ValueError, KeyError):
-            return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "无法连接本地 Ollama")
+            return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "无法连接 LLM Provider")
 
     def generate_structured(self, *, task: str, system_prompt: str, user_prompt: str, document_id: str, page: int) -> dict[str, Any]:
         if not self.settings.enabled:
             raise LocalLLMUnavailable("本地语义模型未启用")
         if not self.settings.model:
             raise LocalLLMUnavailable("尚未配置本地模型")
-        if not self.settings.is_local_ollama():
-            raise LocalLLMUnavailable("本地语义模型地址不是受允许的环回 Ollama 地址")
+        if not self.settings.endpoint_allowed():
+            raise LocalLLMUnavailable("LLM 地址不符合隐私安全策略")
         if len(user_prompt) > self.settings.max_input_chars:
             user_prompt = user_prompt[:self.settings.max_input_chars]
+        messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
         payload = {
             "model": self.settings.model,
-            "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+            "messages": messages,
             "stream": False,
-            "format": "json",
-            "options": {"temperature": 0.0, "seed": 0},
         }
+        if self.settings.is_local_ollama():
+            url = f"{self.settings.base_url}/api/chat"
+            payload.update({"format": "json", "options": {"temperature": 0.0, "seed": 0}})
+            headers = None
+        elif self.settings.is_openai_compatible():
+            url = f"{self.settings.base_url}/v1/chat/completions"
+            payload.update({"temperature": 0.0, "response_format": {"type": "json_object"}})
+            headers = {"Authorization": f"Bearer {self.settings.api_key}"} if self.settings.api_key else None
+        else:
+            raise LocalLLMUnavailable("不支持的 LLM Provider")
         started = time.perf_counter()
         try:
-            response = self._http_post(f"{self.settings.base_url}/api/chat", json=payload, timeout=self.settings.timeout_seconds)
+            response = self._http_post(url, json=payload, headers=headers, timeout=self.settings.timeout_seconds)
             response.raise_for_status()
-            content = str(response.json()["message"]["content"])
+            response_payload = response.json()
+            content = str(response_payload["message"]["content"] if self.settings.is_local_ollama() else response_payload["choices"][0]["message"]["content"])
             parsed = parse_json_object(content)
             logger.info("local_llm_completed provider=local_llm task=%s document_id=%s page=%s input_chars=%s latency_ms=%s success=true", task, document_id, page, len(user_prompt), round((time.perf_counter() - started) * 1000))
             return parsed
