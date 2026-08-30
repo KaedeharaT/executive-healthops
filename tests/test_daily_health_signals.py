@@ -169,4 +169,4 @@ def test_percentage_decline_and_taxonomy_are_deterministic_and_not_llm_based() -
         assert service.evaluate_observation(session, first.id) is None
         assert service.evaluate_observation(session, last.id) is not None
         assert HealthDataCategoryRegistry.classify_metric("deep_sleep_duration") == ("SLEEP", "睡眠")
-        assert "Qwen" not in ManagementRoutingService.__doc__
+        assert "LLM" not in ManagementRoutingService.__doc__

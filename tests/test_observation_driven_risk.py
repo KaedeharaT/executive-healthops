@@ -249,10 +249,10 @@ def test_report_candidate_does_not_trigger_until_human_confirmation_then_uses_ri
         assert event is not None and event.evidence_json["source"] == "observation_driven"
 
 
-def test_risk_engine_is_deterministic_and_has_no_qwen_dependency() -> None:
+def test_risk_engine_is_deterministic_and_has_no_local_llm_dependency() -> None:
     source = Path("src/executive_health_ai/services/risk_triage.py").read_text(encoding="utf-8").lower()
     assert "from executive_health_ai.llm" not in source
-    assert "qwen_client" not in source
+    assert "local_llm_client" not in source
 
 
 def test_workbench_has_a_business_facing_source_and_evidence_caption_for_real_events() -> None:

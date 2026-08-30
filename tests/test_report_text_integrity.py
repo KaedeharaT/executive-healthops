@@ -10,7 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from executive_health_ai.llm.qwen_client import LocalQwenHealth
+from executive_health_ai.llm.local_llm_client import LocalLLMHealth
 from executive_health_ai.models import Base, Patient
 from executive_health_ai.services.report_parsing import (
     ExtractedPage,
@@ -76,7 +76,7 @@ def test_complex_imaging_paragraph_is_split_into_atomic_findings() -> None:
 
 
 class _DepartmentMismatchClient:
-    def health_check(self): return LocalQwenHealth(True, True, "qwen", "qwen2.5:7b", "http://127.0.0.1:11434")
+    def health_check(self): return LocalLLMHealth(True, True, "local_llm", "local LLM", "http://127.0.0.1:11434")
     def generate_structured(self, **_kwargs):
         return {"exam_name": "腹部彩超", "findings": [], "recommendations": [{"action": "建议胸外科就诊", "department": "胸外科", "interval_text": "", "evidence": "建议泌尿外科就诊。"}]}
 
@@ -90,10 +90,10 @@ def test_department_must_exactly_match_evidence_and_never_be_inferred() -> None:
     assert manual and manual[0].structured_data["integrity_reason"] == "evidence_mismatch"
 
 
-def test_qwen_does_not_receive_or_complete_an_incomplete_section() -> None:
+def test_local_llm_does_not_receive_or_complete_an_incomplete_section() -> None:
     class Client:
         calls = 0
-        def health_check(self): return LocalQwenHealth(True, True, "qwen", "qwen2.5:7b", "http://127.0.0.1:11434")
+        def health_check(self): return LocalLLMHealth(True, True, "local_llm", "local LLM", "http://127.0.0.1:11434")
         def generate_structured(self, **_kwargs):
             self.calls += 1
             return {"exam_name": "", "findings": [], "recommendations": []}

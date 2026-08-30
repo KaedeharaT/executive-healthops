@@ -33,7 +33,7 @@ from executive_health_ai.integrations.normalization import normalize_unit, quali
 from executive_health_ai.models import AuditLog, Document, HealthProblem, Observation, ReportExtractionCandidate, ReportExtractionRun, Task
 from executive_health_ai.models.base import utc_now
 from executive_health_ai.llm.prompts.health_report import FINDING_EXTRACTION_SYSTEM_PROMPT, finding_extraction_prompt
-from executive_health_ai.llm.qwen_client import LocalQwenClient, LocalQwenHealth, LocalQwenUnavailable, sanitize_for_llm
+from executive_health_ai.llm.local_llm_client import LocalLLMClient, LocalLLMHealth, LocalLLMUnavailable, sanitize_for_llm
 from executive_health_ai.services.risk_triage import RiskEvaluationService
 from executive_health_ai.services.longitudinal import ManagementRoutingService
 
@@ -552,11 +552,11 @@ def _action_is_directly_supported(action: str, evidence: str) -> bool:
 
 
 class ReportSemanticFallback:
-    """Optional, evidence-bound local Qwen semantic enrichment for narratives.
+    """Optional, evidence-bound local LLM semantic enrichment for narratives.
 
     This runs alongside deterministic extraction in every normal parse run.  It
     is not a retry path for rule-parser failure: structured measurements remain
-    rule-owned while eligible narrative sections are sent to local Qwen once.
+    rule-owned while eligible narrative sections are sent to local LLM once.
     """
 
     supported_sections = {"IMAGING", "ULTRASOUND", "ECG", "PULMONARY_FUNCTION", "RECOMMENDATION", "OTHER"}
@@ -577,8 +577,8 @@ class ReportSemanticFallback:
         r"(?:健康|随访|复查)建议",
     )
 
-    def __init__(self, client: LocalQwenClient | None = None) -> None:
-        self.client = client or LocalQwenClient()
+    def __init__(self, client: LocalLLMClient | None = None) -> None:
+        self.client = client or LocalLLMClient()
 
     def extract(self, *, pages: list[ExtractedPage], existing: list[CandidateDraft], document_id: UUID, progress_callback: ProgressCallback | None = None) -> SemanticFallbackResult:
         # Select narrative work first.  A lab-only report must remain a clean
@@ -627,7 +627,7 @@ class ReportSemanticFallback:
             started = clock.perf_counter()
             try:
                 payload = self.client.generate_structured(task="report_semantic_fallback", system_prompt=FINDING_EXTRACTION_SYSTEM_PROMPT, user_prompt=finding_extraction_prompt(sanitized), document_id=str(document_id), page=page.page_number)
-            except LocalQwenUnavailable as error:
+            except LocalLLMUnavailable as error:
                 elapsed = round((clock.perf_counter() - started) * 1000)
                 total_duration_ms += elapsed
                 failure_count += 1
@@ -642,10 +642,10 @@ class ReportSemanticFallback:
             self._emit_progress(progress_callback, "LLM_SECTION_COMPLETED", f"{label} 的本地AI辅助解析完成。", current=current, total=len(selected), section_name=label, call_duration_ms=elapsed)
         if success_count:
             return self._result(health, "USED", drafts=drafts, call_count=call_count, success_count=success_count, failure_count=failure_count, total_duration_ms=total_duration_ms, processed_sections=processed_sections)
-        return self._result(health, "UNAVAILABLE", call_count=call_count, failure_count=failure_count, total_duration_ms=total_duration_ms, processed_sections=processed_sections, failure_reason="本地 Qwen 调用失败")
+        return self._result(health, "UNAVAILABLE", call_count=call_count, failure_count=failure_count, total_duration_ms=total_duration_ms, processed_sections=processed_sections, failure_reason="本地开源大模型 调用失败")
 
     def _requires_semantic_assistance(self, page: ExtractedPage, section: str) -> bool:
-        """Use Qwen for complex clinical narratives, not structured measurements."""
+        """Use LLM for complex clinical narratives, not structured measurements."""
         text = page.text.strip()
         sentence_count = sum(text.count(mark) for mark in ("。", "；", ";", "\n"))
         if len(text) < 24 or sentence_count < 1:
@@ -702,7 +702,7 @@ class ReportSemanticFallback:
             callback(ReportParseProgress(stage, message, current, total, section_name, call_duration_ms=call_duration_ms))
 
     @staticmethod
-    def _result(health: LocalQwenHealth, status: str, *, drafts: list[CandidateDraft] | None = None, call_count: int = 0, success_count: int = 0, failure_count: int = 0, total_duration_ms: int = 0, processed_sections: list[str] | None = None, failure_reason: str | None = None) -> SemanticFallbackResult:
+    def _result(health: LocalLLMHealth, status: str, *, drafts: list[CandidateDraft] | None = None, call_count: int = 0, success_count: int = 0, failure_count: int = 0, total_duration_ms: int = 0, processed_sections: list[str] | None = None, failure_reason: str | None = None) -> SemanticFallbackResult:
         return SemanticFallbackResult(drafts or [], status == "USED", health.enabled, health.available, health.provider, health.model, status, call_count, success_count, failure_count, total_duration_ms, processed_sections or [], failure_reason)
 
     def _validated_drafts(self, payload: dict[str, object], source: str, page: ExtractedPage, section: str) -> list[CandidateDraft]:
@@ -754,7 +754,7 @@ class ReportParsingService:
 
         File hashes deduplicate immutable source documents only.  They never
         deduplicate parsing commands: every user click on "start parsing" gets
-        a new extraction run and fresh rule/Qwen candidates.
+        a new extraction run and fresh rule/LLM candidates.
         """
         started = clock.perf_counter()
         self._emit_progress(progress_callback, started, "READING_REPORT", "正在读取报告…")
@@ -813,7 +813,7 @@ class ReportParsingService:
             self._emit_progress(progress_callback, started, "COMPLETED", "报告需要文字识别后才能继续解析。")
         else:
             # One shared parse pipeline for first upload and reparse: rules own
-            # structured facts, while local Qwen enriches only complex narrative
+            # structured facts, while local LLM enriches only complex narrative
             # sections in this same extraction run.
             self._emit_progress(progress_callback, started, "TEXT_RECONSTRUCTION", "正在重建报告段落与跨页句子…")
             pages = ReportTextReconstructor.reconstruct(pages)
@@ -851,7 +851,7 @@ class ReportParsingService:
             run.llm_processed_sections = semantic_result.processed_sections
             run.llm_failure_reason = semantic_result.failure_reason
             if semantic_result.used:
-                run.parser_version = f"{PARSER_VERSION}+local-qwen-fallback"
+                run.parser_version = f"{PARSER_VERSION}+local-llm-fallback"
             # A local model is optional.  Rule candidates and their human-review
             # workflow remain complete even when semantic enrichment is offline;
             # the persisted LLM status makes that limitation explicit in the UI.
@@ -911,7 +911,7 @@ class ReportParsingService:
 
     @staticmethod
     def _deduplicate_combined_candidates(drafts: list[CandidateDraft]) -> list[CandidateDraft]:
-        """Merge rule/Qwen duplicates while retaining distinct, atomic findings."""
+        """Merge rule/LLM duplicates while retaining distinct, atomic findings."""
         unique: dict[tuple[str, str], CandidateDraft] = {}
         for draft in drafts:
             evidence = _normalised_evidence(draft.evidence_text)

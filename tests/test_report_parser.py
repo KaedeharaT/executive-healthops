@@ -16,7 +16,7 @@ from sqlalchemy.pool import StaticPool
 
 from executive_health_ai.api import create_app
 from executive_health_ai.integrations.codes import canonical_code
-from executive_health_ai.llm.qwen_client import LocalQwenHealth, LocalQwenUnavailable
+from executive_health_ai.llm.local_llm_client import LocalLLMHealth, LocalLLMUnavailable
 from executive_health_ai.models import Base, HealthProblem, Observation, Patient, ReportExtractionCandidate, Task
 from executive_health_ai.services.report_parsing import ALLOW_EXTERNAL_PHI_LLM, DocumentPreflightService, ReportParsingService, ReportSemanticFallback
 
@@ -156,7 +156,7 @@ def test_external_phi_llm_is_disabled_by_default() -> None:
 
 
 class _AuditFallbackClient:
-    def health_check(self): return LocalQwenHealth(True, True, "qwen", "qwen2.5:7b", "http://127.0.0.1:11434")
+    def health_check(self): return LocalLLMHealth(True, True, "local_llm", "local LLM", "http://127.0.0.1:11434")
     def generate_structured(self, **_kwargs):
         return {"exam_name": "胸部CT", "findings": [{"summary": "双肺小结节", "body_system": "肺", "reported_change": "小结节", "reported_severity": "", "evidence": "双肺可见多个小结节"}], "recommendations": [{"action": "复查胸部CT", "department": "", "interval_text": "约3个月后", "evidence": "建议约3个月后复查胸部CT"}]}
 
@@ -177,7 +177,7 @@ def test_complex_narrative_records_llm_audit_and_source_without_auto_confirmatio
 
 class _MixedAuditFallbackClient:
     def __init__(self) -> None: self.calls = 0
-    def health_check(self): return LocalQwenHealth(True, True, "qwen", "qwen2.5:7b", "http://127.0.0.1:11434")
+    def health_check(self): return LocalLLMHealth(True, True, "local_llm", "local LLM", "http://127.0.0.1:11434")
     def generate_structured(self, *, user_prompt: str, **_kwargs):
         self.calls += 1
         if "腹部彩超" in user_prompt:
@@ -189,7 +189,7 @@ class _MixedAuditFallbackClient:
         return {"exam_name": "胸部CT", "findings": [{"summary": "双肺多发小结节", "evidence": "双肺可见多个小结节"}], "recommendations": []}
 
 
-def test_mixed_report_persists_rule_and_qwen_candidates_with_four_section_calls(tmp_path: Path) -> None:
+def test_mixed_report_persists_rule_and_local_llm_candidates_with_four_section_calls(tmp_path: Path) -> None:
     client = _MixedAuditFallbackClient()
     service = ReportParsingService(semantic_fallback=ReportSemanticFallback(client=client)); service.storage_root = tmp_path
     content = "\n".join((
@@ -201,7 +201,7 @@ def test_mixed_report_persists_rule_and_qwen_candidates_with_four_section_calls(
         "健康建议：建议约3个月后复查胸部CT。请根据专科意见安排后续检查。",
     )).encode()
     with _session() as session:
-        patient = Patient(external_id="synthetic-mixed-qwen", timezone="Asia/Tokyo"); session.add(patient); session.flush()
+        patient = Patient(external_id="synthetic-mixed-local_llm", timezone="Asia/Tokyo"); session.add(patient); session.flush()
         document, run, _ = service.upload_and_parse(session, patient.id, "synthetic_mixed.txt", content, "tester")
         session.flush()
         candidates = service.candidates(session, document.id)
@@ -254,7 +254,7 @@ class _PartiallyFailingFallbackClient(_MixedAuditFallbackClient):
     def generate_structured(self, *, user_prompt: str, **kwargs):
         if "肺功能" in user_prompt:
             self.calls += 1
-            raise LocalQwenUnavailable("合成本地模型失败")
+            raise LocalLLMUnavailable("合成本地模型失败")
         return super().generate_structured(user_prompt=user_prompt, **kwargs)
 
 
@@ -278,7 +278,7 @@ def test_llm_section_failure_emits_progress_and_keeps_remaining_sections_running
     assert run.status == "PARTIAL_SUCCESS" and run.llm_failure_count == 1 and run.llm_success_count == 3
 
 
-def test_same_uploaded_document_creates_fresh_rule_and_qwen_run_each_time(tmp_path: Path) -> None:
+def test_same_uploaded_document_creates_fresh_rule_and_local_llm_run_each_time(tmp_path: Path) -> None:
     client = _MixedAuditFallbackClient()
     service = ReportParsingService(semantic_fallback=ReportSemanticFallback(client=client)); service.storage_root = tmp_path
     content = "\n".join((
@@ -350,11 +350,11 @@ def test_post_parse_always_creates_a_fresh_run(tmp_path: Path) -> None:
 
 class _UnavailableNarrativeClient:
     def __init__(self) -> None: self.calls = 0
-    def health_check(self): return LocalQwenHealth(True, False, "qwen", "qwen2.5:7b", "http://127.0.0.1:11434", "合成本地模型不可用")
-    def generate_structured(self, **_kwargs): self.calls += 1; raise AssertionError("纯结构化报告不应调用Qwen")
+    def health_check(self): return LocalLLMHealth(True, False, "local_llm", "local LLM", "http://127.0.0.1:11434", "合成本地模型不可用")
+    def generate_structured(self, **_kwargs): self.calls += 1; raise AssertionError("纯结构化报告不应调用LLM")
 
 
-def test_first_lab_only_parse_is_rule_only_even_when_optional_qwen_is_unavailable(tmp_path: Path) -> None:
+def test_first_lab_only_parse_is_rule_only_even_when_optional_local_llm_is_unavailable(tmp_path: Path) -> None:
     client = _UnavailableNarrativeClient()
     service = ReportParsingService(semantic_fallback=ReportSemanticFallback(client=client)); service.storage_root = tmp_path
     content = "HbA1c  6.3 %\nLDL-C  4.15 mmol/L\nALT  28 IU/L\nAST  22 IU/L".encode()
@@ -367,7 +367,7 @@ def test_first_lab_only_parse_is_rule_only_even_when_optional_qwen_is_unavailabl
     assert run.rule_candidate_count == len(candidates) and run.llm_candidate_count == 0
 
 
-def test_first_parse_and_reparse_share_the_same_rule_and_qwen_pipeline(tmp_path: Path) -> None:
+def test_first_parse_and_reparse_share_the_same_rule_and_local_llm_pipeline(tmp_path: Path) -> None:
     client = _AuditFallbackClient()
     service = ReportParsingService(semantic_fallback=ReportSemanticFallback(client=client)); service.storage_root = tmp_path
     content = "胸部CT检查结论：左肺下叶见少许条索影。双肺可见多个小结节。建议约3个月后复查胸部CT。".encode()

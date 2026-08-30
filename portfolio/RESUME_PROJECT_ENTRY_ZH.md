@@ -6,9 +6,9 @@
 
 ## 3 条 Bullet 版本
 
-- 构建体检报告解析与 Evidence Traceability 链路：将规则解析与本地 Qwen 语义辅助结果整理为可人工确认的健康资料，并回溯至来源页码、表格或原始片段。
+- 构建体检报告解析与 Evidence Traceability 链路：将规则解析与本地开源大模型 语义辅助结果整理为可人工确认的健康资料，并回溯至来源页码、表格或原始片段。
 - 设计“确定性规则 + Human-in-the-loop”健康运营闭环：风险执行与 LLM 分离，支持健康管理师工作台、内部医生复核、计划任务和长期健康历程。
-- 基于 Streamlit、FastAPI、SQLAlchemy、Alembic 与本地 Ollama/Qwen 实现可运行原型，并建立 **315 条自动化回归测试**保障核心流程（v0.9 作品集验收）。
+- 基于 Streamlit、FastAPI、SQLAlchemy、Alembic 与本地 Ollama/open-source LLM 实现可运行原型，并建立 **315 条自动化回归测试**保障核心流程（v0.9 作品集验收）。
 
 ## 5 条详细版本
 
@@ -20,7 +20,7 @@
 
 ## 面试 1 分钟介绍
 
-我把这个项目定位为企业高管健康管理的 HealthOps 原型，而不是诊断系统。核心难点是让体检报告、设备数据、人工管理和医生判断保持可追溯且职责明确：规则负责风险分流，Qwen 只做语义整理和知识辅助，健管和医生保留最终人工处理权。作品集中我准备了一条匿名化 Demo Executive A 的完整故事，从体检报告的结构化结果和“查看依据”，到健康基线、风险工作列表、医生复核、健康计划、长期时间轴和知识治理。工程上使用 Streamlit、FastAPI、SQLAlchemy/Alembic 和本地 Ollama/Qwen，并用自动化测试做回归保护。
+我把这个项目定位为企业高管健康管理的 HealthOps 原型，而不是诊断系统。核心难点是让体检报告、设备数据、人工管理和医生判断保持可追溯且职责明确：规则负责风险分流，open-source LLM 只做语义整理和知识辅助，健管和医生保留最终人工处理权。作品集中我准备了一条匿名化 Demo Executive A 的完整故事，从体检报告的结构化结果和“查看依据”，到健康基线、风险工作列表、医生复核、健康计划、长期时间轴和知识治理。工程上使用 Streamlit、FastAPI、SQLAlchemy/Alembic 和本地 Ollama/open-source LLM，并用自动化测试做回归保护。
 
 ## 诚实边界
 

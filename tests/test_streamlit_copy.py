@@ -70,7 +70,7 @@ def test_platform_launcher_uses_fixed_ports_safe_project_restart_and_single_brow
     assert "--server.port" in launcher and '"8501"' in launcher
     assert '"--port", "8000"' in launcher
     assert launcher.count('Start-Process "http://127.0.0.1:8501"') == 1
-    assert "Qwen 2.5 7B" in launcher
+    assert "local LLM" in launcher
     assert "8505" not in launcher
     assert "Stop-ProjectService 8501" in launcher and "Stop-ProjectService 8000" in launcher
     assert "Get-NetTCPConnection" in launcher and "Is-ThisProjectProcess" in launcher

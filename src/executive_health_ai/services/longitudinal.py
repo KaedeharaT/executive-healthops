@@ -166,7 +166,7 @@ class HealthAssessmentService:
     def create_draft_from_report(self, session: Session, patient_id: UUID, document_id: UUID, *, created_by: str) -> HealthAssessment:
         """Build a reviewable baseline draft from confirmed facts only.
 
-        This service deliberately reads neither Qwen output nor unconfirmed
+        This service deliberately reads neither LLM output nor unconfirmed
         candidates.  It snapshots concise, traceable references instead of
         copying the member's time-series history.
         """
@@ -347,7 +347,7 @@ class HealthAssessmentService:
 class ManagementRoutingService:
     """Evaluate approved wellness rules separately from medical risk triage.
 
-    The evaluator deliberately has no LLM, clinical severity or escalation
+    The evaluator deliberately has no generative-model dependency, clinical severity or escalation
     behaviour.  It creates at most one open signal per member/rule and keeps a
     bounded provenance trail as new source observations arrive.
     """

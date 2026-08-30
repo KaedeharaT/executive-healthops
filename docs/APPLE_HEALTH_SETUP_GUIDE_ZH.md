@@ -14,7 +14,7 @@ Executive Health Bridge（iOS）
 AppleHealthAdapter → 原始接入记录 → 标准化健康数据
 ```
 
-它只是一条数据来源链路：不会自动调用 Qwen，也不会自行形成诊断、处方或风险阈值结论。
+它只是一条数据来源链路：不会自动调用 open-source LLM，也不会自行形成诊断、处方或风险阈值结论。
 
 ## A. Windows 上现在能做什么
 

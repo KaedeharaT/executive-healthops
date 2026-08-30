@@ -90,7 +90,7 @@ def _replace_report_fixture(session, patient_id) -> None:
         page_count=17,
         has_text_layer=True,
         llm_used=True,
-        llm_provider="local_qwen",
+        llm_provider="local_llm",
         llm_status="COMPLETED",
         candidate_count=8,
         high_confidence_count=6,

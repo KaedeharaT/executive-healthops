@@ -66,7 +66,7 @@ class ReportExtractionRun(Base):
 
     @property
     def llm_candidate_count(self) -> int:
-        """Persisted local-Qwen candidate total; distinct from HTTP call count."""
+        """Persisted local LLM candidate total; distinct from HTTP call count."""
         return int(self.metadata_json.get("llm_candidate_count", 0))
 
 

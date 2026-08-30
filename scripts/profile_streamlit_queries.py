@@ -1,7 +1,7 @@
 """Read-only local profiling for Streamlit navigation query shapes.
 
 It reports durations and row-free counts only. It never emits member names,
-health values, report text, or other PHI, and it does not call Qwen, parsing,
+health values, report text, or other PHI, and it does not call LLM, parsing,
 risk evaluation, migration, or seed routines.
 """
 from __future__ import annotations
@@ -33,7 +33,7 @@ def main() -> None:
     _measure("member card summaries", lambda: app._member_list_summaries(member_ids))
     _measure("workbench summaries", app._dashboard_context)
     _measure("more root", lambda: None)
-    print("No Observation full scan, Qwen, parser, risk evaluation, seed, or migration was run.")
+    print("No Observation full scan, LLM, parser, risk evaluation, seed, or migration was run.")
 
 
 if __name__ == "__main__":

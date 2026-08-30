@@ -4,7 +4,7 @@
 
 ## 当前处理边界
 
-- 本地 Qwen：仅在本机通过 Ollama 辅助整理体检报告复杂原文；不决定风险、诊断、用药或处置。
+- 本地开源大模型：仅在本机通过 Ollama 辅助整理体检报告复杂原文；不决定风险、诊断、用药或处置。
 - 健康平台：当前在本地/私有服务中保存原始来源、标准化 Observation、人工确认、规则风险和运营记录。
 - 设备云：由未来 Provider 决定；平台接口预留 `EDGE_PROCESSING`、`CLOUD_PROVIDER_PROCESSING`、`DIRECT_DEVICE_SYNC` 三种处理模式。
 

@@ -1,4 +1,4 @@
-"""Small local Ollama Qwen client, based on the validated research client flow."""
+"""Small local Ollama open-source LLM client, based on the validated research client flow."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 
 @dataclass(frozen=True)
-class LocalQwenSettings:
+class LocalLLMSettings:
     enabled: bool
     provider: str
     base_url: str
@@ -27,12 +27,12 @@ class LocalQwenSettings:
     max_input_chars: int
 
     @classmethod
-    def from_environment(cls) -> "LocalQwenSettings":
+    def from_environment(cls) -> "LocalLLMSettings":
         return cls(
             enabled=os.getenv("LOCAL_LLM_ENABLED", "false").lower() == "true",
-            provider=os.getenv("LOCAL_LLM_PROVIDER", "qwen").strip().lower(),
+            provider=os.getenv("LOCAL_LLM_PROVIDER", "local").strip().lower(),
             base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/"),
-            model=os.getenv("LOCAL_LLM_MODEL", "qwen2.5:7b").strip(),
+            model=os.getenv("LOCAL_LLM_MODEL", "").strip(),
             # Keep the validated research-client default.  A local model may need
             # longer than a minute for a first (cold) inference, while the feature
             # remains opt-in and failures still fall back to human review.
@@ -42,15 +42,15 @@ class LocalQwenSettings:
 
     def is_local_ollama(self) -> bool:
         parsed = urlparse(self.base_url)
-        return self.provider == "qwen" and parsed.scheme == "http" and parsed.hostname in _LOCAL_HOSTS
+        return self.provider in {"local", "ollama", "local_llm"} and parsed.scheme == "http" and parsed.hostname in _LOCAL_HOSTS
 
 
-class LocalQwenUnavailable(RuntimeError):
+class LocalLLMUnavailable(RuntimeError):
     """The optional local service is disabled or unavailable."""
 
 
 @dataclass(frozen=True)
-class LocalQwenHealth:
+class LocalLLMHealth:
     enabled: bool
     available: bool
     provider: str
@@ -85,40 +85,44 @@ def parse_json_object(text: str) -> dict[str, Any]:
     return parsed
 
 
-class LocalQwenClient:
+class LocalLLMClient:
     """Local-only Ollama chat client. It never includes an API key in requests."""
 
-    def __init__(self, settings: LocalQwenSettings | None = None, http_post=requests.post, http_get=requests.get) -> None:
-        self.settings = settings or LocalQwenSettings.from_environment()
+    def __init__(self, settings: LocalLLMSettings | None = None, http_post=requests.post, http_get=requests.get) -> None:
+        self.settings = settings or LocalLLMSettings.from_environment()
         self._http_post = http_post
         self._http_get = http_get
 
     def available(self) -> bool:
         return self.health_check().available
 
-    def health_check(self) -> LocalQwenHealth:
+    def health_check(self) -> LocalLLMHealth:
         """Check only local Ollama availability and model presence; no inference."""
         if not self.settings.enabled:
-            return LocalQwenHealth(False, False, self.settings.provider, self.settings.model, self.settings.base_url, "本地语义模型未启用")
+            return LocalLLMHealth(False, False, self.settings.provider, self.settings.model, self.settings.base_url, "本地语义模型未启用")
+        if not self.settings.model:
+            return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "尚未配置本地模型")
         if not self.settings.is_local_ollama():
-            return LocalQwenHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "本地语义模型地址不是受允许的环回 Ollama 地址")
+            return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "本地语义模型地址不是受允许的环回 Ollama 地址")
         try:
             response = self._http_get(f"{self.settings.base_url}/api/tags", timeout=min(3, self.settings.timeout_seconds))
             if not response.ok:
-                return LocalQwenHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "无法连接本地 Ollama")
+                return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "无法连接本地 Ollama")
             models = response.json().get("models", [])
             model_names = {str(item.get("name", "")) for item in models if isinstance(item, dict)}
             if self.settings.model not in model_names:
-                return LocalQwenHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "本地未安装指定 Qwen 模型")
-            return LocalQwenHealth(True, True, self.settings.provider, self.settings.model, self.settings.base_url)
+                return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "本地未安装指定模型")
+            return LocalLLMHealth(True, True, self.settings.provider, self.settings.model, self.settings.base_url)
         except (requests.RequestException, ValueError, KeyError):
-            return LocalQwenHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "无法连接本地 Ollama")
+            return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "无法连接本地 Ollama")
 
     def generate_structured(self, *, task: str, system_prompt: str, user_prompt: str, document_id: str, page: int) -> dict[str, Any]:
         if not self.settings.enabled:
-            raise LocalQwenUnavailable("本地语义模型未启用")
+            raise LocalLLMUnavailable("本地语义模型未启用")
+        if not self.settings.model:
+            raise LocalLLMUnavailable("尚未配置本地模型")
         if not self.settings.is_local_ollama():
-            raise LocalQwenUnavailable("本地语义模型地址不是受允许的环回 Ollama 地址")
+            raise LocalLLMUnavailable("本地语义模型地址不是受允许的环回 Ollama 地址")
         if len(user_prompt) > self.settings.max_input_chars:
             user_prompt = user_prompt[:self.settings.max_input_chars]
         payload = {
@@ -134,8 +138,8 @@ class LocalQwenClient:
             response.raise_for_status()
             content = str(response.json()["message"]["content"])
             parsed = parse_json_object(content)
-            logger.info("local_llm_completed provider=qwen task=%s document_id=%s page=%s input_chars=%s latency_ms=%s success=true", task, document_id, page, len(user_prompt), round((time.perf_counter() - started) * 1000))
+            logger.info("local_llm_completed provider=local_llm task=%s document_id=%s page=%s input_chars=%s latency_ms=%s success=true", task, document_id, page, len(user_prompt), round((time.perf_counter() - started) * 1000))
             return parsed
         except (requests.RequestException, KeyError, ValueError, json.JSONDecodeError) as error:
-            logger.warning("local_llm_failed provider=qwen task=%s document_id=%s page=%s input_chars=%s error_type=%s", task, document_id, page, len(user_prompt), type(error).__name__)
-            raise LocalQwenUnavailable("本地语义模型当前不可用或未返回有效 JSON") from error
+            logger.warning("local_llm_failed provider=local_llm task=%s document_id=%s page=%s input_chars=%s error_type=%s", task, document_id, page, len(user_prompt), type(error).__name__)
+            raise LocalLLMUnavailable("本地语义模型当前不可用或未返回有效 JSON") from error

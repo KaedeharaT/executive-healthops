@@ -1,7 +1,7 @@
 """Read-only Streamlit navigation profiler for the current local database.
 
 It reports route timings and SQL counts without printing member, report, or
-measurement content.  It does not invoke Qwen, report parsing, risk evaluation,
+measurement content.  It does not invoke LLM, report parsing, risk evaluation,
 device sync, seed routines, or database migrations.
 """
 
@@ -94,7 +94,7 @@ def main() -> None:
         _render_route(test, workspace)
     if test.exception:
         raise SystemExit("Streamlit exception encountered during profile")
-    print("[PERF] side_effects qwen=0 ollama=0 risk_engine=0 report_parser=0 device_sync=0 seed=0")
+    print("[PERF] side_effects local_llm=0 ollama=0 risk_engine=0 report_parser=0 device_sync=0 seed=0")
 
 
 if __name__ == "__main__":

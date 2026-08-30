@@ -80,12 +80,12 @@ def test_ios_source_uses_authorization_anchored_sync_observers_and_truthful_copy
     assert "全部权限" in (IOS / "ContentView.swift").read_text(encoding="utf-8")
 
 
-def test_ios_bridge_token_is_local_configuration_not_source_and_sync_does_not_call_qwen() -> None:
+def test_ios_bridge_token_is_local_configuration_not_source_and_sync_does_not_call_local_llm() -> None:
     config = (IOS / "BridgeConfiguration.swift").read_text(encoding="utf-8")
     ignored = (ROOT / ".gitignore").read_text(encoding="utf-8")
     sync = (IOS / "HealthSyncService.swift").read_text(encoding="utf-8")
     assert "HEALTHOPS_BRIDGE_TOKEN" in config and "BridgeSecrets.xcconfig" in ignored
-    assert "qwen" not in sync.lower() and "llm" not in sync.lower()
+    assert "local_llm" not in sync.lower() and "llm" not in sync.lower()
     assert "真实设备验证" not in APP
     assert "真机验证：" in APP and "已收到桥接同步" in APP
 

@@ -4,6 +4,6 @@ Importing this package never contacts or loads a model.
 """
 """Optional, local-only language model helpers."""
 
-from executive_health_ai.llm.qwen_client import LocalQwenClient, LocalQwenHealth, LocalQwenSettings, LocalQwenUnavailable
+from executive_health_ai.llm.local_llm_client import LocalLLMClient, LocalLLMHealth, LocalLLMSettings, LocalLLMUnavailable
 
-__all__ = ["LocalQwenClient", "LocalQwenHealth", "LocalQwenSettings", "LocalQwenUnavailable"]
+__all__ = ["LocalLLMClient", "LocalLLMHealth", "LocalLLMSettings", "LocalLLMUnavailable"]

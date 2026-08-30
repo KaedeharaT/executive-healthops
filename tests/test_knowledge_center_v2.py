@@ -90,7 +90,7 @@ def test_review_audit_and_ai_usage_record_actual_chunk_ids() -> None:
             output_reference="output-001",
             chunks=[chunks[0]],
             feature="member_health_explanation",
-            model="local-qwen",
+            model="local LLM",
             request_context_hash="safe-context-hash",
         )
         session.commit()
@@ -98,7 +98,7 @@ def test_review_audit_and_ai_usage_record_actual_chunk_ids() -> None:
         assert records[0].chunk_ids == [str(chunks[0].id)]
         assert records[0].feature == "member_health_explanation"
         assert session.scalar(select(KnowledgeReviewAudit).where(KnowledgeReviewAudit.knowledge_document_id == document.id)).new_status == "APPROVED"
-        assert session.scalar(select(KnowledgeUseRecord).where(KnowledgeUseRecord.knowledge_document_id == document.id)).model == "local-qwen"
+        assert session.scalar(select(KnowledgeUseRecord).where(KnowledgeUseRecord.knowledge_document_id == document.id)).model == "local LLM"
 
 
 def test_unapproved_document_cannot_be_recorded_as_formal_ai_evidence() -> None:

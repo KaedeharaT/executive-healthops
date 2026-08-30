@@ -86,7 +86,7 @@ def test_closed_yellow_rejects_more_actions_and_no_llm_is_involved() -> None:
         except ValueError:
             pass
     import executive_health_ai.services.risk_operations as module
-    assert "qwen" not in module.__file__.lower()
+    assert "local_llm" not in module.__file__.lower()
 
 
 def test_synthetic_report_confirmation_reaches_yellow_then_doctor_review() -> None:

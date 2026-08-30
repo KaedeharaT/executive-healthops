@@ -68,7 +68,7 @@ def test_more_is_configuration_only_and_navigation_has_no_engine_side_effects() 
     more = _source("render_more_workspace", "def render_collaboration_workspace")
     main = _source("main", 'if __name__ == "__main__"')
     assert "数据接入与设备" in more and "风险规则" in more and "知识库" in more
-    assert all(token not in main for token in ("RiskEvaluationService", "ReportParsingService", "ingest(", "LocalQwen"))
+    assert all(token not in main for token in ("RiskEvaluationService", "ReportParsingService", "ingest(", "LocalLLM"))
 
 
 def test_report_and_timeline_keep_evidence_as_a_deeper_layer() -> None:

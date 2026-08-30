@@ -62,7 +62,7 @@ def test_devices_use_daily_and_medical_categories_with_plain_statuses() -> None:
 
 def test_member_center_excludes_internal_technical_records() -> None:
     source = _source("render_member_client_view", "def render_global_doctor_workspace")
-    for technical_term in ("AuditLog", "RiskRule", "Qwen", "metadata_json"):
+    for technical_term in ("AuditLog", "RiskRule", "LLM", "metadata_json"):
         assert technical_term not in source
 
 

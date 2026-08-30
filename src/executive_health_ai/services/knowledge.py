@@ -355,7 +355,7 @@ class KnowledgeService:
     ) -> list[KnowledgeUseRecord]:
         """Record only documents actually passed to an AI call after approval checks.
 
-        This service does not call Qwen.  A future caller must explicitly pass
+        This service does not call LLM.  A future caller must explicitly pass
         the exact approved documents used for one output.
         """
         chunk_list = list(chunks)

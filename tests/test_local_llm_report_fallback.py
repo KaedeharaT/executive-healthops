@@ -1,4 +1,4 @@
-"""No-network tests for the optional, evidence-bound local Qwen fallback."""
+"""No-network tests for the optional, evidence-bound local LLM fallback."""
 
 from __future__ import annotations
 
@@ -7,14 +7,14 @@ from uuid import uuid4
 import pytest
 
 from executive_health_ai import config
-from executive_health_ai.llm.qwen_client import LocalQwenClient, LocalQwenHealth, LocalQwenSettings, LocalQwenUnavailable, parse_json_object, sanitize_for_llm
+from executive_health_ai.llm.local_llm_client import LocalLLMClient, LocalLLMHealth, LocalLLMSettings, LocalLLMUnavailable, parse_json_object, sanitize_for_llm
 from executive_health_ai.services.report_parsing import CandidateDraft, ExtractedPage, ReportParsingService, ReportSemanticFallback
 
 
 class _Response:
     ok = True
     def raise_for_status(self) -> None: pass
-    def json(self): return {"models": [{"name": "qwen2.5:7b"}], "message": {"content": '{"exam_name":"胸部CT","findings":[{"summary":"左肺小结节","body_system":"肺","reported_change":"小结节","reported_severity":"","evidence":"左肺见小结节"}],"recommendations":[]}'}}
+    def json(self): return {"models": [{"name": "local open-source LLM"}], "message": {"content": '{"exam_name":"胸部CT","findings":[{"summary":"左肺小结节","body_system":"肺","reported_change":"小结节","reported_severity":"","evidence":"左肺见小结节"}],"recommendations":[]}'}}
 
 
 def _post(*_args, **_kwargs): return _Response()
@@ -23,26 +23,26 @@ def _post(*_args, **_kwargs): return _Response()
 def _get(*_args, **_kwargs): return _Response()
 
 
-def test_qwen_client_uses_local_ollama_contract_without_api_key() -> None:
-    settings = LocalQwenSettings(True, "qwen", "http://127.0.0.1:11434", "qwen2.5:7b", 3, 3000)
+def test_local_llm_client_uses_local_ollama_contract_without_api_key() -> None:
+    settings = LocalLLMSettings(True, "local_llm", "http://127.0.0.1:11434", "local open-source LLM", 3, 3000)
     get_urls: list[str] = []
 
     def tracking_get(url: str, **kwargs):
         get_urls.append(url)
         return _get(url, **kwargs)
 
-    client = LocalQwenClient(settings, http_post=_post, http_get=tracking_get)
+    client = LocalLLMClient(settings, http_post=_post, http_get=tracking_get)
     assert client.available()
     assert get_urls == ["http://127.0.0.1:11434/api/tags"]
     result = client.generate_structured(task="report_semantic_fallback", system_prompt="system", user_prompt="左肺见小结节", document_id="synthetic-doc", page=2)
     assert result["exam_name"] == "胸部CT"
 
 
-def test_qwen_client_refuses_non_loopback_endpoint_without_making_a_request() -> None:
-    settings = LocalQwenSettings(True, "qwen", "https://example.invalid", "qwen2.5:7b", 3, 3000)
-    client = LocalQwenClient(settings, http_post=lambda *_args, **_kwargs: pytest.fail("不应访问外部地址"), http_get=lambda *_args, **_kwargs: pytest.fail("不应访问外部地址"))
+def test_local_llm_client_refuses_non_loopback_endpoint_without_making_a_request() -> None:
+    settings = LocalLLMSettings(True, "local_llm", "https://example.invalid", "local open-source LLM", 3, 3000)
+    client = LocalLLMClient(settings, http_post=lambda *_args, **_kwargs: pytest.fail("不应访问外部地址"), http_get=lambda *_args, **_kwargs: pytest.fail("不应访问外部地址"))
     assert client.available() is False
-    with pytest.raises(LocalQwenUnavailable):
+    with pytest.raises(LocalLLMUnavailable):
         client.generate_structured(task="report_semantic_fallback", system_prompt="system", user_prompt="合成文本", document_id="synthetic-doc", page=1)
 
 
@@ -54,21 +54,21 @@ def test_sanitizer_and_json_parser_do_not_keep_common_direct_identifiers() -> No
 
 
 def test_project_env_loader_uses_root_file_and_preserves_explicit_values(tmp_path, monkeypatch) -> None:
-    (tmp_path / ".env").write_text("LOCAL_LLM_ENABLED=true\nLOCAL_LLM_PROVIDER=qwen\nLOCAL_LLM_MODEL=qwen2.5:7b\nOLLAMA_BASE_URL=http://127.0.0.1:11434\nALLOW_EXTERNAL_PHI_LLM=false\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("LOCAL_LLM_ENABLED=true\nLOCAL_LLM_PROVIDER=local_llm\nLOCAL_LLM_MODEL=local open-source LLM\nOLLAMA_BASE_URL=http://127.0.0.1:11434\nALLOW_EXTERNAL_PHI_LLM=false\n", encoding="utf-8")
     monkeypatch.setattr(config, "PROJECT_ROOT", tmp_path)
     for name in ("LOCAL_LLM_ENABLED", "LOCAL_LLM_PROVIDER", "LOCAL_LLM_MODEL", "OLLAMA_BASE_URL", "ALLOW_EXTERNAL_PHI_LLM"):
         monkeypatch.delenv(name, raising=False)
     config.load_project_environment()
-    settings = LocalQwenSettings.from_environment()
-    assert settings.enabled and settings.provider == "qwen" and settings.model == "qwen2.5:7b"
+    settings = LocalLLMSettings.from_environment()
+    assert settings.enabled and settings.provider == "local_llm" and settings.model == "local open-source LLM"
     monkeypatch.setenv("LOCAL_LLM_MODEL", "explicit-model")
     config.load_project_environment()
-    assert LocalQwenSettings.from_environment().model == "explicit-model"
+    assert LocalLLMSettings.from_environment().model == "explicit-model"
 
 
 class _FallbackClient:
     def available(self) -> bool: return True
-    def health_check(self): return LocalQwenHealth(True, True, "qwen", "qwen2.5:7b", "http://127.0.0.1:11434")
+    def health_check(self): return LocalLLMHealth(True, True, "local_llm", "local open-source LLM", "http://127.0.0.1:11434")
     def generate_structured(self, **_kwargs):
         return {"exam_name": "胸部CT", "findings": [{"summary": "左肺小结节", "body_system": "肺", "reported_change": "小结节", "reported_severity": "", "evidence": "左肺见小结节"}, {"summary": "无证据内容", "evidence": "报告中不存在"}], "recommendations": [{"action": "建议复查", "department": "", "interval_text": "", "evidence": "建议一年后复查"}], "uncertainties": []}
 
@@ -83,7 +83,7 @@ def test_semantic_fallback_accepts_only_evidence_backed_candidates() -> None:
 
 
 class _UnavailableFallbackClient:
-    def health_check(self): return LocalQwenHealth(True, False, "qwen", "qwen2.5:7b", "http://127.0.0.1:11434", "无法连接本地 Ollama")
+    def health_check(self): return LocalLLMHealth(True, False, "local_llm", "local open-source LLM", "http://127.0.0.1:11434", "无法连接本地 Ollama")
 
 
 def test_semantic_fallback_distinguishes_not_needed_and_unavailable() -> None:
@@ -95,7 +95,7 @@ def test_semantic_fallback_distinguishes_not_needed_and_unavailable() -> None:
 
 class _MixedNarrativeClient:
     def __init__(self) -> None: self.calls: list[str] = []
-    def health_check(self): return LocalQwenHealth(True, True, "qwen", "qwen2.5:7b", "http://127.0.0.1:11434")
+    def health_check(self): return LocalLLMHealth(True, True, "local_llm", "local open-source LLM", "http://127.0.0.1:11434")
     def generate_structured(self, *, user_prompt: str, **_kwargs):
         self.calls.append(user_prompt)
         if "腹部彩超" in user_prompt:
@@ -107,7 +107,7 @@ class _MixedNarrativeClient:
         return {"exam_name": "胸部CT", "findings": [{"summary": "双肺多发小结节", "evidence": "双肺可见多个小结节"}], "recommendations": []}
 
 
-def test_mixed_report_uses_qwen_for_complex_narratives_but_not_structured_metrics() -> None:
+def test_mixed_report_uses_local_llm_for_complex_narratives_but_not_structured_metrics() -> None:
     client = _MixedNarrativeClient()
     pages = [
         ExtractedPage(1, "HbA1c 6.3 %\nLDL-C 4.15 mmol/L"),
@@ -123,14 +123,14 @@ def test_mixed_report_uses_qwen_for_complex_narratives_but_not_structured_metric
     assert {"FINDING", "FOLLOWUP"}.issubset({draft.candidate_type for draft in result.drafts})
 
 
-def test_named_section_is_sent_to_qwen_once_and_exact_rule_duplicate_prefers_llm() -> None:
+def test_named_section_is_sent_to_local_llm_once_and_exact_rule_duplicate_prefers_llm() -> None:
     client = _MixedNarrativeClient()
     result = ReportSemanticFallback(client=client).extract(pages=[
         ExtractedPage(1, "胸部CT检查结论：双肺可见多个小结节。建议结合既往检查持续观察。"),
         ExtractedPage(2, "胸部CT补充描述：双肺可见多个小结节。建议结合既往检查持续观察。"),
     ], existing=[], document_id=uuid4())
     rule = CandidateDraft("FINDING", None, None, None, None, None, None, None, "双肺结节", {}, "MEDIUM", "RULE", 1, "IMAGING", "双肺可见多个小结节")
-    qwen = CandidateDraft("FINDING", None, None, None, None, None, None, None, "双肺多发小结节", {}, "MEDIUM", "LLM", 1, "IMAGING", "双肺可见多个小结节")
-    merged = ReportParsingService._deduplicate_combined_candidates([rule, qwen])
+    local_llm = CandidateDraft("FINDING", None, None, None, None, None, None, None, "双肺多发小结节", {}, "MEDIUM", "LLM", 1, "IMAGING", "双肺可见多个小结节")
+    merged = ReportParsingService._deduplicate_combined_candidates([rule, local_llm])
     assert result.call_count == 1 and len(client.calls) == 1
-    assert merged == [qwen]
+    assert merged == [local_llm]

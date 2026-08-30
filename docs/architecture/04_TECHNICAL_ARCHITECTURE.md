@@ -13,7 +13,7 @@ flowchart TB
   migration[Alembic migrations 0001–0018\n✅]
   files[本地报告文件 / storage_reference\n🟡]
   adapters[Provider adapters\nApple Health、mock Yuwell/Oura/CGM、JSON/CSV/Excel\n🟡 / 🧪]
-  ollama[Ollama :11434\nQwen2.5:7b\n🟡 可选本机服务]
+  ollama[Ollama :11434\nlocal open-source LLM\n🟡 可选本机服务]
 
   browser --> streamlit
   browser --> api
@@ -51,7 +51,7 @@ flowchart TB
 | migrations | `alembic/versions/0001_*.py` 至 `0018_*.py`。 |
 | ingestion / adapters | `src/executive_health_ai/integrations/service.py`、`adapters.py`、`apple_health.py`。 |
 | report | `src/executive_health_ai/services/report_parsing.py`、`models/report_parsing.py`。 |
-| local Qwen | `src/executive_health_ai/llm/qwen_client.py`。 |
+| local LLM | `src/executive_health_ai/llm/local_llm_client.py`。 |
 | risk | `src/executive_health_ai/services/risk_triage.py`、`risk_operations.py`、`models/risk.py`。 |
 | timeline | `src/executive_health_ai/services/longitudinal.py`，旧版为 `services/timeline.py`。 |
 | service operations | `src/executive_health_ai/services/member_services.py`、`models/member_service.py`。 |
@@ -150,11 +150,11 @@ flowchart TB
   db[(本地 SQLite\n❌ 未见应用层 at-rest encryption)]
   files[本地报告文件\n❌ 未见受管对象存储或加密策略]
   logs[AuditLog append-only\n✅ 业务审计；❌ 非完整安全审计/SIEM]
-  qwen[本地 Ollama Qwen\n🟡 常见直接标识清理；非完整脱敏]
+  local_llm[本地 Ollama open-source LLM\n🟡 常见直接标识清理；非完整脱敏]
 
   memberphi --> browser --> api --> db
   memberphi --> files
-  files --> qwen
+  files --> local_llm
   api --> logs
 ```
 

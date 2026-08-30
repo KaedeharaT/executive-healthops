@@ -50,7 +50,7 @@ PDF / 图片 / Excel / CSV / DOCX / TXT
 
 ## 隐私与 LLM
 
-本模块遵循本地优先。默认 `ALLOW_EXTERNAL_PHI_LLM=false`。可选语义兜底仅支持本机 Ollama 的 Qwen，并且默认关闭；它只处理 Generic Parser 未可靠处理的影像、肺功能和随访自然语言片段。请求在发送前去除常见直接身份标识，限制为单页/单段，必须结构化输出页码、原文证据和置信度；不得发送完整报告或默认发送姓名、档案号、电话、身份证等信息。
+本模块遵循本地优先。默认 `ALLOW_EXTERNAL_PHI_LLM=false`。可选语义兜底仅支持本机 Ollama 的 open-source LLM，并且默认关闭；它只处理 Generic Parser 未可靠处理的影像、肺功能和随访自然语言片段。请求在发送前去除常见直接身份标识，限制为单页/单段，必须结构化输出页码、原文证据和置信度；不得发送完整报告或默认发送姓名、档案号、电话、身份证等信息。
 
 真实报告仅允许本地验收：可通过 `HEALTH_REPORT_ACCEPTANCE_PATH` 由人工在本机选择，不应复制到项目、fixture、日志或 Git。应用日志仅应记录 document/run ID、页数、候选计数、耗时和错误类型。
 

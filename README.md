@@ -24,7 +24,7 @@ Executive HealthOps turns those inputs into a continuous workflow: members see t
 ## Key capabilities
 
 - 多格式体检报告结构化与人工确认
-- Local Qwen / Ollama 语义辅助（非诊断、非处方）
+- 本地开源大模型 / Ollama 语义辅助（非诊断、非处方）
 - Evidence Traceability：结果 → 文件 / 页码 / 表格 / 原始片段
 - Canonical Health Data 与连续健康数据趋势
 - Deterministic Risk Engine 与 TEST / CLINICAL 治理边界
@@ -38,7 +38,7 @@ Executive HealthOps turns those inputs into a continuous workflow: members see t
 
 ```mermaid
 flowchart LR
-    A[匿名化体检报告] --> B[规则解析 + Local Qwen 语义辅助]
+    A[匿名化体检报告] --> B[规则解析 + 本地开源大模型语义辅助]
     B --> C[主要发现与查看依据]
     C --> D[人工确认与健康基线]
     D --> E[确定性演示风险分流]
@@ -90,10 +90,6 @@ flowchart TB
 
 详细的当前代码架构与边界见 [architecture docs](docs/architecture/README.md)。
 
-## Screenshots and Walkthrough
-
-当前环境没有可靠的浏览器截图/录屏能力，因此没有生成或伪造 PNG、视频。请按 [截图清单](docs/PORTFOLIO_SCREENSHOT_CHECKLIST.md) 生成 10 张匿名化截图；可按 [中文视频脚本](portfolio/DEMO_VIDEO_SCRIPT_ZH.md) 使用 OBS 或 Windows 录屏完成约 3 分钟演示。
-
 ## Engineering
 
 | Layer | Technology |
@@ -102,7 +98,7 @@ flowchart TB
 | API | FastAPI |
 | Persistence | SQLAlchemy, Alembic, SQLite demo database |
 | Data | Canonical observations, raw-ingestion provenance, report candidates |
-| AI | Local Ollama / Qwen (optional semantic assistance) |
+| AI | Local open-source LLM through Ollama (optional semantic assistance) |
 | Validation | pytest regression suite |
 
 ## Safety Boundaries

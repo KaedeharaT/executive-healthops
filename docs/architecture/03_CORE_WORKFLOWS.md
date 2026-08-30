@@ -38,10 +38,10 @@ flowchart TB
   upload[成员/运营端上传 PDF、DOCX、XLSX、CSV\n✅] --> doc[Document + 本地文件引用\n✅]
   doc --> run[ReportExtractionRun\n✅]
   run --> preflight[预检、文本/表格规则解析\n✅]
-  preflight --> complex{复杂文本且本地 Qwen 可用？}
-  complex -- 是 --> qwen[Local Qwen semantic fallback\n🟡 可选]
+  preflight --> complex{复杂文本且本地开源大模型 可用？}
+  complex -- 是 --> local_llm[local LLM semantic fallback\n🟡 可选]
   complex -- 否/不可用 --> candidate[ReportExtractionCandidate\n✅]
-  qwen --> candidate
+  local_llm --> candidate
   candidate --> evidence[Evidence\n文件、页码/Sheet、原文或表格文本\n🟡 图片区域取决于来源]
   evidence --> human{健康管理师人工确认？}
   human -- 修正/拒绝 --> candidate

@@ -46,7 +46,7 @@ def test_member_home_is_personal_and_limits_today_to_six_health_tiles() -> None:
     for label in ("深度睡眠", "步数", "活动消耗", "血压", "血糖"):
         assert label in home
     assert "work_item_card(" not in home
-    assert all(token not in home for token in ("Qwen", "Parser", "AuditLog", "RiskRule"))
+    assert all(token not in home for token in ("LLM", "Parser", "AuditLog", "RiskRule"))
 
 
 def test_report_is_result_first_and_parser_controls_are_in_advanced_details() -> None:
@@ -97,6 +97,6 @@ def test_risk_colours_are_reserved_for_formal_risk_labels() -> None:
     assert "workflow status remains neutral" in helpers
 
 
-def test_navigation_stays_free_of_qwen_and_parser_side_effects() -> None:
+def test_navigation_stays_free_of_local_llm_and_parser_side_effects() -> None:
     main = _source("main", 'if __name__ == "__main__"')
-    assert all(token not in main for token in ("ReportParsingService", "LocalQwen", "RiskEvaluationService", "ingest("))
+    assert all(token not in main for token in ("ReportParsingService", "LocalLLM", "RiskEvaluationService", "ingest("))

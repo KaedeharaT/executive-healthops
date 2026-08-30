@@ -2,7 +2,7 @@
 param()
 
 $ErrorActionPreference = "Stop"
-$ProjectRoot = "D:\executive_health_ai"
+$ProjectRoot = Split-Path -Parent $PSScriptRoot
 $Python = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 $StreamlitApp = Join-Path $ProjectRoot "streamlit_app.py"
 $SourceRoot = Join-Path $ProjectRoot "src"
@@ -99,14 +99,15 @@ try {
     }
     if ($ollamaReady) { Write-Status "OK" "Ollama" } else { Write-Status "WARN" "Ollama unavailable; rule-based parsing remains available." }
 
-    $qwenReady = $false
-    if ($ollamaReady) {
+    $local_llmReady = $false
+    $configuredModel = $env:LOCAL_LLM_MODEL
+    if ($ollamaReady -and -not [string]::IsNullOrWhiteSpace($configuredModel)) {
         try {
             $tags = Invoke-RestMethod -Uri "http://127.0.0.1:11434/api/tags" -TimeoutSec 3
-            $qwenReady = $null -ne @($tags.models | Where-Object { $_.name -eq "qwen2.5:7b" })[0]
-        } catch { $qwenReady = $false }
+            $local_llmReady = $null -ne @($tags.models | Where-Object { $_.name -eq $configuredModel })[0]
+        } catch { $local_llmReady = $false }
     }
-    if ($qwenReady) { Write-Status "OK" "Qwen 2.5 7B" } else { Write-Status "WARN" "qwen2.5:7b not found; rule-based parsing remains available." }
+    if ($local_llmReady) { Write-Status "OK" "local LLM ready" } else { Write-Status "WARN" "local LLM not configured or unavailable; rule-based parsing remains available." }
 
     & $Python -m alembic upgrade head
     if ($LASTEXITCODE -ne 0) { throw "Database upgrade failed." }

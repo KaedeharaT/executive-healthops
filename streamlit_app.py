@@ -766,7 +766,7 @@ def render_evidence_panel(evidence: dict[str, object], *, key_scope: str, client
     """Render one Chinese evidence panel from persisted references and snippets.
 
     This intentionally does not read document bytes until the user expands the
-    panel and requests the complete file.  Qwen/parser metadata is neither
+    panel and requests the complete file.  LLM/parser metadata is neither
     presented as medical evidence nor shown in the client surface.
     """
     with st.container(border=True):
@@ -3155,7 +3155,7 @@ def render_more_workspace() -> None:
         st.subheader("系统信息")
         st.info("当前为合成演示环境。系统保留完整审计、原始数据与医疗协同记录；这些技术信息默认不干扰日常工作。")
         st.markdown("#### 数据在哪里处理？")
-        st.write("本地Qwen：本机处理；健康平台：当前本地/私有服务处理；设备云：取决于未来 Provider 的连接方式。")
+        st.write("本地开源大模型：本机处理；健康平台：当前本地/私有服务处理；设备云：取决于未来 Provider 的连接方式。")
         st.caption("长期建议采用混合架构：本地/边缘处理提升隐私与响应，云端便于统一维护和跨设备同步。设备云连接会带来网络、合规和厂商依赖边界。")
 
 
@@ -3248,7 +3248,7 @@ def _report_candidate_method(candidate: ReportExtractionCandidate) -> str:
 
 
 def _report_model_name(model: str | None) -> str:
-    return "Qwen 2.5 7B" if model == "qwen2.5:7b" else (model or "本地Qwen")
+    return "local LLM" if model == "local LLM" else (model or "本地开源大模型")
 
 
 def _report_parse_mode(run: ReportExtractionRun, candidates: list[ReportExtractionCandidate]) -> str:
@@ -3292,7 +3292,7 @@ def _render_report_parse_method(run: ReportExtractionRun, candidates: list[Repor
         st.caption("原因：本地语义模型未启用；规则解析与人工确认仍可正常使用。")
     else:
         st.warning("本地AI辅助：当前不可用")
-        st.caption(f"原因：{run.llm_failure_reason or '本地 Qwen 当前不可用'}。规则解析与人工确认仍可正常使用。")
+        st.caption(f"原因：{run.llm_failure_reason or '本地开源大模型 当前不可用'}。规则解析与人工确认仍可正常使用。")
     st.caption(f"解析时间：{_fmt_dt(run.completed_at or run.created_at)}")
     with st.expander("解析详情"):
         st.write(f"解析器版本：{run.parser_version}")
@@ -3328,7 +3328,7 @@ def _run_report_parse_with_progress(parse_action):
                 completed_lines.append(f"✓ 规则解析完成 · {event.rule_candidate_count or 0} 项结构化指标")
             elif event.stage == "LLM_STARTED":
                 current.markdown("**本地AI辅助解析中**")
-                detail.caption(f"模型：Qwen 2.5 7B · {event.message}")
+                detail.caption(f"模型：local LLM · {event.message}")
             elif event.stage == "LLM_SECTION_STARTED":
                 current.markdown("**本地AI辅助解析中**")
                 completed = max((event.current or 1) - 1, 0)
@@ -3365,7 +3365,7 @@ def _run_report_parse_with_progress(parse_action):
                     f"规则解析：{event.rule_candidate_count or 0} 项",
                 ]
                 if event.llm_call_count:
-                    completion.append(f"本地AI：Qwen 2.5 7B · {event.llm_success_count or 0} / {event.llm_call_count} 次成功")
+                    completion.append(f"本地AI：local LLM · {event.llm_success_count or 0} / {event.llm_call_count} 次成功")
                 completion.extend((
                     f"检查结论：{event.finding_count or 0} 项",
                     f"随访建议：{event.followup_count or 0} 项",
@@ -3502,7 +3502,7 @@ def render_report_review(document_id: UUID) -> None:
                 st.session_state[f"report-reparse-in-progress-{document_id}"] = False
         if len(runs) > 1:
             st.caption("查看历史解析")
-            st.dataframe(pd.DataFrame([{"解析时间": _fmt_dt(old_run.completed_at or old_run.created_at), "解析方式": "混合解析" if old_run.llm_used else "规则解析", "解析器版本": old_run.parser_version, "本地AI辅助": f"Qwen {old_run.llm_call_count} 次" if old_run.llm_used else "未调用", "候选资料": old_run.candidate_count, "状态": "当前" if index == 0 else "历史记录"} for index, old_run in enumerate(runs)]), hide_index=True, width="stretch")
+            st.dataframe(pd.DataFrame([{"解析时间": _fmt_dt(old_run.completed_at or old_run.created_at), "解析方式": "混合解析" if old_run.llm_used else "规则解析", "解析器版本": old_run.parser_version, "本地AI辅助": f"LLM {old_run.llm_call_count} 次" if old_run.llm_used else "未调用", "候选资料": old_run.candidate_count, "状态": "当前" if index == 0 else "历史记录"} for index, old_run in enumerate(runs)]), hide_index=True, width="stretch")
     with st.expander("查看完整文件"):
         path = Path(document.storage_reference)
         if path.is_file():
@@ -4427,7 +4427,7 @@ def render_longitudinal_timeline(patient: Patient, *, key_scope: str = "archive"
         st.warning("趋势图最多同时展示 4 项指标，当前仅显示前 4 项。")
         selected_metric_codes = selected_metric_codes[:6]
     # One viewport projection feeds trend, summary, semantic clusters and the
-    # inspector; changing it never invokes parsing, Qwen or risk evaluation.
+    # inspector; changing it never invokes parsing, LLM or risk evaluation.
     with SessionLocal() as session:
         # HealthTimelineService().get_timeline remains the major-event source;
         # TimelineV4Service adds semantic zoom without copying business data.

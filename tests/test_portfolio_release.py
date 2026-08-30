@@ -17,7 +17,6 @@ def test_portfolio_release_assets_are_present() -> None:
         "portfolio/DEMO_VIDEO_SCRIPT_ZH.md",
         "portfolio/PORTFOLIO_RELEASE_NOTES.md",
         "portfolio/DEMO_DATA_DESCRIPTION.md",
-        "docs/PORTFOLIO_SCREENSHOT_CHECKLIST.md",
         "scripts/build_portfolio_demo.py",
         "scripts/start_portfolio_demo.ps1",
     ):

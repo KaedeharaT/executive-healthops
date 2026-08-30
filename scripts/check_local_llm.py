@@ -1,4 +1,4 @@
-"""Synthetic-only verification for the optional local Qwen report fallback."""
+"""Synthetic-only verification for the optional local LLM report fallback."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import time
 from uuid import uuid4
 
 from executive_health_ai.llm.prompts.health_report import FINDING_EXTRACTION_SYSTEM_PROMPT, finding_extraction_prompt
-from executive_health_ai.llm.qwen_client import LocalQwenClient, LocalQwenUnavailable
+from executive_health_ai.llm.local_llm_client import LocalLLMClient, LocalLLMUnavailable
 from executive_health_ai.services.report_parsing import ExtractedPage, ReportSemanticFallback
 
 
@@ -17,7 +17,7 @@ SYNTHETIC_CT_TEXT = "胸部CT检查结论：左肺下叶见少许条索影。双
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    client = LocalQwenClient()
+    client = LocalLLMClient()
     health = client.health_check()
     print(f"Ollama ............ {'OK' if health.available else 'FAIL'}")
     print(f"Model {health.model} .. {'OK' if health.available else 'FAIL'}")
@@ -30,10 +30,10 @@ def main() -> int:
             task="report_semantic_fallback",
             system_prompt=FINDING_EXTRACTION_SYSTEM_PROMPT,
             user_prompt=finding_extraction_prompt(SYNTHETIC_CT_TEXT),
-            document_id="synthetic-qwen-health-check",
+            document_id="synthetic-local_llm-health-check",
             page=1,
         )
-    except LocalQwenUnavailable as error:
+    except LocalLLMUnavailable as error:
         print("Health client ..... FAIL")
         print(f"Reason ............ {error}")
         return 1

@@ -70,7 +70,7 @@ def test_navigation_profile_script_is_read_only_and_records_real_reruns() -> Non
     source = (APP.parents[0] / "scripts" / "profile_navigation.py").read_text(encoding="utf-8")
     assert "AppTest" in source and "before_cursor_execute" in source
     assert "ReportParsingService" not in source and "RiskEvaluationService" not in source
-    assert "route:" in source and "side_effects qwen=0" in source
+    assert "route:" in source and "side_effects local_llm=0" in source
 
 
 def test_navigation_reuses_imported_session_factory_and_has_opt_in_timing_only() -> None:
@@ -86,8 +86,8 @@ def test_navigation_root_has_no_ai_risk_or_seed_side_effects() -> None:
     source = APP.read_text(encoding="utf-8")
     main_source = _function_source("main", "if __name__")
     more_source = _function_source("render_more_workspace", "def render_collaboration_workspace")
-    assert all(token not in main_source for token in ("seed_", "LocalQwen", "ReportParsingService", "RiskEvaluationService", "ingest("))
-    assert all(token not in more_source for token in ("LocalQwen", "health_check", "ReportParsingService", "RiskEvaluationService"))
+    assert all(token not in main_source for token in ("seed_", "LocalLLM", "ReportParsingService", "RiskEvaluationService", "ingest("))
+    assert all(token not in more_source for token in ("LocalLLM", "health_check", "ReportParsingService", "RiskEvaluationService"))
 
 
 def test_all_sidebar_and_more_pages_render_without_exception() -> None:
