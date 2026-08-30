@@ -6,14 +6,14 @@ does not diagnose, prescribe, alter medication, or make clinical decisions.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from executive_health_ai.models import (
-    AnnualHealthAccount, AuditLog, ExecutionBarrier, HealthJourney, HealthProblem,
+    AnnualHealthAccount, AuditLog, DoctorReview, ExecutionBarrier, HealthJourney, HealthProblem,
     HealthProgram, ManagementPlan, OutcomeEvaluation, ProgramPhase, ServiceEvent,
     Task, WeeklyReview,
 )
@@ -156,6 +156,50 @@ def record_outcome_evaluation(session: Session, program: HealthProgram, metric: 
     session.flush()
     _audit(session, program.patient_id, evaluator, "health_manager", "recorded_outcome_evaluation", outcome, {"result": result, "metric": metric})
     return outcome
+
+
+def apply_outcome_decision(session: Session, outcome: OutcomeEvaluation, decision: str, actor: str, note: str = "") -> Task | DoctorReview | HealthProgram:
+    """Turn an observed outcome into a human-owned next step.
+
+    The decision is operational only.  It neither asserts causality nor
+    generates a diagnosis, prescription, or clinical risk rule.
+    """
+    if decision not in {"CONTINUE", "ADJUST", "STABILIZE", "DOCTOR_REVIEW"}:
+        raise ValueError("Unsupported outcome decision.")
+    program = session.get(HealthProgram, outcome.program_id)
+    if program is None:
+        raise ValueError("关联健康计划不存在")
+    if decision == "CONTINUE":
+        program.next_decision = "下次阶段复盘"
+        task = Task(patient_id=program.patient_id, program_id=program.id, title="安排下一次阶段复盘", instruction=note.strip() or "继续当前非医疗健康管理安排，并在下一复盘时核对趋势。", status="PENDING", priority="MEDIUM", assignee="健康管理师", responsible_role="health_manager", due_at=datetime.now(timezone.utc) + timedelta(days=14), source="outcome_continue")
+        session.add(task); result: Task | DoctorReview | HealthProgram = task
+    elif decision == "ADJUST":
+        program.next_decision = "调整健康管理安排"
+        task = Task(patient_id=program.patient_id, program_id=program.id, title="根据阶段结果调整健康管理", instruction=note.strip() or "根据已观察到的阶段结果，与成员确认下一轮可执行的健康管理安排。", status="PENDING", priority="MEDIUM", assignee="健康管理师", responsible_role="health_manager", due_at=datetime.now(timezone.utc), source="outcome_adjustment")
+        session.add(task); result = task
+    elif decision == "STABILIZE":
+        result = transition_to_stabilization(session, program, actor)
+    else:
+        problem = HealthProblem(patient_id=program.patient_id, program_id=program.id, title="需要医生复核的阶段健康结果", description=f"阶段结果：{outcome.metric} {outcome.baseline_value}{outcome.unit} → {outcome.current_value}{outcome.unit}。{note.strip() or '请医生人工判断是否需要进一步评估。'}", severity="MEDIUM", responsible_role="doctor", owner="内部医生", source="outcome_evaluation")
+        session.add(problem); session.flush()
+        review = DoctorReview(patient_id=program.patient_id, program_id=program.id, health_problem_id=problem.id, doctor_name="待分配医生", department="全科/健康管理", doctor_brief=problem.description, question_for_doctor=note.strip() or "请确认是否需要进一步医学评估或随访安排。", opinion="待医生人工填写", status="PENDING")
+        session.add(review); result = review
+        program.next_decision = "等待医生复核"
+    session.flush()
+    _audit(session, program.patient_id, actor, "health_manager", "recorded_outcome_next_decision", outcome, {"decision": decision, "next_entity": result.__class__.__name__})
+    return result
+
+
+def complete_outcome_doctor_review(session: Session, review: DoctorReview, doctor: str, department: str, opinion: str, follow_up_instruction: str, due_at: datetime | None = None) -> Task:
+    if review.status != "PENDING" or review.risk_event_id is not None:
+        raise ValueError("该医生复核不属于阶段结果处理。")
+    if not doctor.strip() or not opinion.strip() or not follow_up_instruction.strip():
+        raise ValueError("请填写医生意见和后续跟进任务。")
+    review.doctor_name, review.department, review.opinion, review.status, review.reviewed_at = doctor.strip(), department.strip(), opinion.strip(), "CONFIRMED", utc_now()
+    task = Task(patient_id=review.patient_id, program_id=review.program_id, health_problem_id=review.health_problem_id, title="完成医生复核后的阶段跟进", instruction=follow_up_instruction.strip(), status="PENDING", priority="HIGH", assignee="健康管理师", responsible_role="health_manager", due_at=due_at, source="outcome_doctor_followup")
+    session.add(task); session.flush()
+    _audit(session, review.patient_id, doctor, "doctor", "completed_outcome_doctor_review", review, {"task_id": str(task.id)})
+    return task
 
 
 def escalate_to_medical_care(session: Session, program: HealthProgram, actor: str, reason: str) -> None:

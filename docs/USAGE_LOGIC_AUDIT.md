@@ -1,177 +1,100 @@
 # Executive HealthOps Usage Logic Audit
 
-> 审计日期：2026-08-31
-> 范围：当前 Portfolio Demo 的真实 Streamlit 路径、匿名演示数据库与现有流程行为。
-> 边界：本次为 READ / TEST / AUDIT ONLY；未修改业务代码、模型、规则或 UI。
+> Closure updated: 2026-08-31
+> Scope: Portfolio Demo's existing report, risk, plan, doctor, service, timeline and knowledge flows.
 
 ## 1. Overall Verdict
 
-**DEMO LOGIC：PARTIAL**
-**DEMO READY：NO**
+**DEMO LOGIC: STRONG**
+**DEMO READY: YES**
 
-平台已经具备一条可理解的 HealthOps 故事骨架：成员可查看健康、报告、计划、服务和历程；健管可进入今日、成员、医疗协同与服务运营；风险、报告、医生复核、服务和时间轴均有真实对象与页面入口。
+The Portfolio Demo now tells one accountable, human-in-the-loop story for the anonymous **Demo Executive A**:
 
-但当前不是“所有对象都能串成闭环”。最影响 Portfolio 演示可信度的三项是：
+`Report → manager review / baseline → demo yellow risk → manager hand-off → doctor review → manager follow-up → plan and outcome decision → service → timeline → approved medical reference.`
 
-1. `今日` 工作台的风险状态统计与实际工作项状态不一致，演示中的红/黄风险可能不被正确计数；已接手的黄风险还可能从队列消失。
-2. 成员的“接受 / 希望调整 / 暂缓 / 讨论”计划选择只留下记录，未可靠进入健管待办，属于用户操作后的业务死胡同。
-3. `更多 → 知识库` 在当前真实 Demo 路径触发 `StreamlitDuplicateElementKey`，医学知识中心无法作为完整演示的一环。
+The closure work did not add Clinical RiskRules, change medical thresholds, let AI determine risk, or create automated emergency action.
 
-### 审计方法与证据
+## 2. Closed Loops
 
-- 以 `data/portfolio_demo.db` 的匿名 Portfolio 数据执行只读检查：1 名 `Demo Executive A`、1 份报告、1 份健康基线、2 个未关闭风险、1 条已确认医生复核、2 个已完成任务、1 条服务申请、4 条阶段结果，以及 3 条知识资料（其中 2 条已批准、1 条待审核）。
-- 使用 Streamlit `AppTest` 从真实入口操作以下路径，不直接把 service 单元测试当作 UI 通过：
-  - 成员：落地页 → 首页 → 健康概览 / 健康数据 / 体检 / 医疗档案 → 历程 → 计划 → 服务。
-  - 健管：今日 → 成员 → 概览 / 管理 / 健康 / 医疗 / 历程 → 医疗协同（内部医生、外部医疗）→ 服务运营 → 更多。
-- Streamlit 与 FastAPI 的现有本地服务在审计时均返回 HTTP 200。当前环境没有可用的交互浏览器，因此不把截图检查误报为已完成。
+| Loop | Status | Closure now visible in the product |
+|---|---|---|
+| Report | COMPLETE | Member-facing received/processing/review/baseline-complete status; manager review and baseline route are explicit. |
+| Risk | COMPLETE | Active yellow risks remain in one work item through waiting-member, waiting-doctor and follow-up states; only explicit closure removes them from active work. |
+| Plan | COMPLETE | Member accept/adjust/pause changes plan state or creates a manager-owned next action. |
+| Doctor | COMPLETE | A demo pending review is present; the doctor sees context and evidence, then completion returns one manager follow-up rather than duplicate work. |
+| Service | COMPLETE | Request → approval → schedule → in service → result → completed is visible to both member and operator; completion remains traceable in the timeline. |
+| Timeline | COMPLETE | The existing longitudinal timeline aggregates the major report, risk, plan-choice, service and outcome decisions with an Inspector. |
+| Knowledge | COMPLETE | The knowledge Inspector key is stable; report / doctor contexts can retrieve approved, non-archived references without changing risk or medical decisions. |
+| Medical / External | PARTIAL | Records and referrals remain traceable. Full external appointment and feedback operations are deliberately outside the five-minute Portfolio story. |
 
-## 2. Member Journey
+## 3. Closure Outcomes
 
-### 首次进入与资料建立：PARTIAL
+### Member journey
 
-**已具备**：Portfolio 落地页清楚区分“进入成员健康中心”和“进入 HealthOps 运营后台”；成员首页提供上传体检报告、查看健康数据、申请服务、查看计划与个人设置入口。健康页在无报告、无基线或无设备数据时能够显示基本空状态和入口。
+- A report has clear human language progress: received, being organized, waiting for review, health record being established, or review complete.
+- An existing baseline is not presented as a new baseline action; baseline work opens the actual baseline view.
+- Plan choices are no longer button-only history. They update the plan and/or create an accountable next action.
+- Health-data cards distinguish recent, ageing, stale and absent data. No data is not presented as normal or green.
+- Member service requests show their current stage, scheduled time, next action and completion result.
 
-**使用缺口**：首次成员没有一个连续的“先补什么、由谁确认、何时完成”的 onboarding。上传报告后系统可以创建健管审核任务，但成员端缺少可见、连续的“已收到 → 正在整理 → 等待健管核对 → 已完成”的进度与预计下一步；也未在首页明确展示服务团队、资料缺口和下一次人工跟进。
+### Health Manager journey
 
-### 日常首页：PARTIAL
+- `Today` uses one operational worklist contract across risks, report review tasks, doctor work, program/plan actions and service requests.
+- Each active item presents its owner, meaningful status, next action and due date when one exists; unassigned work is explicitly labelled `待分配`.
+- A risk-to-doctor escalation is one primary risk work item (`等待医生`), not three duplicate items.
+- Yellow workflow: `待处理 → 已接手 / 处理中 → 等待成员 / 等待医生 / 待随访 → 已关闭`.
 
-首页可以回答部分问题（当前健康状态、入口、近期任务），但“今天要做什么、健管/医生是否有新反馈、下一次安排”没有被稳定汇集成一个明确的成员待办。当前演示数据中的任务均已完成，导致首页没有可演示的真实下一步。
+### Doctor and knowledge journey
 
-### 报告、档案与基线：PARTIAL
+- The seeded demo has a pending doctor review linked to the yellow demo risk, with member, manager question, relevant risk context, report evidence and approved-reference retrieval.
+- Completing a doctor review returns responsibility to a manager follow-up rather than silently removing the case.
+- Related knowledge is explanatory only. Retrieval returns approved, valid documents/chunks and shows source attribution; it cannot create a RiskRule, diagnosis, prescription or risk decision.
 
-成员可从 `健康 → 体检` 上传报告、选择既有报告并在同一页面查看结果和依据；报告上传会创建健管审核任务。首次报告和既有基线的服务逻辑可区分：首次进入基线草稿，已有确认基线时进入长期比较。
+### Service and outcome journey
 
-但成员端对审核进度、比较完成后的后续动作和谁负责不够明确。当前演示库只有一份报告，无法在五分钟故事中真正展示“新增 / 持续 / 改善 / 恢复 → 分流动作”。比较界面还把同一组已解决 finding 同时计入“改善”和“恢复”，会削弱结果语义的可信度。
+- Service delivery has a minimal auditable lifecycle: requested, approved, scheduled, in service, completed (or cancelled), with owner, schedule, next action and result summary.
+- An outcome is not an endpoint: the manager can continue, adjust, enter a stable phase or request a doctor review. The decision creates the corresponding program state or next work item and is eligible for timeline aggregation.
 
-### 健康数据与日常提醒：PARTIAL
+## 4. Demo Seed Contract
 
-健康数据将生活方式与医疗监测分区，也能展示睡眠、步数、血压、血糖与趋势。它未把“数据新鲜度”作为当前状态的硬前提：旧观测可能仍以“最近 / 今日”式语境出现，且缺少明确的“数据已陈旧，请补测/连接设备”行动。
+`scripts/build_portfolio_demo.py --rebuild` produces an isolated, anonymous story with:
 
-低风险与“暂无正式风险评估”在风险语义上已经区分；这是正确的安全表达。相反，低风险成员未完成运动、测量或记录时，目前没有清楚的成员提醒 / nudge 闭环，不能证明不会被误送至健管风险队列。
+- Demo Executive A and an already processed demo report / baseline;
+- one active **demo yellow risk** already handed to a pending doctor review;
+- a small closed demo red record that does not obscure the main yellow workflow;
+- an active health plan and one unfinished member task (a reminder, not a medical risk);
+- a service workflow and outcome data;
+- approved knowledge documents with retrievable chunks.
 
-### 计划与结果：PARTIAL
+All risk rules in the story remain clearly **TEST / demo rules**, not Clinical RiskRules.
 
-成员可看当前方案、任务和阶段结果，也可提交接受、调整、暂缓或讨论的选择。`记录选择` 当前只新增一条选择记录并显示“健康管理师会后续跟进”；它没有创建健管工作项、没有改变计划状态、也没有在健管页面形成可处理请求。因此该动作是实际死胡同。
+## 5. Remaining Non-blocking Boundaries
 
-阶段结果能将前后指标写入时间轴，但结果之后没有明确的“继续、调整、进入稳定期、提交医生”的决策入口。结果目前更像展示，而非下一轮管理的起点。
+These are deliberately outside this Portfolio closure and do not block the five-minute story:
 
-### 服务：PARTIAL
+1. External medical coordination does not implement a production hospital booking/feedback integration.
+2. Platform-internal reminders are not SMS, email, WeChat or push notifications.
+3. There is no production RBAC, clinical rule-governance program, real-device verification or production deployment claim.
+4. The demo intentionally uses synthetic, anonymous data and does not assert clinical validation.
 
-成员可按分类申请服务并查看申请。服务的状态和权益消耗有基础支持；重要服务申请也会被长期时间轴汇集。当前使用链仍缺预约时间、执行过程、客户结果回传和改期/取消/no-show 的可见路径。
+## 6. Verification
 
-## 3. Health Manager Journey
+- Rebuilt the isolated Portfolio database from `scripts/build_portfolio_demo.py --rebuild`.
+- Exercised the Streamlit `更多 → 知识库` and `今日` paths with `AppTest`; no duplicate widget-key exception occurred.
+- Added regression coverage for active-risk continuity, worklist de-duplication, plan choice hand-off, service lifecycle, outcome decisions, baseline routing, knowledge key scopes and freshness copy.
+- Full regression suite: **321 passed, 0 failed**.
 
-### 今日工作台与风险分流：BROKEN
+## 7. Top 10 Audit Fixes
 
-当前 `今日` 将风险、任务、管理信号和服务申请聚合成一个列表，方向正确；卡片能说明“谁、发生什么、为什么、下一步”。
-
-但工作台的四个轻量统计采用了与实际工作项不同的状态文案：工作项使用“高风险 / 中风险”，统计却查找“紧急 / 需要关注”。结果是红、黄风险可能显示为 0，且服务或报告待处理会被误计为“中风险”。这会直接破坏健管的第一优先级判断。
-
-此外，黄风险仅在 `NEW` 状态进入工作列表。健管“联系成员”后事件会转为已接手状态，但若未同时创建带截止日期的任务，该黄风险会从今日队列消失。它仍是活动风险，却没有稳定 owner、due date 或下一行动追踪。这是任务丢失风险，不是纯展示问题。
-
-### 成员工作台：PARTIAL
-
-成员概览、管理、健康、医疗、历程五个一层入口满足导航收敛目标。概览可进入资料、风险、计划、医疗记录与时间轴。
-
-存在一个具体跳转断点：来自基线草稿的“处理”导航将旧的“健康基线”视图映射为不再存在的页面值，最终回落到“数据”视图，而非健管应处理的“基线”视图。健管会从工作项进入错误上下文。
-
-工作项本身也没有稳定显示 owner；非任务来源的风险、服务和管理信号通常没有清楚 due date。对于“等待处理”类事项，健管无法在列表层确认谁负责、何时必须完成。
-
-### 报告审核与比较：PARTIAL
-
-健管可以在成员健康页看到报告并按 finding / follow-up / observation 做确认、管理或提交医生等操作；成员上传会生成审核任务，已有基线不会被覆盖。人工确认和医学判断的边界基本正确。
-
-但“新旧比较”是结果展示而非可靠的管理分流：新增 finding、持续异常、改善或恢复后，没有统一地创建/关联下一任务、风险处置或医生复核。比较关联还优先按上传创建时间找上一份报告，业务上应以报告发生日期并允许人工确认比较对象。
-
-### 服务运营：PARTIAL
-
-服务运营可看到申请并完成权益扣减，服务也会作为重要节点进入时间轴。当前按钮将“审核并安排”实际只推进为“已通过”，没有安排日期/负责人；随后可直接记录完成，跳过执行和结果录入。成员与健管都无法获得完整的履约叙事。
-
-## 4. Doctor Journey
-
-### 内部医生复核：PARTIAL
-
-内部医生页面能以成员为上下文查看待复核内容，并能看到问题、关键资料、证据与既有处理。风险的医生复核完成服务能够留下医生意见、产生健管 follow-up / 成员任务，并记录流程事件；这说明“医生不能替代健管执行”的责任分离方向正确。
-
-当前 Portfolio 数据没有待复核的医生工作项，实际页面只显示“当前没有待医生复核”。因此 Demo 不能从医生入口展示“待复核 → 医生意见 → 健管接手”的关键动作。医生完成后的任务也没有在全局今日工作台作为独立医生待办来源稳定汇集，完成后的责任交接依赖关联风险或任务才能被发现。
-
-### 外部医疗：PARTIAL
-
-外部医疗页可登记转诊并显示待安排、已预约、等待反馈、已完成等状态概念；时间轴也会展示转诊节点。当前可操作路径只可靠覆盖“登记”，后续预约、反馈、完成的负责人、时间和回流对象没有同样完整的页面闭环。页面提示“请由人工完成预约与反馈录入”，等同于承认链路中断。
-
-### 用药、手术与住院：PARTIAL
-
-医疗档案可展示既有用药与医疗记录，并可被时间轴聚合。对开始、调整、停止、术前/术后、随访和结果的连续生命周期，当前产品层未形成清楚的一条处理路径；在 Portfolio 范围内应标为“记录可追溯，完整医疗事件管理待后续”。
-
-## 5. End-to-End Closed Loops
-
-| 闭环 | 状态 | 已验证的闭环部分 | 当前断点 |
-|---|---|---|---|
-| Report | PARTIAL | 上传 → 解析结果/依据 → 健管审核任务 → 基线草稿或长期比较 | 成员进度与比较后的下一步未统一；Demo 无第二报告故事 |
-| Risk | BROKEN | 黄风险可接手、联系、观察、提交医生、关闭；红风险可记录人工紧急处置 | 今日统计错误；已接手黄风险可从队列消失；红风险的 owner/结束条件不完整 |
-| Plan | PARTIAL | 方案、任务、阶段结果均有对象和页面 | 成员选择未路由给健管；结果后没有统一决策 |
-| Doctor | PARTIAL | 医生意见可生成后续任务/流程记录 | Demo 无待复核；全局工作台不稳定承接医生待办与完成交接 |
-| Medical / External | PARTIAL | 转诊登记和时间轴节点存在 | 预约、反馈、完成回流缺实际操作闭环 |
-| Service | PARTIAL | 申请、审批、完成、权益消耗、重要节点时间轴存在 | 安排/执行/结果/异常处理未完整产品化 |
-| Timeline | PARTIAL | 基线、报告、健康汇总、风险、用药、服务、结果等重大事件被动态聚合，Inspector 可追溯 | 部分健康汇总与 outcome 只描述变化，没有管理下一步 |
-| Knowledge | BROKEN / ISOLATED | 已保存、审核、Chunk、批准状态的数据基础存在 | 当前知识中心页面报重复组件 key；KnowledgeUsageRecord 为 0，未成为报告/医生/计划的可见业务依据 |
-
-## 6. P0
-
-1. **今日风险统计与状态映射错误。** 红/黄风险可被错误显示为 0，直接破坏风险优先级。
-2. **已接手黄风险从工作列表消失。** 联系成员后无 due task 时，活动事件不再可运营追踪，存在事项丢失。
-3. **知识中心真实入口异常。** `更多 → 知识库` 触发重复组件 key，阻断 Portfolio 知识治理故事。
-4. **成员计划选择没有责任交接。** 接受/调整/暂缓/讨论不创建可见健管后续，客户动作落入死胡同。
-
-## 7. P1
-
-1. 报告上传后成员缺少状态时间线、明确责任人和完成后通知；比较结果没有统一下一步。
-2. 工作项缺 owner、可靠 due date 和跨来源去重；医生待办不作为独立来源进入今日。
-3. 基线草稿“处理”跳到健康数据而非基线处理视图。
-4. 当前 Demo 没有待医生复核、未完成成员任务和完整第二份报告，无法五分钟展示完整故事。
-5. 服务履约跳过安排/执行/反馈；改期、取消、no-show 和失败路径不可见。
-6. 外部转诊登记后没有预约、反馈、完成与责任回流闭环。
-7. 结果评估后没有继续、调整、稳定期或医学升级决策。
-8. 健康数据缺新鲜度语义；旧数据可能被理解为当前状态。
-9. 成员第一使用缺连续 onboarding、资料缺口和服务团队/下一次人工跟进。
-10. Knowledge 已有治理对象但尚未产生可见业务引用记录，属于孤岛能力。
-
-## 8. P2
-
-1. 新旧报告比较应优先按报告日期并允许人工确认比较对象。
-2. 比较摘要把同一“已解决”项目同时显示为“改善”和“恢复”，需统一结果定义。
-3. 低风险但计划未完成时，缺内部提醒 / nudge；正式外部通知属于 FUTURE，不应为 Portfolio P0。
-4. 用药、手术、住院目前更偏记录与时间轴展示，完整医疗生命周期应在后续明确范围后补齐。
-5. 时间轴的月度健康数据总结和阶段 outcome 应提供可选的“转为管理跟进”入口，而非只做回顾。
-
-## 9. Top 10 Recommended Fixes
-
-排序依据：**Impact × Portfolio Value ÷ Implementation Complexity**。`QUICK WIN` 表示预计一天内可完成的局部改动；估计仅用于排序，不构成排期承诺。
-
-| # | 优先级 / 规模 | 问题与用户影响 | 当前行为 | 推荐行为 | 涉及页面 |
-|---|---|---|---|---|---|
-| 1 | P0 · SMALL · **QUICK WIN** | 健管无法相信今日风险优先级 | 工作项与统计使用不同风险状态文案 | 用同一显示状态/来源计算高、中、今日、等待医生 | 今日工作台 |
-| 2 | P0 · MEDIUM | 黄风险“已联系成员”后可能丢失 | 仅 `NEW` 黄风险进入队列 | 所有活动黄风险保留在队列，显示 owner、next action、due；关闭才移除 | 今日、风险详情 |
-| 3 | P0 · SMALL · **QUICK WIN** | 知识中心入口直接异常，Portfolio 不能演示知识治理 | 同一资料详情被渲染两次并复用 key | 为每个 Inspector 实例使用唯一 key，补真实入口回归 | 更多 → 知识库 |
-| 4 | P0 · MEDIUM | 客户选择方案后没有人处理 | 只写 `MemberPlanChoice` | 创建/关联健管待办，显示受理状态并在管理页可处理 | 成员计划、成员管理、今日 |
-| 5 | P1 · MEDIUM | 报告上传和新旧比较后成员不知道接下来会怎样 | 审核任务存在，成员状态与分流不完整 | 展示上传/整理/待核对/已入档；比较 finding 产生明确的记录、健管或医生去向 | 成员体检、成员健康 |
-| 6 | P1 · MEDIUM | 工作项责任和期限不清，医生事项可能被漏掉 | 多来源列表不统一 owner/due，也不直接汇集 DoctorReview | 统一 Worklist contract：owner、due、状态、next action、source；显式去重规则 | 今日、医疗协同 |
-| 7 | P1 · SMALL · **QUICK WIN** | Demo 不能演示医生真正处理一件事 | 演示库没有待复核或未完成任务 | 只在匿名 Demo seed 增加一条可完成 doctor review 及其 follow-up，不改医学规则 | 医疗协同、今日、成员医疗 |
-| 8 | P1 · MEDIUM | 服务看起来像“通过后直接完成” | 无安排日期、执行记录或成员结果回传 | 显式完成 `申请 → 审核 → 安排 → 执行 → 结果 → 权益/时间轴`，支持取消/改期最小状态 | 成员服务、服务运营 |
-| 9 | P1 · MEDIUM | 阶段结果不驱动下一轮管理 | Outcome 只记录和展示 | 由健管选择继续、调整、稳定期或提交医生，并创建对应下一项 | 成员管理、成员计划、历程 |
-| 10 | P1 · MEDIUM | 陈旧健康数据可能被当作当前状态 | 页面只显示最近记录的相对文案 | 为指标定义 freshness 提示和补测/设备检查 CTA；将生活方式提醒与正式风险区分 | 成员首页、健康数据、今日 |
-
-### Quick Wins
-
-- 统一今日工作台的风险状态统计与工作项状态（#1）。
-- 修复知识中心 Inspector 的重复组件 key 并增加入口回归（#3）。
-- 在匿名 Portfolio Demo 中补一条待医生复核和未完成成员待办（#7）。
-- 修正基线草稿的导航目标，并将成员上传后的审核状态用人话展示（与 #5 同批的小范围修复）。
-
-## 10. Recommended Product Sequence
-
-为了让 Portfolio 在五分钟内讲清闭环，应先修复 #1–#4；它们解决“事项是否看得见、客户动作是否有人接、知识故事是否能打开”。随后补 #5、#7、#8，形成可演示的：
-
-`匿名报告 → 健管审核/基线 → 黄风险 → 医生复核 → 计划选择 → 服务/结果 → 时间轴`。
-
-外部通知、正式 RBAC、真实设备实时同步、完整手术住院生命周期属于后续产品化范围，不应为了 Portfolio 在本轮扩张。
+| # | Audit finding | Status |
+|---|---|---|
+| 1 | Today risk statistics and worklist semantics diverged | FIXED |
+| 2 | Taken yellow risk could disappear before closure | FIXED |
+| 3 | Knowledge Center Inspector duplicate key | FIXED |
+| 4 | Member plan choice had no responsible next action | FIXED |
+| 5 | Report member progress and comparison next-step wording | FIXED |
+| 6 | Worklist owner, due, next action and risk/doctor de-duplication | FIXED |
+| 7 | Demo lacked pending doctor review and incomplete member task | FIXED |
+| 8 | Service skipped schedule, execution and result | FIXED |
+| 9 | Outcome ended without a management decision | FIXED |
+| 10 | Stale/no health data could read as current/normal | FIXED |

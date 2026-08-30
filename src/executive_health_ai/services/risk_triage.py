@@ -35,7 +35,7 @@ DEVICE_CLASS = {
 USABLE_QUALITY_FLAGS = {"valid", "manually_corrected"}
 ACTIVE_EVENT_STATUSES = {
     "NEW", "ACKNOWLEDGED", "IN_REVIEW", "MONITORING",
-    "ESCALATED_TO_DOCTOR", "FOLLOW_UP", "ESCALATED",
+    "ESCALATED_TO_DOCTOR", "WAITING_MEMBER", "FOLLOW_UP", "ESCALATED",
 }
 EXECUTABLE_CONDITION_TYPES = {"THRESHOLD", "SYNTHETIC_TEST_THRESHOLD"}
 # Wellness metrics are routed by ManagementRule.  The exception preserves the
@@ -436,7 +436,29 @@ class RiskEvaluationService:
 
     def emergency_action(self, session: Session, event: RiskEvent, actor: str, action: str) -> None:
         event.status = "ESCALATED"
+        event.acknowledged_by = event.acknowledged_by or actor
+        event.acknowledged_at = event.acknowledged_at or datetime.now(timezone.utc)
         session.add(AuditLog(patient_id=event.patient_id, actor=actor, actor_role="health_manager", action="recorded_emergency_action", entity_type="RiskEvent", entity_id=str(event.id), detail_json={"action": action, "manual_confirmation_required": True}))
         for program in session.scalars(select(HealthProgram).where(HealthProgram.patient_id == event.patient_id, HealthProgram.status == "ACTIVE")):
             program.status = "ESCALATED_TO_MEDICAL_CARE"
         session.flush()
+
+    def close_manual_event(self, session: Session, event: RiskEvent, actor: str, reason: str, final_action: str) -> RiskEvent:
+        """Close a non-Yellow event only after a named human records why.
+
+        This does not change any rule threshold or make a medical decision; it
+        merely preserves the human closure rationale for the timeline/audit.
+        """
+        if event.risk_level != "RED":
+            raise ValueError("Use the Yellow risk workflow to close this event.")
+        if event.status not in ACTIVE_EVENT_STATUSES:
+            raise ValueError("该风险事项已关闭。")
+        if not reason.strip() or not final_action.strip():
+            raise ValueError("请填写关闭原因和最终人工处置。")
+        event.status, event.resolved_at = "CLOSED", datetime.now(timezone.utc)
+        session.add(AuditLog(
+            patient_id=event.patient_id, actor=actor, actor_role="health_manager", action="closed_red_risk_event",
+            entity_type="RiskEvent", entity_id=str(event.id), detail_json={"reason": reason.strip(), "final_action": final_action.strip()},
+        ))
+        session.flush()
+        return event

@@ -1,10 +1,10 @@
 """Human-operated member service catalogue, requests and entitlement usage."""
 from __future__ import annotations
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from executive_health_ai.models import MemberEntitlement, MemberPlanChoice, ServiceCatalogItem, ServicePlan, ServicePlanItem, ServiceRequest
+from executive_health_ai.models import AuditLog, HealthProgram, MemberEntitlement, MemberPlanChoice, ServiceCatalogItem, ServicePlan, ServicePlanItem, ServiceRequest, Task
 
 DEMO_CATALOG = (
     ("health_archive", "健管服务", "健康档案数字化管理", "长期整理已确认健康资料", False, None),
@@ -80,15 +80,95 @@ class MemberServiceOperations:
     def schedule(self, session: Session, request_id: UUID, at: datetime, manager: str) -> ServiceRequest:
         request = self.approve(session, request_id, manager); request.status="SCHEDULED"; request.scheduled_at=at; session.flush(); return request
 
+    def start(self, session: Session, request_id: UUID, manager: str) -> ServiceRequest:
+        request = session.get(ServiceRequest, request_id)
+        if request is None:
+            raise ValueError("服务申请不存在")
+        if request.status not in {"SCHEDULED", "IN_PROGRESS"}:
+            raise ValueError("请先安排服务后再记录执行")
+        request.status, request.assigned_manager = "IN_PROGRESS", manager
+        session.flush(); return request
+
+    def cancel(self, session: Session, request_id: UUID, reason: str = "成员取消申请") -> ServiceRequest:
+        request = session.get(ServiceRequest, request_id)
+        if request is None:
+            raise ValueError("服务申请不存在")
+        if request.status in {"COMPLETED", "CANCELLED"}:
+            raise ValueError("当前服务申请不能取消")
+        request.status = "CANCELLED"
+        request.result_summary = reason.strip() or "服务申请已取消。"
+        session.flush(); return request
+
     def complete(self, session: Session, request_id: UUID, result_summary: str, manager: str) -> ServiceRequest:
         request = session.get(ServiceRequest, request_id)
         if request is None: raise ValueError("服务申请不存在")
         if request.status == "COMPLETED": return request
+        if request.status not in {"APPROVED", "SCHEDULED", "IN_PROGRESS"}:
+            raise ValueError("请先审核服务申请后再记录完成")
         request.status="COMPLETED"; request.completed_at=datetime.now(timezone.utc); request.result_summary=result_summary.strip() or "服务已完成，后续由健康管理团队跟进。"; request.assigned_manager=manager
         entitlement = session.scalar(select(MemberEntitlement).where(MemberEntitlement.patient_id == request.patient_id, MemberEntitlement.service_item_id == request.service_item_id))
         if entitlement and entitlement.total_quota is not None: entitlement.used_quota = min(entitlement.total_quota, entitlement.used_quota + 1)
         session.flush(); return request
 
     def record_choice(self, session: Session, member_id: UUID, choice: str, comment: str = "") -> MemberPlanChoice:
+        """Record a member decision and create the human next action it requires.
+
+        A choice is never just a button acknowledgement: it either changes the
+        current programme state or creates a visible HealthOps task.  It does
+        not make a medical decision or alter a treatment plan.
+        """
+        if choice not in {"接受方案", "希望调整", "暂缓", "和健康管理师讨论"}:
+            raise ValueError("不支持的方案选择")
         row = MemberPlanChoice(patient_id=member_id, proposal="持续监测 + 健康管理跟进（演示建议）", recommended_by="health_manager", reason="基于已确认健康资料与服务安排，不构成医学诊断。", member_choice=choice, member_comment=comment)
-        session.add(row); session.flush(); return row
+        session.add(row); session.flush()
+        program = session.scalar(select(HealthProgram).where(
+            HealthProgram.patient_id == member_id,
+            HealthProgram.status.in_(("ACTIVE", "PLANNED", "PAUSED")),
+        ).order_by(HealthProgram.created_at.desc()))
+        existing = session.scalar(select(Task).where(
+            Task.patient_id == member_id,
+            Task.source == "member_plan_choice",
+            Task.status.not_in(("COMPLETED", "CANCELLED")),
+        ).order_by(Task.created_at.desc()))
+
+        if choice == "接受方案":
+            if program is not None:
+                program.status, program.next_decision = "ACTIVE", "下一阶段复盘"
+            title, instruction, assignee, role, due_at = (
+                "开始执行已接受的健康计划",
+                "按当前健康计划完成本周第一项行动；如遇困难，请在计划页记录并联系健康管理师。",
+                "成员本人", "member", datetime.now(timezone.utc) + timedelta(days=7),
+            )
+            followup = "已接受，等待成员开始执行"
+        elif choice == "暂缓":
+            if program is not None:
+                program.status, program.next_decision = "PAUSED", "下次复核"
+            title, instruction, assignee, role, due_at = (
+                "复核成员暂缓的健康计划",
+                "成员已暂缓当前方案；在下次复核前不重复催办，请由健康管理师确认恢复条件。",
+                "健康管理师", "health_manager", datetime.now(timezone.utc) + timedelta(days=30),
+            )
+            followup = "已暂缓，等待约定复核"
+        else:
+            title, instruction, assignee, role, due_at = (
+                "与成员确认健康计划调整",
+                "成员希望调整或讨论当前方案；请先确认实际困难与可执行的非医疗管理安排。",
+                "健康管理师", "health_manager", datetime.now(timezone.utc),
+            )
+            followup = "等待健康管理师联系成员"
+
+        if existing is None:
+            session.add(Task(
+                patient_id=member_id, program_id=program.id if program else None,
+                title=title, instruction=instruction, status="PENDING", priority="MEDIUM",
+                assignee=assignee, responsible_role=role, due_at=due_at, source="member_plan_choice",
+            ))
+        else:
+            existing.title, existing.instruction = title, instruction
+            existing.assignee, existing.responsible_role, existing.due_at = assignee, role, due_at
+        row.manager_followup = followup
+        session.add(AuditLog(
+            patient_id=member_id, actor="成员本人", actor_role="member", action="recorded_member_plan_choice",
+            entity_type="MemberPlanChoice", entity_id=str(row.id), detail_json={"choice": choice, "next_action": followup},
+        ))
+        session.flush(); return row

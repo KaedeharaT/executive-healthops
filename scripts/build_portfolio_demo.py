@@ -189,6 +189,7 @@ def _add_knowledge_demo(session) -> None:
         document = service.create_document(
             session,
             **item,
+            content_text=item["summary"],
             source_reference=item["source_url"],
             retrieved_at=datetime(2026, 8, 30, tzinfo=timezone.utc),
             review_status="PENDING_REVIEW",
@@ -205,10 +206,11 @@ def _customize_portfolio_data() -> dict[str, int]:
 
     from executive_health_ai.database import SessionLocal
     from executive_health_ai.models import (
-        Document, HealthAssessment, HealthProgram, KnowledgeDocument, MedicationPlan,
-        Patient, ServiceCatalogItem, ServiceRequest, Task,
+        Document, DoctorReview, HealthAssessment, HealthProgram, KnowledgeDocument, MedicationPlan,
+        Patient, RiskEvent, ServiceCatalogItem, ServiceRequest, Task,
     )
     from executive_health_ai.services.member_services import MemberServiceOperations
+    from executive_health_ai.services.risk_operations import RiskOperationsService
 
     with SessionLocal() as session:
         patient = session.scalar(select(Patient).where(Patient.external_id == "demo-executive-001"))
@@ -224,6 +226,8 @@ def _customize_portfolio_data() -> dict[str, int]:
         for program in session.scalars(select(HealthProgram).where(HealthProgram.patient_id == patient.id)):
             if "90-Day" in program.title or "90天" in program.title:
                 program.title = "90天代谢健康计划（演示）"
+                program.status = "ACTIVE"
+                program.next_decision = "等待医生复核"
         for assessment in session.scalars(select(HealthAssessment).where(HealthAssessment.patient_id == patient.id)):
             assessment.title = "健康基线（演示）"
             assessment.summary = "基于匿名化体检结构、连续健康数据和人工管理记录整理的演示健康基线；不构成医学诊断。"
@@ -236,6 +240,33 @@ def _customize_portfolio_data() -> dict[str, int]:
             plan.prescriber_name = "待人工确认"
 
         _replace_report_fixture(session, patient.id)
+        # Keep one human-owned Yellow path ready for the five-minute demo.  It
+        # uses the existing TEST/demo rule only and never creates a clinical rule.
+        yellow = session.scalar(select(RiskEvent).where(
+            RiskEvent.patient_id == patient.id, RiskEvent.risk_level == "YELLOW",
+        ).order_by(RiskEvent.created_at.desc()))
+        if yellow is not None:
+            yellow.status = "NEW"
+            yellow.acknowledged_by = None
+            yellow.acknowledged_at = None
+            yellow.resolved_at = None
+            if session.scalar(select(DoctorReview).where(DoctorReview.risk_event_id == yellow.id, DoctorReview.status == "PENDING")) is None:
+                RiskOperationsService().escalate_to_doctor(
+                    session, yellow.id, "演示健康管理师", "请医生人工确认下一步随访与管理安排。", "全科/健康管理",
+                )
+        # A completed Red fixture remains available for longitudinal history;
+        # it does not obscure the active Yellow manager/doctor story.
+        for red in session.scalars(select(RiskEvent).where(RiskEvent.patient_id == patient.id, RiskEvent.risk_level == "RED")):
+            red.status = "CLOSED"
+            red.resolved_at = red.resolved_at or datetime(2026, 8, 15, 10, tzinfo=timezone.utc)
+        if session.scalar(select(Task).where(Task.patient_id == patient.id, Task.source == "portfolio_member_plan_task", Task.status.not_in(("COMPLETED", "CANCELLED")))) is None:
+            active_program = session.scalar(select(HealthProgram).where(HealthProgram.patient_id == patient.id, HealthProgram.status == "ACTIVE").order_by(HealthProgram.created_at.desc()))
+            session.add(Task(
+                patient_id=patient.id, program_id=active_program.id if active_program else None,
+                title="完成本周睡眠与活动记录", instruction="本周完成三次睡眠与活动记录；这是一项成员健康管理任务，不是医学风险。",
+                status="PENDING", priority="MEDIUM", assignee="Demo Executive A", responsible_role="member",
+                due_at=datetime(2026, 8, 31, 18, tzinfo=timezone.utc), source="portfolio_member_plan_task",
+            ))
         service_plan = MemberServiceOperations().ensure_demo_plan(session, patient.id)
         first_service = session.scalar(select(ServiceCatalogItem).order_by(ServiceCatalogItem.name))
         if first_service is not None and session.scalar(select(ServiceRequest).where(ServiceRequest.patient_id == patient.id)) is None:

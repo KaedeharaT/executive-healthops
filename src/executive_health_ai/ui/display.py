@@ -20,13 +20,15 @@ _STATUS = {
     "REVIEWING": "审核中", "SCHEDULED": "已安排", "WAITING_FEEDBACK": "等待反馈",
     "COMPLETED": "已完成", "CANCELLED": "已取消", "DECLINED": "未通过",
     "REJECTED": "已忽略", "CORRECTED": "已修正", "PROCESSING": "处理中",
+    "ACKNOWLEDGED": "已接手", "MONITORING": "处理中", "FOLLOW_UP": "待随访",
+    "ESCALATED_TO_DOCTOR": "等待医生", "WAITING_MEMBER": "等待成员", "ESCALATED": "处理中", "IN_SERVICE": "服务中",
     "PARTIAL_SUCCESS": "部分完成", "SUCCESS": "已完成", "FAILED": "处理失败",
     "UNKNOWN": "暂无正式风险评估", "OTHER": "其他", "NONE": "未记录", "NULL": "未记录",
 }
 
 _CONTEXT_STATUS = {
     "doctor_review": {"OPEN": "等待医生复核", "PENDING": "等待医生复核", "CONFIRMED": "已完成医生复核"},
-    "risk_event": {"OPEN": "等待处理", "PENDING": "等待处理", "ACKNOWLEDGED": "已接手", "IN_REVIEW": "处理中", "ESCALATED_TO_DOCTOR": "等待医生复核"},
+    "risk_event": {"OPEN": "等待处理", "PENDING": "等待处理", "NEW": "待处理", "ACKNOWLEDGED": "已接手", "IN_REVIEW": "处理中", "MONITORING": "处理中", "ESCALATED_TO_DOCTOR": "等待医生", "WAITING_MEMBER": "等待成员", "FOLLOW_UP": "待随访", "ESCALATED": "处理中", "CLOSED": "已关闭"},
     "service_request": {"OPEN": "待处理", "PENDING": "待处理", "APPROVED": "已通过"},
     "health_problem": {"OPEN": "待处理", "CLOSED": "已完成"},
     "report_candidate": {"PENDING_REVIEW": "等待人工确认", "NEEDS_MANUAL_REVIEW": "原文不完整，需要人工核对"},

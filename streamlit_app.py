@@ -53,6 +53,7 @@ from executive_health_ai.services.longitudinal import (
 )
 from executive_health_ai.services.report_parsing import ReportParseProgress, ReportParsingService
 from executive_health_ai.services.member_services import MemberServiceOperations
+from executive_health_ai.services.chronic_care import apply_outcome_decision, complete_outcome_doctor_review
 from executive_health_ai.services.workflow import (
     close_alert_as_false_positive, complete_follow_up, confirm_alert_as_manager,
     create_operational_task, record_doctor_review,
@@ -78,8 +79,8 @@ STATUS_LABELS = {
     "IN_FOLLOW_UP": "随访中", "CLOSED": "已闭环", "OPEN": "处理中",
     "ACTIVE": "执行中", "PENDING": "待执行", "IN_PROGRESS": "进行中",
     "COMPLETED": "已完成", "CANCELLED": "已取消", "OVERDUE": "已逾期",
-    "ACKNOWLEDGED": "已接手", "IN_REVIEW": "审核中", "MONITORING": "持续观察",
-    "ESCALATED_TO_DOCTOR": "医生复核中", "FOLLOW_UP": "跟进中", "DISMISSED_DATA_ISSUE": "数据问题已关闭",
+    "ACKNOWLEDGED": "已接手", "IN_REVIEW": "处理中", "MONITORING": "处理中", "WAITING_MEMBER": "等待成员",
+    "ESCALATED_TO_DOCTOR": "等待医生", "FOLLOW_UP": "待随访", "DISMISSED_DATA_ISSUE": "数据问题已关闭",
     "CONFIRMED": "已确认", "ASSESSMENT": "筛查评估", "90_DAY_PROGRAM": "90天阶段管理",
     "STABILIZATION": "半年稳定管理", "ANNUAL_MANAGEMENT": "年度健康账户",
     "FAMILY_EXTENSION": "家庭健康管理（占位）", "PLANNED": "已规划", "PAUSED": "已暂停",
@@ -447,7 +448,7 @@ def detail_panel(title: str | None = None, note: str | None = None):
         yield
 
 
-def work_item_card(member_name: str, status: str, title: str, reason: str, next_step: str, *, key: str, on_click=None, args: tuple = ()) -> None:
+def work_item_card(member_name: str, status: str, title: str, reason: str, next_step: str, *, key: str, owner: str | None = None, due_at: datetime | None = None, on_click=None, args: tuple = ()) -> None:
     """A compact operational item with one decision and one action."""
     with st.container():
         content, action = st.columns([5, 1])
@@ -456,7 +457,9 @@ def work_item_card(member_name: str, status: str, title: str, reason: str, next_
                 f"<div class='work-item'><div class='work-member'>{html.escape(member_name)}　{status_badge(status)}</div>"
                 f"<div class='work-title'>{html.escape(title)}</div><div class='work-label'>最近变化</div>"
                 f"<div class='work-copy'>{html.escape(reason)}</div><div class='work-label' style='margin-top:.6rem'>下一步</div>"
-                f"<div class='work-copy'>{html.escape(next_step)}</div></div>",
+                f"<div class='work-copy'>{html.escape(next_step)}</div>"
+                f"<div class='work-label' style='margin-top:.6rem'>负责人</div><div class='work-copy'>{html.escape(owner or '待分配')}</div>"
+                f"<div class='work-label' style='margin-top:.6rem'>截止时间</div><div class='work-copy'>{html.escape(_fmt_dt(due_at) if due_at else '暂无截止时间')}</div></div>",
                 unsafe_allow_html=True,
             )
         with action:
@@ -858,6 +861,34 @@ def _render_evidence_action(evidence: dict[str, object], *, key_scope: str, clie
     evidence_action(evidence, key_scope=key_scope, client_view=client_view)
 
 
+def _render_related_knowledge(query: str, *, key_scope: str) -> None:
+    """Offer approved reference material without turning it into a medical decision."""
+    normalized = (query or "").strip()
+    if not normalized:
+        return
+    state_key = f"related-knowledge-{key_scope}"
+    if secondary_action("查看相关医学参考", key=f"{state_key}-open", width="content"):
+        with SessionLocal() as session:
+            hits = KnowledgeRetrievalService().search(session, normalized, limit=3)
+        st.session_state[state_key] = hits
+    hits = st.session_state.get(state_key)
+    if hits is None:
+        return
+    with st.expander("相关医学参考", expanded=True):
+        st.caption("仅显示已批准、未归档且未过期的资料，用于解释与人工参考；不会改变风险、诊断、处方或医疗规则。")
+        if not hits:
+            st.info("当前没有可引用的已批准资料。")
+            return
+        for hit in hits:
+            citation = hit.citation()
+            st.markdown(f"**{citation['title']}**")
+            st.caption(f"{citation['source'] or '来源待补充'} · {citation['location'] or '位置待补充'} · 获取时间：{citation['retrieved_at'] or '未记录'}")
+            st.write(citation["excerpt"] or "当前未保存可展示的资料片段。")
+            official = _knowledge_source_link(citation["source_url"])
+            if official:
+                st.link_button("查看官方来源", official, key=f"{state_key}-source-{hit.chunk.id}")
+
+
 @contextmanager
 def _section_frame(title: str, guidance: str | None = None):
     """Visible business-section boundary; use for major modules only."""
@@ -947,7 +978,7 @@ def apply_pending_navigation() -> None:
             st.session_state[f"member-section-{member_id}"] = {"数据": "健康", "档案": "健康"}.get(pending["member_section"], pending["member_section"])
         if pending.get("archive_view") is not None:
             health_view = {
-                "健康数据": "健康数据", "体检与检查": "体检", "健康基线": "健康概览",
+                "健康数据": "健康数据", "体检与检查": "体检", "健康基线": "基线", "基线": "基线",
                 "健康史": "医疗档案", "医疗资料": "医疗档案", "用药与医疗": "医疗档案",
                 "健康时间轴": "历程", "健康历程": "历程", "报告对比": "体检",
             }.get(str(pending["archive_view"]))
@@ -969,7 +1000,7 @@ def _open_risk_events(patient_id: UUID) -> list[RiskEvent]:
         return list(session.scalars(
             select(RiskEvent).where(
                 RiskEvent.patient_id == patient_id,
-                RiskEvent.status.in_(["NEW", "ACKNOWLEDGED", "IN_REVIEW", "MONITORING", "ESCALATED_TO_DOCTOR", "FOLLOW_UP", "ESCALATED"]),
+                RiskEvent.status.in_(["NEW", "ACKNOWLEDGED", "IN_REVIEW", "MONITORING", "ESCALATED_TO_DOCTOR", "WAITING_MEMBER", "FOLLOW_UP", "ESCALATED"]),
             ).order_by(RiskEvent.created_at.desc())
         ))
 
@@ -1046,7 +1077,7 @@ def _render_current_risk_actions(patient: Patient) -> None:
         if contacts:
             st.caption(f"紧急联系人：{contacts[0].name}（{contacts[0].relationship}，合成演示联系人）")
         first, second = st.columns(2)
-        first.link_button("立即拨打120", "tel:120", type="primary", width="stretch")
+        first.link_button("使用设备拨打120", "tel:120", type="primary", width="stretch")
         if second.button("记录已开始紧急处置", key=f"emergency-action-{event.id}", width="stretch"):
             with SessionLocal() as session:
                 stored = session.get(RiskEvent, event.id)
@@ -1054,7 +1085,21 @@ def _render_current_risk_actions(patient: Patient) -> None:
                 session.commit()
             st.success("已记录紧急处置开始；系统不会自动拨打120或联系任何真实联系人。")
             st.rerun()
-        st.caption("请使用可拨号设备操作。如无法直接拨号，请使用手机拨打120；系统不会自动拨号。")
+        st.caption("请使用可拨号设备操作。如无法直接拨号，请使用手机拨打120；系统不会自动拨号或联系任何人。")
+        if event.status == "ESCALATED":
+            with st.form(f"red-risk-close-{event.id}"):
+                close_reason = st.text_area("关闭原因", placeholder="说明为何本次人工处置可以结束")
+                final_action = st.text_area("最终人工处置", placeholder="记录已完成的人工处理或后续交接")
+                if st.form_submit_button("记录结果并关闭风险事项"):
+                    try:
+                        with SessionLocal() as session:
+                            stored = session.get(RiskEvent, event.id)
+                            RiskEvaluationService().close_manual_event(session, stored, "健康管理师", close_reason, final_action)
+                            session.commit()
+                        st.success("已记录人工处置结果并关闭风险事项。")
+                        st.rerun()
+                    except ValueError as error:
+                        st.error(str(error))
     elif event.risk_level == "YELLOW":
         render_yellow_risk_operations(patient, event)
 
@@ -1079,6 +1124,7 @@ def render_yellow_risk_operations(patient: Patient, event: RiskEvent) -> None:
             method = st.selectbox("联系方式", ["电话", "微信", "当面", "其他"], key=f"yellow-contact-method-{event.id}")
             result = st.selectbox("联系结果", ["已联系", "未接通", "待回访"], key=f"yellow-contact-result-{event.id}")
             reason = st.text_area("联系记录 / 备注", key=f"yellow-contact-note-{event.id}")
+            due_date = st.date_input("下次复核日期（可选）", value=date.today() + timedelta(days=2), key=f"yellow-contact-date-{event.id}")
             submit = st.form_submit_button("保存人工联系记录", type="primary")
         elif action == "数据有误":
             reason = st.text_area("数据问题原因", placeholder="设备错误、录入错误或成员确认无效等", key=f"yellow-data-note-{event.id}")
@@ -1099,7 +1145,7 @@ def render_yellow_risk_operations(patient: Patient, event: RiskEvent) -> None:
                     if action == "继续观察":
                         operations.continue_monitoring(session, event.id, actor, reason, datetime.combine(due_date, time(9, 0), tzinfo=TOKYO_TIMEZONE))
                     elif action == "记录联系成员":
-                        operations.record_contact(session, event.id, actor, method, result, reason)
+                        operations.record_contact(session, event.id, actor, method, result, reason, datetime.combine(due_date, time(9, 0), tzinfo=TOKYO_TIMEZONE))
                     elif action == "数据有误":
                         operations.mark_data_issue(session, event.id, actor, reason)
                     elif action == "调整健康管理":
@@ -1127,7 +1173,7 @@ def render_yellow_risk_operations(patient: Patient, event: RiskEvent) -> None:
                     st.rerun()
                 except ValueError as error:
                     st.error(str(error))
-    if event.status in {"FOLLOW_UP", "MONITORING", "IN_REVIEW", "ACKNOWLEDGED"}:
+    if event.status in {"FOLLOW_UP", "MONITORING", "IN_REVIEW", "ACKNOWLEDGED", "WAITING_MEMBER"}:
         with st.form(f"yellow-close-{event.id}"):
             close_reason = st.text_area("关闭原因", key=f"yellow-close-reason-{event.id}")
             if st.form_submit_button("完成跟进后关闭事件"):
@@ -1409,9 +1455,9 @@ def render_manager_dashboard() -> None:
     with SessionLocal() as session:
         work_items = OperationalWorklistService().list_items(session, datetime.now(TOKYO_TIMEZONE))
     _status_strip(
-        ("高风险", sum(item.status == "紧急" for item in work_items), "urgent"),
-        ("中风险", sum(item.status in {"需要关注", "待处理"} for item in work_items), "attention"),
-        ("今日跟进", sum(item.status in {"今日跟进", "逾期", "建议健康管理"} for item in work_items), "action"),
+        ("高风险", sum(item.status == "高风险" for item in work_items), "urgent"),
+        ("中风险", sum(item.status == "中风险" for item in work_items), "attention"),
+        ("今日跟进", sum(item.status in {"今日跟进", "逾期", "建议健康管理", "待随访"} for item in work_items), "action"),
         ("等待医生", sum(item.status == "等待医生" for item in work_items), "action"),
     )
 
@@ -1419,10 +1465,17 @@ def render_manager_dashboard() -> None:
         member = patients.get(item.member_id)
         if member is None:
             return
-        callback = _open_report_review_from_worklist if item.source_type == "report_review" and item.document_id else _open_member
-        args = (member.id, item.document_id) if item.source_type == "report_review" and item.document_id else (member.id,)
-        next_step = item.next_action + (f" · 截止 {_fmt_dt(item.due_at)}" if item.source_type == "task" and item.due_at else "")
-        work_item_card(_member_display(member), item.status, item.title, item.reason, next_step, key=key, on_click=callback, args=args)
+        if item.source_type == "report_review" and item.document_id:
+            callback, args = _open_report_review_from_worklist, (member.id, item.document_id)
+        elif item.route_target == "member_management":
+            callback, args = _open_member_management, (member.id,)
+        elif item.route_target == "member_service":
+            callback, args = _open_member_service, (member.id,)
+        elif item.route_target == "doctor_review":
+            callback, args = _open_member, (member.id,)
+        else:
+            callback, args = _open_member, (member.id,)
+        work_item_card(_member_display(member), item.status, item.title, item.reason, item.next_action, key=key, owner=item.owner, due_at=item.due_at, on_click=callback, args=args)
 
     with section_frame("优先处理", "每项只保留发生原因与下一步，进入后再查看完整成员资料。"):
         if not work_items:
@@ -1468,8 +1521,8 @@ def _render_member_header(patient: Patient, ctx: dict[str, list[object]]) -> Non
 
 def _open_baseline(member_id: UUID) -> None:
     request_navigation(
-        ops_page="成员", member_id=member_id, member_section="档案",
-        archive_view="健康基线", rerun=False,
+        ops_page="成员", member_id=member_id, member_section="健康",
+        archive_view="基线", rerun=False,
     )
 
 
@@ -1691,6 +1744,7 @@ def render_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]) -> Non
                     _risk_evidence_payload(session, patient.id, review.risk_event_id),
                     key_scope=f"doctor-risk-{review.id}",
                 )
+            _render_related_knowledge(review.question_for_doctor or review.doctor_brief, key_scope=f"doctor-review-{review.id}")
             with st.form(f"yellow-doctor-review-{review.id}"):
                 doctor = st.text_input("医生姓名", value="演示医生", key=f"yellow-doctor-name-{review.id}")
                 department = st.text_input("科室", value=review.department, key=f"yellow-doctor-dept-{review.id}")
@@ -1702,6 +1756,32 @@ def render_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]) -> Non
                 try:
                     with SessionLocal() as session:
                         RiskOperationsService().complete_doctor_review(session, review.id, doctor, department, opinion, instruction, datetime.combine(due, time(9, 0), tzinfo=TOKYO_TIMEZONE))
+                        session.commit()
+                    st.success("已保存医生人工复核，并创建关联跟进任务。")
+                    st.rerun()
+                except ValueError as error:
+                    st.error(str(error))
+    outcome_pending = [item for item in ctx["reviews"] if item.status == "PENDING" and item.risk_event_id is None]
+    if outcome_pending:
+        st.markdown("#### 来自阶段结果的待复核")
+    for review in outcome_pending:
+        with detail_panel("阶段结果医生复核", "仅请医生完成人工医学判断；后续执行由健康管理团队承接。"):
+            st.markdown("**提交原因**")
+            st.write(review.doctor_brief)
+            st.markdown("**需要医生回答什么**")
+            st.write(review.question_for_doctor)
+            _render_related_knowledge(review.question_for_doctor or review.doctor_brief, key_scope=f"doctor-outcome-{review.id}")
+            with st.form(f"outcome-doctor-review-{review.id}"):
+                doctor = st.text_input("医生姓名", value="演示医生", key=f"outcome-doctor-name-{review.id}")
+                department = st.text_input("科室", value=review.department, key=f"outcome-doctor-dept-{review.id}")
+                opinion = st.text_area("医生人工意见", key=f"outcome-doctor-opinion-{review.id}")
+                instruction = st.text_area("后续跟进任务", placeholder="记录需由健康管理师完成的下一步", key=f"outcome-doctor-task-{review.id}")
+                due = st.date_input("建议跟进日期", value=date.today() + timedelta(days=7), key=f"outcome-doctor-due-{review.id}")
+                submit = st.form_submit_button("保存医生复核并创建跟进任务")
+            if submit:
+                try:
+                    with SessionLocal() as session:
+                        complete_outcome_doctor_review(session, session.get(DoctorReview, review.id), doctor, department, opinion, instruction, datetime.combine(due, time(9, 0), tzinfo=TOKYO_TIMEZONE))
                         session.commit()
                     st.success("已保存医生人工复核，并创建关联跟进任务。")
                     st.rerun()
@@ -1842,6 +1922,22 @@ def _observation_when(observation: Observation | None, *, today_label: str = "�
     local = observation.observed_at.astimezone(TOKYO_TIMEZONE)
     label = "今日" if local.date() == datetime.now(TOKYO_TIMEZONE).date() else today_label
     return f"{label} {local.strftime('%m月%d日 %H:%M')}"
+
+
+def _observation_freshness(observation: Observation | None) -> str:
+    """A product freshness hint, not a clinical threshold or risk judgement."""
+    if observation is None:
+        return "暂无足够数据"
+    age = datetime.now(TOKYO_TIMEZONE) - observation.observed_at.astimezone(TOKYO_TIMEZONE)
+    days = max(0, age.days)
+    medical = observation.metric_code in {"systolic_bp", "diastolic_bp", "blood_glucose", "cgm_glucose", "spo2"}
+    recent_limit = 2 if medical else 3
+    stale_limit = 7 if medical else 14
+    if days <= recent_limit:
+        return "数据较新"
+    if days <= stale_limit:
+        return f"最后记录：{days} 天前 · 较久未更新"
+    return f"最后记录：{days} 天前 · 数据较旧，建议补测或检查设备"
 
 
 def _frame_from_observations(observations: list[Observation], codes: tuple[str, ...]) -> pd.DataFrame:
@@ -2179,16 +2275,16 @@ def render_health_data(patient_id: UUID) -> None:
         bp_value = f"{float(realtime_summary.latest_systolic.value_numeric):g} / {float(realtime_summary.latest_diastolic.value_numeric):g}"
     glucose = realtime_summary.cgm_current
     activity_cards = [
-        ("睡眠", _sleep_duration_text(sleep.total_sleep_minutes) if sleep else "暂无数据", "昨晚"),
-        ("深度睡眠", _sleep_duration_text(sleep.deep_sleep_minutes) if sleep else "暂无数据", "设备记录"),
-        ("步数", _observation_text(lifestyle_summary.latest.get("steps")), "今日累计"),
-        ("活动消耗", _observation_text(lifestyle_summary.latest.get("active_calories")), "今日累计"),
-        ("心率", _observation_text(realtime_summary.latest_heart_rate), "最近一次"),
-        ("HRV", _observation_text(lifestyle_summary.latest.get("heart_rate_variability")), "最近一次"),
+        ("睡眠", _sleep_duration_text(sleep.total_sleep_minutes) if sleep else "暂无数据", "昨晚" if sleep and (datetime.now(TOKYO_TIMEZONE) - sleep.sleep_end.astimezone(TOKYO_TIMEZONE)).days <= 2 else "数据较旧，建议检查设备" if sleep else "暂无足够数据"),
+        ("深度睡眠", _sleep_duration_text(sleep.deep_sleep_minutes) if sleep else "暂无数据", "设备记录" if sleep and (datetime.now(TOKYO_TIMEZONE) - sleep.sleep_end.astimezone(TOKYO_TIMEZONE)).days <= 2 else "数据较旧，建议检查设备" if sleep else "暂无足够数据"),
+        ("步数", _observation_text(lifestyle_summary.latest.get("steps")), _observation_freshness(lifestyle_summary.latest.get("steps"))),
+        ("活动消耗", _observation_text(lifestyle_summary.latest.get("active_calories")), _observation_freshness(lifestyle_summary.latest.get("active_calories"))),
+        ("心率", _observation_text(realtime_summary.latest_heart_rate), _observation_freshness(realtime_summary.latest_heart_rate)),
+        ("HRV", _observation_text(lifestyle_summary.latest.get("heart_rate_variability")), _observation_freshness(lifestyle_summary.latest.get("heart_rate_variability"))),
     ]
     medical_cards = [
-        ("血压", bp_value, "最近一次"),
-        ("血糖", _observation_text(glucose), "最近一次"),
+        ("血压", bp_value, _observation_freshness(realtime_summary.latest_systolic)),
+        ("血糖", _observation_text(glucose), _observation_freshness(glucose)),
     ]
     with section_frame("基础运动数据", "睡眠、活动、心率与 HRV；步数和活动消耗成对显示。"):
         for offset in range(0, len(activity_cards), 3):
@@ -2332,6 +2428,24 @@ def render_programs(patient: Patient, ctx: dict[str, list[object]]) -> None:
                 st.caption(f"最近复盘：{reviews[0].key_changes} · 下周重点：{reviews[0].next_week_focus}")
             if outcomes:
                 st.success("阶段结果：" + "；".join(f"{display_observation(o.metric)} {o.baseline_value}{o.unit} → {o.current_value}{o.unit}（{_label(o.result)}）" for o in outcomes))
+                latest_outcome = outcomes[0]
+                with st.expander("确认阶段结果后的下一步"):
+                    decision = st.radio(
+                        "后续管理决定", ["继续当前方案", "调整方案", "进入稳定期", "提交医生复核"],
+                        horizontal=True, key=f"outcome-decision-{latest_outcome.id}",
+                    )
+                    note = st.text_area("说明（可选）", key=f"outcome-decision-note-{latest_outcome.id}", placeholder="记录人工确认的后续管理安排。")
+                    if primary_action("确认后续管理决定", key=f"outcome-decision-save-{latest_outcome.id}", width="content"):
+                        try:
+                            choice = {"继续当前方案": "CONTINUE", "调整方案": "ADJUST", "进入稳定期": "STABILIZE", "提交医生复核": "DOCTOR_REVIEW"}[decision]
+                            with SessionLocal() as session:
+                                outcome = session.get(OutcomeEvaluation, latest_outcome.id)
+                                apply_outcome_decision(session, outcome, choice, "健康管理师", note)
+                                session.commit()
+                            st.success("已记录阶段结果后的人工管理决定，并创建对应下一步。")
+                            st.rerun()
+                        except ValueError as error:
+                            st.error(str(error))
             if program.next_decision:
                 st.info(f"下一步安排：{_label(program.next_decision)}")
 
@@ -2706,7 +2820,7 @@ def _render_knowledge_search_detail(result) -> None:
             st.link_button("查看官方来源", result.official_url, key=f"knowledge-result-source-{_knowledge_result_key(result)}")
 
 
-def _render_knowledge_detail(document: KnowledgeDocument, source_names: dict[str, str]) -> None:
+def _render_knowledge_detail(document: KnowledgeDocument, source_names: dict[str, str], *, key_scope: str) -> None:
     source_name = _knowledge_source_display(document.source_provider, source_names) or document.source_name or "来源信息待补充"
     service = KnowledgeService()
     with SessionLocal() as session:
@@ -2722,7 +2836,7 @@ def _render_knowledge_detail(document: KnowledgeDocument, source_names: dict[str
     st.write(f"来源机构：{source_name}")
     official_link = _knowledge_source_link(document.source_url)
     if official_link:
-        st.link_button("查看官方来源", official_link, key=f"knowledge-source-link-{document.id}")
+        st.link_button("查看官方来源", official_link, key=f"knowledge-source-link-{key_scope}-{document.id}")
     elif document.source_url:
         st.caption("原始来源链接仅供高级核对，不在普通页面直接打开接口地址。")
     if document.attribution:
@@ -2755,9 +2869,9 @@ def _render_knowledge_detail(document: KnowledgeDocument, source_names: dict[str
         for usage in usages:
             st.caption(f"{usage.feature or usage.output_type} · {_fmt_dt(usage.created_at)}")
     if document.review_status in {"DRAFT", "PENDING_REVIEW"}:
-        comment = st.text_area("审核说明（可选）", key=f"knowledge-review-comment-{document.id}", placeholder="例如：已核对来源、版本与许可说明")
+        comment = st.text_area("审核说明（可选）", key=f"knowledge-review-comment-{key_scope}-{document.id}", placeholder="例如：已核对来源、版本与许可说明")
         approve, reject = st.columns(2)
-        if approve.button("批准并允许 AI 引用", type="primary", key=f"knowledge-approve-{document.id}"):
+        if approve.button("批准并允许 AI 引用", type="primary", key=f"knowledge-approve-{key_scope}-{document.id}"):
             with SessionLocal() as session:
                 current = session.get(KnowledgeDocument, document.id)
                 if current:
@@ -2766,7 +2880,7 @@ def _render_knowledge_detail(document: KnowledgeDocument, source_names: dict[str
             _knowledge_stats.clear()
             st.session_state["knowledge-notice"] = "资料已批准，可作为正式 AI 引用来源。"
             st.rerun()
-        if reject.button("退回资料", key=f"knowledge-reject-{document.id}"):
+        if reject.button("退回资料", key=f"knowledge-reject-{key_scope}-{document.id}"):
             with SessionLocal() as session:
                 current = session.get(KnowledgeDocument, document.id)
                 if current:
@@ -2778,7 +2892,7 @@ def _render_knowledge_detail(document: KnowledgeDocument, source_names: dict[str
     elif document.review_status in {"APPROVED", "REJECTED"}:
         with st.expander("版本与归档"):
             st.caption("归档后仍保留审计记录，但不会继续供 AI 正式引用。新版本须再次经过人工审核。")
-            if secondary_action("归档此资料", key=f"knowledge-archive-{document.id}"):
+            if secondary_action("归档此资料", key=f"knowledge-archive-{key_scope}-{document.id}"):
                 with SessionLocal() as session:
                     current = session.get(KnowledgeDocument, document.id)
                     if current:
@@ -2788,9 +2902,9 @@ def _render_knowledge_detail(document: KnowledgeDocument, source_names: dict[str
                 st.session_state["knowledge-notice"] = "资料已归档，AI 将不再引用此版本。"
                 st.rerun()
             st.markdown("**创建替代版本**")
-            with st.form(f"knowledge-replacement-{document.id}"):
-                replacement_version = st.text_input("新版本号", value=f"{document.version}.1", key=f"knowledge-replacement-version-{document.id}")
-                replacement_summary = st.text_area("新版本摘要", value=document.summary or "", key=f"knowledge-replacement-summary-{document.id}")
+            with st.form(f"knowledge-replacement-{key_scope}-{document.id}"):
+                replacement_version = st.text_input("新版本号", value=f"{document.version}.1", key=f"knowledge-replacement-version-{key_scope}-{document.id}")
+                replacement_summary = st.text_area("新版本摘要", value=document.summary or "", key=f"knowledge-replacement-summary-{key_scope}-{document.id}")
                 if st.form_submit_button("保存为待审核新版本"):
                     with SessionLocal() as session:
                         current = session.get(KnowledgeDocument, document.id)
@@ -2815,7 +2929,7 @@ def _render_knowledge_detail(document: KnowledgeDocument, source_names: dict[str
         st.markdown("**原始文件**")
         file_path = Path(__file__).resolve().parent / document.file_reference
         if file_path.is_file():
-            st.download_button("下载原始文件", file_path.read_bytes(), file_name=file_path.name, key=f"knowledge-download-{document.id}")
+            st.download_button("下载原始文件", file_path.read_bytes(), file_name=file_path.name, key=f"knowledge-download-{key_scope}-{document.id}")
         else:
             st.caption("原始文件目前不可用。")
     with st.expander("高级信息"):
@@ -3049,7 +3163,7 @@ def _render_saved_knowledge(sources: list[KnowledgeSourceRegistry]) -> None:
         with right:
             selected = next((document for document in documents if str(document.id) == selected_id), documents[0])
             with detail_panel("资料详情", "详情在当前页面打开，不新增导航层级。"):
-                _render_knowledge_detail(selected, source_names)
+                _render_knowledge_detail(selected, source_names, key_scope="saved")
 
 
 def _render_pending_knowledge(sources: list[KnowledgeSourceRegistry]) -> None:
@@ -3078,7 +3192,7 @@ def _render_pending_knowledge(sources: list[KnowledgeSourceRegistry]) -> None:
         with detail_column:
             selected = next(document for document in pending if str(document.id) == selected_id)
             with detail_panel("审核资料", "核对内容、来源、版本和许可说明；批准后才允许 AI 引用。"):
-                _render_knowledge_detail(selected, source_names)
+                _render_knowledge_detail(selected, source_names, key_scope="pending")
 
 
 def render_knowledge_library_entry() -> None:
@@ -3435,11 +3549,13 @@ def render_report_review(document_id: UUID) -> None:
             _empty_state("这是当前成员第一份体检报告", "已作为后续长期健康比较的基线。")
         else:
             _status_strip(
-                ("改善", len(comparison["resolved_findings"]), "action"),
-                ("持续", len(comparison["persistent_findings"]), "attention"),
                 ("新增", len(comparison["new_findings"]), "attention"),
-                ("恢复", len(comparison["resolved_findings"]), "action"),
+                ("持续", len(comparison["persistent_findings"]), "attention"),
+                ("未再出现", len(comparison["resolved_findings"]), "action"),
+                ("需要处理", len(comparison["new_findings"]) + len(comparison["persistent_findings"]), "attention"),
             )
+            if comparison["new_findings"] or comparison["persistent_findings"]:
+                st.caption("新增或持续项目不会自动形成医学结论；请在下方按“仅记录、健康管理、医生复核或建议复查”完成人工分流。")
     reparse_message_key = f"report-reparse-message-{document_id}"
     if st.session_state.pop(reparse_message_key, None):
         st.success(f"本次重新解析完成，识别 {run.candidate_count} 项候选资料；所有结果仍需人工确认后才会入档。")
@@ -3565,6 +3681,7 @@ def _render_report_candidate_group(title: str, candidates: list[ReportExtraction
                 st.caption(f"检查：{_report_section_display(item.source_section)} · 第 {item.source_page or '—'} 页")
                 _render_report_finding_actions(item, key_scope=key_scope)
                 _render_evidence_action(_candidate_evidence_payload(item, document), key_scope=f"{key_scope}-candidate-{item.id}")
+                _render_related_knowledge(item.raw_name or item.summary or "", key_scope=f"report-finding-{item.id}")
         elif kind == "FOLLOWUP":
             with detail_panel(item.summary or "建议复查"):
                 st.caption(f"来源：第 {item.source_page or '—'} 页 · {_report_section_display(item.source_section)}")
@@ -4749,6 +4866,21 @@ def render_member_report_upload(patient: Patient) -> None:
     followups = [item for item in candidates if item.candidate_type == "FOLLOWUP"]
     pending = [item for item in candidates if item.status in {"PENDING_REVIEW", "NEEDS_MANUAL_REVIEW"}]
     with SessionLocal() as session:
+        baseline = HealthAssessmentService().latest_baseline(session, patient.id)
+    if run.status in {"PROCESSING", "PENDING"}:
+        intake_status, intake_next = "正在整理", "系统正在整理报告；完成后将交由健康管理团队核对。"
+    elif pending:
+        intake_status, intake_next = "等待审核", "报告已收到并完成初步整理，等待健康管理团队核对后入档。"
+    elif baseline and baseline.status == "DRAFT":
+        intake_status, intake_next = "健康档案正在建立", "报告已审核，健康基线初稿正在等待健康管理团队确认。"
+    elif baseline and baseline.status == "CONFIRMED":
+        intake_status, intake_next = "审核完成", "报告已纳入健康档案；后续变化将由健康管理团队持续跟进。"
+    else:
+        intake_status, intake_next = "已收到", "报告已收到，健康管理团队将继续审核整理结果。"
+    with section_frame("报告处理进度", "成员只需关注当前进度和下一步，无需理解内部解析状态。"):
+        st.markdown(status_badge(intake_status), unsafe_allow_html=True)
+        st.write(intake_next)
+    with SessionLocal() as session:
         report_risk = ReportRiskSummaryService().summarize(session, patient.id, document.id)
     with section_frame("本次核心结论", "以下为报告整理摘要；健康管理团队会进一步确认后纳入长期健康档案。"):
         st.markdown(risk_badge(report_risk["level"]), unsafe_allow_html=True)
@@ -5078,20 +5210,39 @@ def render_member_service_management(patient: Patient) -> None:
         for request in requests:
             with st.container(border=True):
                 st.markdown(f"**{names.get(request.service_item_id, '会员服务')}** · {_label(request.status)}")
-                st.caption(f"申请原因：{request.reason}")
-                if request.status == "REQUESTED" and st.button("审核并安排", key=f"service-approve-{request.id}", type="primary"):
+                st.caption(f"申请原因：{request.reason} · 负责人：{request.assigned_manager or '待分配'} · 安排时间：{_fmt_dt(request.scheduled_at) if request.scheduled_at else '待安排'}")
+                if request.status == "REQUESTED" and st.button("审核服务申请", key=f"service-approve-{request.id}", type="primary"):
                     with SessionLocal() as session:
                         MemberServiceOperations().approve(session, request.id, "健康管理师"); session.commit()
                     st.rerun()
-                elif request.status in {"APPROVED", "SCHEDULED", "IN_PROGRESS"}:
-                    if st.button("记录服务完成", key=f"service-complete-{request.id}"):
+                elif request.status == "APPROVED":
+                    with st.form(f"service-schedule-{request.id}"):
+                        scheduled_day = st.date_input("安排日期", value=date.today() + timedelta(days=3), key=f"service-schedule-date-{request.id}")
+                        scheduled_time = st.time_input("安排时间", value=time(10, 0), key=f"service-schedule-time-{request.id}")
+                        manager = st.text_input("负责人", value=request.assigned_manager or "健康管理师", key=f"service-schedule-manager-{request.id}")
+                        if st.form_submit_button("确认服务安排"):
+                            with SessionLocal() as session:
+                                MemberServiceOperations().schedule(session, request.id, datetime.combine(scheduled_day, scheduled_time, tzinfo=TOKYO_TIMEZONE), manager)
+                                session.commit()
+                            st.rerun()
+                elif request.status == "SCHEDULED":
+                    if st.button("记录开始服务", key=f"service-start-{request.id}"):
                         with SessionLocal() as session:
-                            MemberServiceOperations().complete(session, request.id, "服务已完成，后续由健康管理团队跟进。", "健康管理师"); session.commit()
+                            MemberServiceOperations().start(session, request.id, request.assigned_manager or "健康管理师")
+                            session.commit()
                         st.rerun()
-                elif request.result_summary:
-                    st.caption(request.result_summary)
+                elif request.status == "IN_PROGRESS":
+                    with st.form(f"service-complete-{request.id}"):
+                        result = st.text_area("服务结果摘要", placeholder="仅记录已完成的服务结果与后续安排", key=f"service-result-{request.id}")
+                        if st.form_submit_button("记录服务完成"):
+                            with SessionLocal() as session:
+                                MemberServiceOperations().complete(session, request.id, result, request.assigned_manager or "健康管理师")
+                                session.commit()
+                            st.rerun()
+                elif request.status == "COMPLETED":
+                    st.caption("完成结果：" + (request.result_summary or "已完成，结果待补充。"))
                     _render_evidence_action(
-                        {"source_name": "服务执行记录", "location": "服务结果记录", "evidence_type": "TEXT", "raw_evidence": request.result_summary, "structured_interpretation": "服务完成结果由健康管理团队记录。", "confirmation_status": _label(request.status), "evidence_status": "PARTIAL", "show_no_knowledge": True},
+                        {"source_name": "服务执行记录", "location": "服务结果记录", "evidence_type": "TEXT", "raw_evidence": request.result_summary or "当前未保存结果摘要。", "structured_interpretation": "服务完成结果由健康管理团队记录。", "confirmation_status": _label(request.status), "evidence_status": "PARTIAL", "show_no_knowledge": True},
                         key_scope=f"ops-service-evidence-{request.id}",
                     )
 
@@ -5123,7 +5274,25 @@ def _render_client_service(patient: Patient, ctx: dict[str, list[object]]) -> No
                 with detail_panel(names.get(selected.service_item_id, "会员服务"), "服务状态与结果由健康管理团队确认。"):
                     st.write(selected.reason or "成员服务申请")
                     st.caption(f"当前状态：{_label(selected.status)} · 申请时间：{_fmt_dt(selected.requested_at)}")
-                    st.write(selected.result_summary or "等待健康管理团队审核与安排。")
+                    if selected.scheduled_at:
+                        st.write(f"已安排：{_fmt_dt(selected.scheduled_at)}")
+                    next_member_action = {
+                        "REQUESTED": "健康管理团队将审核您的申请。",
+                        "REVIEWING": "健康管理团队正在审核您的申请。",
+                        "APPROVED": "申请已通过，正在安排服务时间。",
+                        "SCHEDULED": "服务已安排，请按约定时间准备。",
+                        "IN_PROGRESS": "服务正在进行，完成后将更新结果。",
+                        "COMPLETED": "服务已完成，结果已记录。",
+                        "CANCELLED": "本次服务已取消；如仍有需要，可重新申请。",
+                    }.get(selected.status, "健康管理团队将更新下一步安排。")
+                    st.write(selected.result_summary or next_member_action)
+                    if selected.status in {"REQUESTED", "REVIEWING", "APPROVED", "SCHEDULED"}:
+                        if secondary_action("取消本次申请", key=f"client-service-cancel-{selected.id}", width="content"):
+                            with SessionLocal() as session:
+                                MemberServiceOperations().cancel(session, selected.id, "成员取消本次服务申请。")
+                                session.commit()
+                            st.success("已取消本次服务申请；如仍有需要，可重新申请。")
+                            st.rerun()
         return
     with section_frame("当前会员", "当前服务计划与权益以健康管理团队确认记录为准。"):
         st.markdown(f"### {html.escape(plan.name.replace('（演示）', '').replace('(演示)', ''))}")

@@ -15,7 +15,7 @@ from executive_health_ai.models import AuditLog, DoctorReview, FollowUp, HealthP
 from executive_health_ai.models.base import utc_now
 
 
-ACTIVE_YELLOW = {"NEW", "ACKNOWLEDGED", "IN_REVIEW", "MONITORING", "ESCALATED_TO_DOCTOR", "FOLLOW_UP"}
+ACTIVE_YELLOW = {"NEW", "ACKNOWLEDGED", "IN_REVIEW", "MONITORING", "ESCALATED_TO_DOCTOR", "WAITING_MEMBER", "FOLLOW_UP"}
 
 
 class RiskOperationsService:
@@ -80,6 +80,8 @@ class RiskOperationsService:
         if method not in {"电话", "微信", "当面", "其他"} or result not in {"已联系", "未接通", "待回访"}:
             raise ValueError("Invalid contact record.")
         event = self.acknowledge(session, event_id, actor, note or "已记录联系成员")
+        if not due_at and result in {"未接通", "待回访"}:
+            event.status = "WAITING_MEMBER"
         self._audit(session, event, actor, "yellow_member_contact_recorded", {"method": method, "result": result, "note": note, "due_at": due_at.isoformat() if due_at else None})
         session.add(ServiceEvent(patient_id=event.patient_id, event_type="member_contact", status=result, owner=actor, detail=note, source="risk_operations"))
         if due_at:

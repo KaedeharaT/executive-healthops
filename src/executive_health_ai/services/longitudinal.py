@@ -21,7 +21,7 @@ from executive_health_ai.models import (
     AuditLog, DoctorReview, Document, ExternalReferral, FollowUp, HealthAssessment,
     HealthEvent, HealthProblem, HealthProgram, ManagementRule,
     ManagementSignal, MedicationPlan, Observation, Patient, ReportExtractionCandidate,
-    ReportExtractionRun, RiskEvent, Task, OutcomeEvaluation, WeeklyReview, ServiceCatalogItem, ServiceRequest,
+    ReportExtractionRun, RiskEvent, Task, OutcomeEvaluation, WeeklyReview, ServiceCatalogItem, ServiceRequest, MemberPlanChoice,
 )
 
 
@@ -801,6 +801,7 @@ class HealthTimelineService:
         program_query = select(HealthProgram).where(HealthProgram.patient_id == member_id)
         referral_query = select(ExternalReferral).where(ExternalReferral.patient_id == member_id)
         outcome_query = select(OutcomeEvaluation).where(OutcomeEvaluation.patient_id == member_id)
+        plan_choice_query = select(MemberPlanChoice).where(MemberPlanChoice.patient_id == member_id)
         service_query = select(ServiceRequest).where(ServiceRequest.patient_id == member_id, ServiceRequest.status.in_(("SCHEDULED", "IN_PROGRESS", "COMPLETED")))
         adjustment_query = select(WeeklyReview).join(HealthProgram, WeeklyReview.program_id == HealthProgram.id).where(HealthProgram.patient_id == member_id, WeeklyReview.adjustment.is_not(None))
         report_query = select(ReportExtractionRun).where(ReportExtractionRun.patient_id == member_id, ReportExtractionRun.status.in_(("COMPLETED", "PARTIAL_SUCCESS")))
@@ -811,6 +812,7 @@ class HealthTimelineService:
             program_query = program_query.where(HealthProgram.created_at >= start); referral_query = referral_query.where(ExternalReferral.created_at >= start)
             report_query = report_query.where(ReportExtractionRun.created_at >= start)
             outcome_query = outcome_query.where(OutcomeEvaluation.created_at >= start)
+            plan_choice_query = plan_choice_query.where(MemberPlanChoice.chosen_at >= start)
             adjustment_query = adjustment_query.where(WeeklyReview.reviewed_at >= start)
             service_query = service_query.where(ServiceRequest.requested_at >= start)
         if end is not None:
@@ -820,6 +822,7 @@ class HealthTimelineService:
             program_query = program_query.where(HealthProgram.created_at <= end); referral_query = referral_query.where(ExternalReferral.created_at <= end)
             report_query = report_query.where(ReportExtractionRun.created_at <= end)
             outcome_query = outcome_query.where(OutcomeEvaluation.created_at <= end)
+            plan_choice_query = plan_choice_query.where(MemberPlanChoice.chosen_at <= end)
             adjustment_query = adjustment_query.where(WeeklyReview.reviewed_at <= end)
             service_query = service_query.where(ServiceRequest.requested_at <= end)
         for assessment in session.scalars(assessment_query.order_by(HealthAssessment.assessed_at.desc()).limit(limit)):
@@ -856,6 +859,8 @@ class HealthTimelineService:
             events.append(TimelineEvent(referral.created_at, "external_referral", "外部医疗协同", referral.reason, "BLUE", "external_referral", {"specialty": referral.specialty, "organization": referral.organization, "status": referral.status, "question": referral.question, "feedback": referral.feedback}, str(referral.id), f"EXTERNAL_REFERRAL:{referral.id}", (str(referral.id),)))
         for outcome in session.scalars(outcome_query.order_by(OutcomeEvaluation.created_at.desc()).limit(limit)):
             events.append(TimelineEvent(datetime.combine(outcome.evaluation_date, datetime.min.time(), tzinfo=timezone.utc), "outcome", "阶段健康评估", f"{outcome.metric}：{outcome.baseline_value}{outcome.unit} → {outcome.current_value}{outcome.unit}；观察到的前后变化。", "GREEN" if outcome.result == "IMPROVED" else "BLUE", "outcome_evaluation", {"metric": outcome.metric, "before": outcome.baseline_value, "after": outcome.current_value, "unit": outcome.unit, "status": outcome.result, "program_id": str(outcome.program_id)}, str(outcome.id), f"OUTCOME:{outcome.id}", (str(outcome.id),), ("view_outcome",)))
+        for choice in session.scalars(plan_choice_query.order_by(MemberPlanChoice.chosen_at.desc()).limit(limit)):
+            events.append(TimelineEvent(choice.chosen_at, "program_adjustment", "成员确认健康计划", f"成员选择：{choice.member_choice}。{choice.manager_followup or '等待健康管理团队确认后续安排。'}", "BLUE", "member_plan_choice", {"choice": choice.member_choice, "next_action": choice.manager_followup}, str(choice.id), f"PLAN_CHOICE:{choice.id}", (str(choice.id),), ("view_program",)))
         for request in session.scalars(service_query.order_by(ServiceRequest.completed_at.desc(), ServiceRequest.requested_at.desc()).limit(limit)):
             item = session.get(ServiceCatalogItem, request.service_item_id)
             if not item or not item.is_major_timeline_service:
