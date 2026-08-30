@@ -1,0 +1,1 @@
+This fixture documents a synthetic scanned-report acceptance case. Binary scanned PDFs are generated in tests and contain no text layer.

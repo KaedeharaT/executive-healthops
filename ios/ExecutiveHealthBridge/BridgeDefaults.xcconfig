@@ -1,0 +1,5 @@
+// Safe defaults. BridgeSecrets.xcconfig overrides these locally and is ignored.
+HEALTHOPS_API_BASE_URL =
+HEALTHOPS_BRIDGE_TOKEN =
+HEALTHOPS_MEMBER_EXTERNAL_ID =
+#include? "BridgeSecrets.xcconfig"
