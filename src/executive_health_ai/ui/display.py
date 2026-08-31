@@ -59,6 +59,38 @@ _SOURCE = {
     "MEMBER_REPORTED": "成员自述", "MANAGER_CONFIRMED": "健康管理确认记录",
 }
 
+_PROVIDER = {
+    "apple_health": "Apple Health",
+    "mock_oura": "演示健康设备（Oura）",
+    "mock_yuwell": "演示血压设备",
+    "mock_cgm": "演示连续血糖设备",
+    "glucose_meter_interface": "血糖仪",
+    "manual": "手工录入",
+    "report": "体检报告",
+    "pdf": "健康报告文件",
+    "csv": "导入数据文件",
+    "excel": "导入数据文件",
+    "json": "设备数据接口",
+}
+
+_QUALITY = {
+    "VALID": "数据正常",
+    "SUSPECT": "数据需确认",
+    "INVALID": "数据不可用",
+    "MISSING": "暂无数据",
+    "DUPLICATE": "重复数据",
+    "MANUALLY_CORRECTED": "已人工修正",
+}
+
+_AUDIT_ACTION = {
+    "confirmed_alert": "确认健康异常",
+    "recorded_doctor_review": "记录医生复核",
+    "closed_follow_up": "完成随访",
+    "created_task": "创建跟进任务",
+    "member_plan_choice": "成员确认计划",
+    "outcome_decision": "确认阶段结果后的管理决定",
+}
+
 
 def get_status_display(value: str | None, *, context: str | None = None) -> str:
     code = (value or "").strip().upper()
@@ -87,6 +119,19 @@ def get_source_type_display(value: str | None) -> str:
     if raw and any("\u4e00" <= char <= "\u9fff" for char in raw):
         return raw
     return _SOURCE.get(raw.upper(), "来源信息待补充")
+
+
+def get_provider_display(value: str | None) -> str:
+    raw = (value or "").strip().lower()
+    return _PROVIDER.get(raw, "健康数据来源")
+
+
+def get_quality_display(value: str | None) -> str:
+    return _QUALITY.get((value or "").strip().upper(), "数据状态待确认")
+
+
+def get_audit_action_display(value: str | None) -> str:
+    return _AUDIT_ACTION.get((value or "").strip().lower(), "已记录处理")
 
 
 def get_risk_display(value: str | None) -> str:

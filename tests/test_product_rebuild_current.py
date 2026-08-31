@@ -44,7 +44,7 @@ def test_report_result_has_human_risk_routing_and_standard_evidence_entry() -> N
 
 def test_health_data_separates_daily_activity_medical_monitoring_and_period_summary() -> None:
     data = _source("render_health_data", "def render_medications")
-    for heading in ("基础运动数据", "医疗监测数据", "周 / 月 / 年汇总", "睡眠", "深度睡眠", "步数", "活动消耗", "血压", "血糖"):
+    for heading in ("日常活动", "医疗监测", "周 / 月 / 年汇总", "睡眠", "深度睡眠", "步数", "活动消耗", "血压", "血糖"):
         assert heading in data
     assert "unknown" not in data.lower()
 

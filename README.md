@@ -147,7 +147,7 @@ flowchart TB
 pytest -q
 ```
 
-当前 v0.9.0 作品集发布验收：**322 passed / 0 failed**。发布前始终要求 0 failures。
+当前 v0.9.0 作品集发布验收：**325 passed / 0 failed**。发布前始终要求 0 failures。
 
 ## License and Data
 

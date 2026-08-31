@@ -39,8 +39,9 @@ from executive_health_ai.ui.localization.zh_cn import (
     knowledge_category as display_knowledge_category, knowledge_review_status as display_knowledge_review_status,
 )
 from executive_health_ai.ui.display import (
-    get_entity_type_display, get_event_type_display, get_risk_display,
-    get_role_display, get_source_type_display, get_status_display, humanize_source_name,
+    get_audit_action_display, get_entity_type_display, get_event_type_display,
+    get_provider_display, get_quality_display, get_risk_display, get_role_display,
+    get_source_type_display, get_status_display, humanize_source_name,
 )
 from executive_health_ai.services.knowledge import KnowledgeService
 from executive_health_ai.services.knowledge_retrieval import KnowledgeRetrievalService
@@ -64,6 +65,10 @@ st.set_page_config(page_title="企业高管健康运营中心", page_icon="🩺"
 LOGGER = logging.getLogger(__name__)
 NAVIGATION_PROFILE_ENABLED = os.getenv("HEALTHOPS_PROFILE_NAV", "").lower() in {"1", "true", "yes"}
 PORTFOLIO_DEMO_ENABLED = os.getenv("PORTFOLIO_DEMO", "").lower() in {"1", "true", "yes"}
+TECHNICAL_DETAILS_ENABLED = (
+    not PORTFOLIO_DEMO_ENABLED
+    and os.getenv("HEALTHOPS_TECHNICAL_DETAILS", "").lower() in {"1", "true", "yes"}
+)
 
 DATA_STATUS_LABELS = {
     "normal": "数据完整，可进行趋势分析",
@@ -181,7 +186,7 @@ def _inject_style() -> None:
 
 def _fmt_dt(value: datetime | None) -> str:
     if value is None:
-        return "—"
+        return "未记录"
     return display_datetime(value)
 
 
@@ -243,6 +248,76 @@ def _metric_display_name(metric_code: str | None, raw_name: str | None = None) -
     return "健康数据"
 
 
+_TECHNICAL_DETAIL_FIELDS = {
+    "id", "uuid", "canonical_code", "provider_code", "external_id", "content_hash",
+    "document_id", "member_id", "patient_id", "project_id", "risk_event_id", "review_id",
+    "service_request_id", "chunk_id", "source_record_id", "raw_record_id", "ingestion_job_id",
+    "raw_payload", "payload_json", "metadata_json", "raw_metadata", "trace_id", "run_id",
+    "parser_run_id", "extraction_run_id", "evaluation_run_id", "source_id", "entity_id",
+}
+
+_BUSINESS_DETAIL_LABELS = {
+    "title": "名称", "name": "名称", "label": "名称", "summary": "摘要",
+    "description": "说明", "metric": "指标", "value": "数值", "unit": "单位",
+    "status": "状态", "quality": "数据状态", "quality_flag": "数据状态",
+    "provider": "数据来源", "source": "来源", "source_type": "来源类型", "observed_at": "记录时间",
+    "recorded_at": "记录时间", "date": "日期", "reference_range": "参考范围",
+    "abnormal_flag": "异常提示", "department": "科室", "organization": "机构",
+    "owner": "负责人", "responsible_role": "负责人", "event_type": "记录类型",
+}
+
+
+def _is_technical_detail_field(key: object) -> bool:
+    normalized = str(key).strip().lower()
+    return (
+        normalized in _TECHNICAL_DETAIL_FIELDS
+        or normalized.endswith(("_id", "_uuid", "_record_id", "_job_id", "_run_id"))
+        or normalized.startswith(("raw_", "canonical_", "ingestion_", "metadata_"))
+    )
+
+
+def _is_uuid_value(value: object) -> bool:
+    if isinstance(value, UUID):
+        return True
+    try:
+        UUID(str(value))
+    except (TypeError, ValueError, AttributeError):
+        return False
+    return True
+
+
+def _business_detail_row(value: dict[object, object]) -> dict[str, object]:
+    """Prepare ad-hoc snapshot data for UI without accidentally dumping provenance."""
+    result: dict[str, object] = {}
+    for key, item in value.items():
+        normalized = str(key).strip().lower()
+        if _is_technical_detail_field(key) or _is_uuid_value(item):
+            continue
+        if item is None or (isinstance(item, str) and item.strip().lower() in {"", "none", "null", "unknown", "n/a"}):
+            display_value: object = "未记录"
+        elif normalized in {"provider", "source_system"}:
+            display_value = get_provider_display(str(item))
+        elif normalized == "source_type":
+            display_value = get_source_type_display(str(item))
+        elif normalized in {"status", "quality", "quality_flag"}:
+            display_value = get_quality_display(str(item)) if "quality" in normalized else _label(str(item))
+        elif normalized in {"owner", "responsible_role"}:
+            display_value = _role_label(str(item))
+        elif normalized == "event_type":
+            display_value = get_event_type_display(str(item))
+        elif normalized in {"metric", "metric_code"}:
+            display_value = _metric_display_name(str(item))
+        elif isinstance(item, list):
+            display_value = "、".join(str(part) for part in item if not _is_uuid_value(part)) or "未记录"
+        elif isinstance(item, dict):
+            display_value = "；".join(f"{label}：{content}" for label, content in _business_detail_row(item).items()) or "未记录"
+        else:
+            display_value = item
+        label = _BUSINESS_DETAIL_LABELS.get(normalized, str(key).replace("_", " "))
+        result[label] = display_value
+    return result
+
+
 def _timeline_event_badge(event) -> str:
     """A quiet category label for normal timeline events, never a risk light."""
     label = event.event_type_label or "健康记录"
@@ -275,7 +350,7 @@ def _program_day(program: HealthProgram | None) -> int | None:
 def _member_display(member: Patient | None) -> str:
     if member is None:
         return "未匹配成员"
-    return member.display_name or member.external_id or "未命名成员"
+    return member.display_name or "未命名成员"
 
 
 def _render_timed(page_name: str, renderer) -> None:
@@ -841,10 +916,14 @@ def render_evidence_panel(evidence: dict[str, object], *, key_scope: str, client
             st.markdown("**规则依据**")
             st.write(" · ".join(f"{key}：{value}" for key, value in rule_reference.items() if value))
         if not client_view:
-            technical = evidence.get("technical")
-            if isinstance(technical, dict) and any(value not in {None, ""} for value in technical.values()):
-                with st.expander("高级信息"):
-                    st.dataframe(pd.DataFrame([{key: value for key, value in technical.items() if value not in {None, ""}}]), hide_index=True, width="stretch")
+            if TECHNICAL_DETAILS_ENABLED:
+                technical = evidence.get("technical")
+                if isinstance(technical, dict) and any(value not in {None, ""} for value in technical.values()):
+                    with st.expander("高级信息"):
+                        st.dataframe(pd.DataFrame([{
+                            {"rule_code": "规则编号", "risk_event_id": "风险记录编号"}.get(key, key): value
+                            for key, value in technical.items() if value not in {None, ""}
+                        }]), hide_index=True, width="stretch")
 
 
 def evidence_action(evidence: dict[str, object], *, key_scope: str, client_view: bool = False) -> None:
@@ -1191,7 +1270,7 @@ def render_yellow_risk_operations(patient: Patient, event: RiskEvent) -> None:
         st.markdown("#### 处理记录")
         for item in actions:
             if item.action.startswith("yellow_") or item.action.startswith("risk_event"):
-                st.caption(f"{_fmt_dt(item.created_at)} · {item.actor} · {_label(item.action)}")
+                st.caption(f"{_fmt_dt(item.created_at)} · {_role_label(item.actor_role, name=item.actor)} · {get_audit_action_display(item.action)}")
 
 
 def _members() -> list[Patient]:
@@ -1494,7 +1573,7 @@ def _render_member_header(patient: Patient, ctx: dict[str, list[object]]) -> Non
     open_problems = [item for item in ctx["problems"] if item.status != "CLOSED"]
     open_tasks = [item for item in ctx["tasks"] if item.status not in {"COMPLETED", "CANCELLED"}]
     next_task = next((item for item in open_tasks if item.due_at), None)
-    name = html.escape(patient.display_name or patient.external_id or "未命名成员")
+    name = html.escape(patient.display_name or "未命名成员")
     doctor_reviews = len([item for item in ctx["alerts"] if item.status == "WAITING_DOCTOR_REVIEW"])
     next_review = _fmt_dt(next_task.due_at) if next_task and next_task.due_at else "暂无安排"
     st.markdown(
@@ -1705,7 +1784,14 @@ def render_tasks(ctx: dict[str, list[object]]) -> None:
 
 def _recent_observation_table(observations: list[Observation]) -> pd.DataFrame:
     return pd.DataFrame([
-        {"记录时间": _fmt_dt(item.observed_at), "指标": _metric_display_name(item.metric_code), "数值": float(item.value_numeric) if item.value_numeric is not None else "暂无数据", "单位": item.unit or "未记录", "数据来源": display_provider(item.source), "数据质量": _label(item.quality_flag)}
+        {
+            "记录时间": _fmt_dt(item.observed_at),
+            "指标": _metric_display_name(item.metric_code),
+            "数值": float(item.value_numeric) if item.value_numeric is not None else "暂无数据",
+            "单位": item.unit or "未记录",
+            "数据来源": get_provider_display(item.source),
+            "数据质量": get_quality_display(item.quality_flag),
+        }
         for item in observations[:200]
     ])
 
@@ -1848,7 +1934,7 @@ def render_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]) -> Non
                 key_scope=f"doctor-alert-{alert.id}",
             )
     if not pending:
-        st.info("当前没有待医生复核的 Alert。以下为已确认的医生复核记录。")
+        st.info("当前没有待医生复核的健康异常事项。以下为已确认的医生复核记录。")
     if ctx["reviews"]:
         st.markdown("#### 已完成医生复核")
         for review in ctx["reviews"]:
@@ -1881,7 +1967,7 @@ def render_observations(ctx: dict[str, list[object]]) -> None:
     quality_options = sorted({item.quality_flag for item in observations})
     filters = st.columns(3)
     selected_sources = filters[0].multiselect("数据来源", source_options, default=source_options, format_func=display_provider)
-    selected_quality = filters[1].multiselect("数据质量", quality_options, default=quality_options, format_func=_label)
+    selected_quality = filters[1].multiselect("数据质量", quality_options, default=quality_options, format_func=get_quality_display)
     date_from = filters[2].date_input("记录时间从", value=min(item.observed_at.date() for item in observations))
     observations = [item for item in observations if item.source in selected_sources and item.quality_flag in selected_quality and item.observed_at.date() >= date_from]
     frame = _recent_observation_table(observations)
@@ -2246,8 +2332,8 @@ def _render_long_term_section(
 
 
 def render_health_data(patient_id: UUID) -> None:
-    """A member-readable data surface with activity, medical monitoring and trends."""
-    _page_header("健康数据", "先看今天的日常活动与医疗监测，再查看周、月、年趋势。", eyebrow="成员健康中心")
+    """A member-readable health-data surface; provenance stays out of this view."""
+    _page_header("健康数据", "查看日常活动、睡眠、医疗监测和长期趋势。", eyebrow="成员健康中心")
     service = HealthDataSummaryService()
     timeline_window = st.session_state.get(f"health-data-window-{patient_id}")
     start_at: datetime | None = None
@@ -2267,36 +2353,80 @@ def render_health_data(patient_id: UUID) -> None:
         realtime_summary = service.get_realtime_summary(session, patient_id)
         lifestyle_summary = service.get_lifestyle_summary(session, patient_id, days=14)
         sleep_sessions = service.get_sleep_sessions(session, patient_id, days=1)
+        supplementary = service.latest_for_codes(session, patient_id, ("weight",))
+        latest_records = list(session.scalars(
+            select(Observation).where(
+                Observation.patient_id == patient_id,
+                Observation.excluded_from_analysis.is_(False),
+                Observation.source_deleted.is_(False),
+            ).order_by(Observation.observed_at.desc()).limit(160)
+        ))
 
-    _section_header("今天", "基础运动数据和医疗监测数据分开查看；缺失数据不会被当作 0。")
+    _section_header("健康数据概览", "缺失或陈旧数据不会被当作正常状态；请按需要补测或连接设备。")
     sleep = sleep_sessions[0] if sleep_sessions else None
     bp_value = "—"
     if realtime_summary.latest_systolic and realtime_summary.latest_diastolic:
         bp_value = f"{float(realtime_summary.latest_systolic.value_numeric):g} / {float(realtime_summary.latest_diastolic.value_numeric):g}"
     glucose = realtime_summary.cgm_current
+
     activity_cards = [
-        ("睡眠", _sleep_duration_text(sleep.total_sleep_minutes) if sleep else "暂无数据", "昨晚" if sleep and (datetime.now(TOKYO_TIMEZONE) - sleep.sleep_end.astimezone(TOKYO_TIMEZONE)).days <= 2 else "数据较旧，建议检查设备" if sleep else "暂无足够数据"),
-        ("深度睡眠", _sleep_duration_text(sleep.deep_sleep_minutes) if sleep else "暂无数据", "设备记录" if sleep and (datetime.now(TOKYO_TIMEZONE) - sleep.sleep_end.astimezone(TOKYO_TIMEZONE)).days <= 2 else "数据较旧，建议检查设备" if sleep else "暂无足够数据"),
-        ("步数", _observation_text(lifestyle_summary.latest.get("steps")), _observation_freshness(lifestyle_summary.latest.get("steps"))),
-        ("活动消耗", _observation_text(lifestyle_summary.latest.get("active_calories")), _observation_freshness(lifestyle_summary.latest.get("active_calories"))),
-        ("心率", _observation_text(realtime_summary.latest_heart_rate), _observation_freshness(realtime_summary.latest_heart_rate)),
-        ("HRV", _observation_text(lifestyle_summary.latest.get("heart_rate_variability")), _observation_freshness(lifestyle_summary.latest.get("heart_rate_variability"))),
+        ("步数", lifestyle_summary.latest.get("steps")),
+        ("活动消耗", lifestyle_summary.latest.get("active_calories")),
+        ("运动时间", lifestyle_summary.latest.get("exercise_minutes")),
     ]
-    medical_cards = [
-        ("血压", bp_value, _observation_freshness(realtime_summary.latest_systolic)),
-        ("血糖", _observation_text(glucose), _observation_freshness(glucose)),
-    ]
-    with section_frame("基础运动数据", "睡眠、活动、心率与 HRV；步数和活动消耗成对显示。"):
-        for offset in range(0, len(activity_cards), 3):
-            columns = st.columns(3)
-            for column, (label, value, note) in zip(columns, activity_cards[offset:offset + 3]):
+    with section_frame("日常活动", "步数、活动消耗和运动时间会在连接支持设备后自动显示。"):
+        available = [(label, item) for label, item in activity_cards if item is not None]
+        if not available:
+            _empty_state("尚未接入可用活动数据", "连接 Apple Health 或其他支持设备后，这里将显示步数、活动消耗与运动时间。")
+        else:
+            columns = st.columns(len(available))
+            for column, (label, item) in zip(columns, available):
+                with column:
+                    health_metric_card(label, _observation_text(item), _observation_freshness(item))
+
+    with section_frame("睡眠", "重点查看总睡眠与深度睡眠；趋势会在下方按时间范围展开。"):
+        if sleep is None:
+            _empty_state("暂无睡眠数据", "连接支持睡眠记录的设备后，这里将显示总睡眠时间、睡眠阶段与趋势。")
+        else:
+            sleep_age = datetime.now(TOKYO_TIMEZONE) - sleep.sleep_end.astimezone(TOKYO_TIMEZONE)
+            sleep_note = "昨晚记录" if sleep_age.days <= 2 else f"最后记录：{sleep_age.days} 天前 · 数据较旧，建议检查设备"
+            cards = [("睡眠时长", _sleep_duration_text(sleep.total_sleep_minutes), sleep_note)]
+            if sleep.deep_sleep_minutes is not None:
+                cards.append(("深度睡眠", _sleep_duration_text(sleep.deep_sleep_minutes), "设备记录"))
+            columns = st.columns(len(cards))
+            for column, (label, value, note) in zip(columns, cards):
                 with column:
                     health_metric_card(label, value, note)
-    with section_frame("医疗监测数据", "血压、血糖与 CGM 等需要持续关注的数据。"):
-        columns = st.columns(3)
-        for column, (label, value, note) in zip(columns, medical_cards):
-            with column:
-                health_metric_card(label, value, note)
+
+    pulse_cards = [
+        ("心率", realtime_summary.latest_heart_rate),
+        ("静息心率", lifestyle_summary.latest.get("resting_heart_rate")),
+        ("血氧", lifestyle_summary.latest.get("spo2")),
+    ]
+    with section_frame("心率与血氧", "用于查看已同步的生命体征；缺失数据不会被推断。"):
+        available = [(label, item) for label, item in pulse_cards if item is not None]
+        if not available:
+            _empty_state("暂无近期数据", "连接支持心率或血氧记录的设备后，会在这里自动同步。")
+        else:
+            columns = st.columns(len(available))
+            for column, (label, item) in zip(columns, available):
+                with column:
+                    health_metric_card(label, _observation_text(item), _observation_freshness(item))
+
+    medical_cards = [
+        ("血压", bp_value, realtime_summary.latest_systolic) if realtime_summary.latest_systolic and realtime_summary.latest_diastolic else None,
+        ("血糖", _observation_text(glucose), glucose) if glucose is not None else None,
+        ("体重", _observation_text(supplementary.get("weight")), supplementary.get("weight")) if supplementary.get("weight") is not None else None,
+    ]
+    with section_frame("医疗监测", "血压、血糖与体重等记录需结合专业人员的人工判断。"):
+        available = [item for item in medical_cards if item is not None]
+        if not available:
+            _empty_state("暂无医疗监测数据", "连接血压、血糖或体重设备后，这里将显示最近一次可用记录。")
+        else:
+            columns = st.columns(len(available))
+            for column, (label, value, item) in zip(columns, available):
+                with column:
+                    health_metric_card(label, value, _observation_freshness(item))
 
     _section_header("周 / 月 / 年汇总", "选择时间跨度后，只展示最关键的长期变化；其他指标按需查看。")
     with section_frame("最近趋势", "睡眠趋势会同时保留总睡眠和深度睡眠，帮助理解睡眠结构。"):
@@ -2306,18 +2436,21 @@ def render_health_data(patient_id: UUID) -> None:
     detail_records = sorted({item.id: item for item in [*realtime, *lifestyle, *long_term]}.values(), key=lambda item: item.observed_at, reverse=True)
     with st.expander("查看全部健康数据"):
         st.dataframe(_recent_observation_table(detail_records), hide_index=True, width="stretch")
-    with st.expander("数据详情与高级信息"):
+    with st.expander("查看监测详情"):
         _render_realtime_section(patient_id, service)
         _render_lifestyle_section(patient_id, service)
-        st.caption("原始记录标识、接入任务、设备信息和数据来源仅供授权人员核对。")
-        if detail_records:
-            st.dataframe(pd.DataFrame([{
-                "canonical_code": item.metric_code,
-                "source_record_id": item.source_record_id or "—",
-                "raw_record_id": str(item.raw_record_id or "—"),
-                "ingestion_job_id": str(item.ingestion_job_id or "—"),
-                "provider": item.source,
-            } for item in detail_records[:100]]), hide_index=True, width="stretch")
+    source_latest: dict[str, Observation] = {}
+    for item in latest_records:
+        source_latest.setdefault(item.source, item)
+    with section_frame("数据来源", "展示最近同步状态；原始追溯记录由授权人员在设备管理中核对。"):
+        if not source_latest:
+            _empty_state("尚未接入数据来源", "连接设备或录入健康资料后，这里会显示数据来源与最近更新时间。")
+        else:
+            rows = [
+                {"数据来源": get_provider_display(source), "最近更新": _observation_freshness(item), "数据状态": get_quality_display(item.quality_flag)}
+                for source, item in list(source_latest.items())[:6]
+            ]
+            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
 
 def render_medications(ctx: dict[str, list[object]]) -> None:
@@ -2356,7 +2489,7 @@ def render_timeline(patient: Patient, ctx: dict[str, list[object]]) -> None:
         rows.append({"at": datetime.combine(outcome.evaluation_date, time.min, tzinfo=TOKYO_TIMEZONE), "type": "outcome", "title": f"阶段效果评估：{display_observation(outcome.metric)}", "detail": f"{outcome.baseline_value}{outcome.unit} → {outcome.current_value}{outcome.unit} · {_label(outcome.result)}", "source": outcome.evaluator})
     for audit in ctx["audits"]:
         if audit.action in {"confirmed_alert", "recorded_doctor_review", "closed_follow_up"}:
-            rows.append({"at": audit.created_at, "type": "audit", "title": TYPE_LABELS.get("audit", "Audit"), "detail": audit.action.replace("_", " "), "source": audit.actor})
+            rows.append({"at": audit.created_at, "type": "audit", "title": "人工处理记录", "detail": get_audit_action_display(audit.action), "source": _role_label(audit.actor_role, name=audit.actor)})
     for item in sorted(rows, key=lambda row: row["at"], reverse=True):
         label = TYPE_LABELS.get(str(item["type"]), str(item["type"]).replace("_", " ").title())
         st.markdown(f"**{label} · {_fmt_dt(item['at'])} · {item['title']}**  \\n+{item['detail']} · {item['source']}")
@@ -2368,7 +2501,17 @@ def render_audit(ctx: dict[str, list[object]]) -> None:
     if not audits:
         st.info("暂无审计记录。")
         return
-    st.dataframe(pd.DataFrame([{"时间": _fmt_dt(item.created_at), "操作者": item.actor, "角色": item.actor_role, "动作": item.action, "对象": f"{item.entity_type} / {item.entity_id[:8]}", "详情": str(item.detail_json)} for item in audits]), hide_index=True, width="stretch")
+    st.dataframe(pd.DataFrame([
+        {
+            "时间": _fmt_dt(item.created_at),
+            "操作者": item.actor or "未记录",
+            "角色": _role_label(item.actor_role),
+            "处理动作": get_audit_action_display(item.action),
+            "处理事项": get_entity_type_display(item.entity_type),
+            "处理结果": "已记录",
+        }
+        for item in audits
+    ]), hide_index=True, width="stretch")
 
 
 def render_overview(patient: Patient, ctx: dict[str, list[object]]) -> None:
@@ -2380,8 +2523,8 @@ def render_overview(patient: Patient, ctx: dict[str, list[object]]) -> None:
         problem = closed[0]
         related = _problem_related(ctx, problem)
         st.markdown("#### Demo Executive A 的演示医疗子闭环")
-        st.markdown("连续 5 天血压数据需人工核实　→　Alert　→　Manager Review　→　HealthProblem　→　Doctor Review　→　ManagementPlan　→　Task　→　Follow-up　→　Closed")
-        st.success(f"已完成：{problem.title}，{len(related['reviews'])} 次医生复核、{len(related['tasks'])} 个 Task、{len(related['followups'])} 条随访。请在 Problems / Timeline 查看每一步。")
+        st.markdown("连续 5 天血压数据需人工核实　→　健康管理师核实　→　医生复核　→　健康管理方案　→　跟进任务　→　随访　→　已关闭")
+        st.success(f"已完成：{problem.title}，{len(related['reviews'])} 次医生复核、{len(related['tasks'])} 个跟进任务、{len(related['followups'])} 条随访。请在成员历程中查看每一步。")
     else:
         st.caption("闭环将在管理师确认、医生复核与人工随访后逐步出现。")
 
@@ -2512,9 +2655,10 @@ def render_data_sources(ctx: dict[str, list[object]]) -> None:
         st.info("尚未配置外部身份映射。系统不会自动猜测成员。")
         return
     st.dataframe(pd.DataFrame([{
-        "数据来源": display_provider(item.provider), "外部成员标识": item.external_id, "连接状态": _label(item.status),
+        "数据来源": get_provider_display(item.provider),
+        "连接状态": _label(item.status),
         "最近同步": _fmt_dt(next((job.completed_at for job in jobs if job.source_system == item.provider), None)),
-        "最近任务状态": _label(next((job.status for job in jobs if job.source_system == item.provider), None)),
+        "同步状态": _label(next((job.status for job in jobs if job.source_system == item.provider), None)),
     } for item in identities]), hide_index=True, width="stretch")
 
 
@@ -2801,9 +2945,7 @@ def _render_knowledge_search_detail(result) -> None:
         st.caption(f"获取时间：{_fmt_dt(result.retrieved_at)}")
         if result.provider_code == "RXNORM":
             st.markdown("**标准化信息**")
-            st.write(f"RxCUI：{result.structured_metadata.get('rxcui') or result.external_id}")
-            if result.structured_metadata.get("term_type"):
-                st.caption("术语类型：" + str(result.structured_metadata["term_type"]))
+            st.write("该资料用于统一药物名称与同义名称，不构成用药建议。")
             if result.structured_metadata.get("synonym"):
                 st.write("同义名称/品牌映射：" + str(result.structured_metadata["synonym"]))
         elif result.provider_code == "OPENFDA":
@@ -2932,12 +3074,21 @@ def _render_knowledge_detail(document: KnowledgeDocument, source_names: dict[str
             st.download_button("下载原始文件", file_path.read_bytes(), file_name=file_path.name, key=f"knowledge-download-{key_scope}-{document.id}")
         else:
             st.caption("原始文件目前不可用。")
-    with st.expander("高级信息"):
-        st.caption("内部标识、内容摘要和原始元数据仅供授权人员核对。")
-        st.json(document.metadata_json)
-        if audits:
-            st.caption("审核记录")
-            st.json([{"原状态": item.previous_status, "新状态": item.new_status, "审核人": item.reviewer, "时间": _fmt_dt(item.created_at)} for item in audits])
+    if TECHNICAL_DETAILS_ENABLED:
+        with st.expander("高级信息"):
+            st.caption("内部标识和原始元数据仅供授权人员核对。")
+            if audits:
+                st.dataframe(pd.DataFrame([
+                    {
+                        "原状态": _label(item.previous_status),
+                        "新状态": _label(item.new_status),
+                        "审核人": item.reviewer or "未记录",
+                        "时间": _fmt_dt(item.created_at),
+                    }
+                    for item in audits
+                ]), hide_index=True, width="stretch")
+            with st.expander("查看原始技术信息"):
+                st.json(document.metadata_json)
 
 
 def _render_knowledge_search(sources: list[KnowledgeSourceRegistry]) -> None:
@@ -3006,7 +3157,7 @@ def _render_knowledge_search(sources: list[KnowledgeSourceRegistry]) -> None:
                         st.caption(f"{result.source_name} · {result.source_organization}")
                         st.caption(result.subtitle)
                         if result.provider_code == "RXNORM":
-                            st.write(f"RxCUI：{result.structured_metadata.get('rxcui') or result.external_id}")
+                            st.caption("药物标准资料 · 用于统一药物名称与同义名称")
                         elif result.summary:
                             st.caption(result.summary[:220])
                         view, save = st.columns(2)
@@ -3267,9 +3418,9 @@ def render_more_workspace() -> None:
         render_audit(_audit_context(patient.id))
     else:
         st.subheader("系统信息")
-        st.info("当前为合成演示环境。系统保留完整审计、原始数据与医疗协同记录；这些技术信息默认不干扰日常工作。")
+        st.info("当前为演示环境。系统保留完整审计、原始数据与医疗协同记录；这些技术信息默认不干扰日常工作。")
         st.markdown("#### 数据在哪里处理？")
-        st.write("本地开源大模型：本机处理；健康平台：当前本地/私有服务处理；设备云：取决于未来 Provider 的连接方式。")
+        st.write("本地开源大模型：本机处理；健康平台：当前本地/私有服务处理；设备云：取决于未来数据来源的连接方式。")
         st.caption("长期建议采用混合架构：本地/边缘处理提升隐私与响应，云端便于统一维护和跨设备同步。设备云连接会带来网络、合规和厂商依赖边界。")
 
 
@@ -3394,9 +3545,9 @@ def _render_report_parse_method(run: ReportExtractionRun, candidates: list[Repor
     st.write("规则解析：已完成")
     if run.llm_status == "USED":
         st.success("本地AI辅助：已使用")
-        details = [f"模型：{_report_model_name(run.llm_model)}", f"调用次数：{run.llm_call_count} 次", f"成功次数：{run.llm_success_count} 次", f"处理耗时：{run.llm_total_duration_ms / 1000:.1f} 秒"]
+        details = ["AI 辅助整理已完成"]
         if run.llm_processed_sections:
-            details.append(f"AI处理：{' / '.join(run.llm_processed_sections)}")
+            details.append(f"已整理：{' / '.join(run.llm_processed_sections)}")
         st.caption(" · ".join(details) + "。所有AI辅助结果仍需人工确认后才会入档。")
     elif run.llm_status == "NOT_NEEDED":
         st.info("本地AI辅助：本次未调用")
@@ -3408,15 +3559,16 @@ def _render_report_parse_method(run: ReportExtractionRun, candidates: list[Repor
         st.warning("本地AI辅助：当前不可用")
         st.caption(f"原因：{run.llm_failure_reason or '本地开源大模型 当前不可用'}。规则解析与人工确认仍可正常使用。")
     st.caption(f"解析时间：{_fmt_dt(run.completed_at or run.created_at)}")
-    with st.expander("解析详情"):
-        st.write(f"解析器版本：{run.parser_version}")
-        st.write(f"标准指标库版本：{run.canonical_registry_version}")
-        st.write(f"规则识别资料：{run.rule_candidate_count} 项")
-        if run.llm_used:
-            st.write(f"本地AI辅助资料：{run.llm_candidate_count} 项")
-        if run.llm_model:
-            st.write(f"本地模型：{run.llm_model}")
-        st.caption("重新解析会创建新的解析记录，不会覆盖已确认入档的健康数据。")
+    if TECHNICAL_DETAILS_ENABLED:
+        with st.expander("高级信息"):
+            st.write(f"解析器版本：{run.parser_version}")
+            st.write(f"标准指标库版本：{run.canonical_registry_version}")
+            st.write(f"规则识别资料：{run.rule_candidate_count} 项")
+            if run.llm_used:
+                st.write(f"本地AI辅助资料：{run.llm_candidate_count} 项")
+            if run.llm_model:
+                st.write(f"本地模型：{run.llm_model}")
+            st.caption("重新解析会创建新的解析记录，不会覆盖已确认入档的健康数据。")
 
 
 def _run_report_parse_with_progress(parse_action):
@@ -3736,7 +3888,13 @@ def _render_report_observation_actions(candidate: ReportExtractionCandidate, *, 
                 st.session_state[f"{key_scope}-correct-visible-{candidate.id}"] = True
             if st.session_state.get(f"{key_scope}-correct-visible-{candidate.id}"):
                 with st.form(f"{key_scope}-correct-form-{candidate.id}"):
-                    canonical = st.text_input("标准指标", value=candidate.canonical_code or "")
+                    metric_options = list(OBSERVATION)
+                    canonical_default = candidate.canonical_code if candidate.canonical_code in metric_options else metric_options[0]
+                    canonical = st.selectbox(
+                        "对应健康指标", metric_options,
+                        index=metric_options.index(canonical_default),
+                        format_func=display_observation,
+                    )
                     value = st.text_input("数值", value=candidate.normalized_value or candidate.raw_value or "")
                     unit = st.text_input("单位", value=candidate.unit or "")
                     reason = st.text_input("修正原因")
@@ -3971,12 +4129,12 @@ def render_health_assessments(patient: Patient) -> None:
             value = snapshot.get(key)
             with st.expander(heading):
                 if isinstance(value, list) and value:
-                    st.dataframe(pd.DataFrame(value), hide_index=True, width="stretch") if isinstance(value[0], dict) else st.write("；".join(str(item) for item in value))
+                    st.dataframe(pd.DataFrame([_business_detail_row(item) for item in value if isinstance(item, dict)]), hide_index=True, width="stretch") if isinstance(value[0], dict) else st.write("；".join(str(item) for item in value))
                 elif isinstance(value, dict):
                     if value.get("label"):
                         st.caption(str(value["label"]))
                     else:
-                        st.dataframe(pd.DataFrame([value]), hide_index=True, width="stretch")
+                        st.dataframe(pd.DataFrame([_business_detail_row(value)]), hide_index=True, width="stretch")
                 else:
                     st.caption("待补充")
                 _render_snapshot_item_evidence(patient.id, value, key_scope=f"baseline-snapshot-{baseline.id}-{key}")
@@ -4700,7 +4858,8 @@ def render_longitudinal_timeline(patient: Patient, *, key_scope: str = "archive"
                 if focus:
                     st.markdown("**初始管理重点**\n\n" + "\n".join(f"• {item}" for item in focus[:3]))
                 if basic:
-                    st.caption("基本情况：" + " · ".join(f"{key}：{value}" for key, value in basic.items() if value not in {None, "", "待补充"}))
+                    safe_basic = _business_detail_row(basic)
+                    st.caption("基本情况：" + " · ".join(f"{key}：{value}" for key, value in safe_basic.items() if value not in {None, "", "待补充"}))
                 if client_view:
                     st.caption("这次评估汇总了当时已确认的健康问题、健康数据和当前管理重点。")
             else:
@@ -4963,12 +5122,12 @@ def _render_member_baseline_center(patient: Patient) -> None:
         with st.expander(heading):
             value = snapshot.get(key)
             if isinstance(value, list) and value:
-                st.dataframe(pd.DataFrame(value), hide_index=True, width="stretch") if isinstance(value[0], dict) else st.write("；".join(str(item) for item in value))
+                st.dataframe(pd.DataFrame([_business_detail_row(item) for item in value if isinstance(item, dict)]), hide_index=True, width="stretch") if isinstance(value[0], dict) else st.write("；".join(str(item) for item in value))
             elif isinstance(value, dict):
                 if value.get("label"):
                     st.caption(str(value["label"]))
                 else:
-                    st.dataframe(pd.DataFrame([value]), hide_index=True, width="stretch")
+                    st.dataframe(pd.DataFrame([_business_detail_row(value)]), hide_index=True, width="stretch")
             else:
                 st.caption("待补充")
             _render_snapshot_item_evidence(patient.id, value, key_scope=f"client-baseline-snapshot-{baseline.id}-{key}", client_view=True)
@@ -5078,7 +5237,7 @@ def _render_client_report_intake_entry(
 
 def _render_client_home(patient: Patient, ctx: dict[str, list[object]]) -> None:
     risk, reason, _ = _member_risk_state(patient.id, ctx)
-    name = html.escape(patient.display_name or patient.external_id or "成员")
+    name = html.escape(patient.display_name or "成员")
     st.markdown(
         f"<div class='client-hero'><h1>我的健康</h1><p>欢迎回来，{name}</p>"
         f"{risk_badge(risk)}<div class='focus-copy' style='margin-top:.7rem'>"
@@ -5501,14 +5660,14 @@ def render_global_alert_workspace(members: list[Patient]) -> None:
     st.caption("健康管理师 · 异常处理")
     st.title("健康异常处理工作台")
     st.caption("处理顺序：核实数据 → 关联或创建健康问题 → 医生复核 → 管理方案与执行任务 → 随访 → 已关闭。")
-    member = st.selectbox("选择成员", members, format_func=lambda item: item.display_name or item.external_id or str(item.id), key="alert-member")
+    member = st.selectbox("选择成员", members, format_func=_member_display, key="alert-member")
     ctx = _context(member.id)
     render_alerts(member, ctx)
 
 
 def render_global_doctor_workspace(members: list[Patient]) -> None:
     _page_header("内部医生", "只处理需要医学判断的复核事项。", eyebrow="医疗协同")
-    member = st.selectbox("选择成员", members, format_func=lambda item: item.display_name or item.external_id or str(item.id), key="doctor-member")
+    member = st.selectbox("选择成员", members, format_func=_member_display, key="doctor-member")
     render_doctor_reviews(member, _member_doctor_context(member.id))
 
 
@@ -5576,11 +5735,11 @@ def render_external_doctor_workspace(members: list[Patient]) -> None:
 
 
 def render_demo_story(members: list[Patient]) -> None:
-    st.caption("合成演示数据 · 管理故事")
+    st.caption("演示数据 · 管理故事")
     st.title("Demo Executive A：持续健康与代谢管理")
     st.markdown("### 健康评估 → 重点健康问题 → 90天健康管理 → 执行任务 → 阶段效果评估 → 稳定管理")
     st.markdown("同时保留医疗子闭环：连续血压异常 → 健康异常 → 管理师核实 → 医生复核 → 管理方案 → 随访 → 已关闭")
-    st.caption("所有数据均为合成演示数据；系统不做自动诊断、处方、停药或剂量调整。")
+    st.caption("所有数据仅用于演示；系统不做自动诊断、处方、停药或剂量调整。")
     demo = next((member for member in members if member.external_id == "demo-executive-001"), members[0])
     st.button("进入成员的完整处理记录", type="primary", on_click=_open_member, args=(demo.id,))
     render_timeline(demo, _context(demo.id))
@@ -5613,7 +5772,7 @@ def render_data_gateway(members: list[Patient]) -> None:
                     st.markdown(f"**{row['name']}**")
                     st.markdown(_status_pill(row["status"]), unsafe_allow_html=True)
                     st.caption(f"最近同步：{row['last']}")
-                    if row["name"] == "苹果健康":
+                    if row["name"] == "Apple Health":
                         verified = "已收到桥接同步" if row["status"] == "已收到桥接同步" else "未完成"
                         st.caption("后端接收：已就绪 · iOS Bridge：源码已就绪 · 真机验证：" + verified)
     render_member_device_assignments(members)
@@ -5666,53 +5825,56 @@ def _render_data_upload_workspace(members: list[Patient], jobs: list[IngestionJo
                 result = ingest(session, provider, uploaded.getvalue(), member_id=member.id, mapping=mapping, dry_run=dry_run, created_by="health_manager_upload")
                 session.commit()
             st.success(f"文件导入{_label(result.status)}：新增 {result.created} 条健康数据。")
-    with action:
-        with st.expander("高级信息：模拟数据同步与技术记录"):
-            st.caption("仅用于合成演示环境。")
-            if st.button("同步模拟鱼跃血压数据"):
+    if TECHNICAL_DETAILS_ENABLED:
+        with action:
+            with st.expander("高级信息"):
+                st.caption("仅用于合成演示环境。")
+                if st.button("同步演示血压设备数据"):
+                    with SessionLocal() as session:
+                        result = ingest(session, "mock_yuwell", {"user_id": "YUWELL-DEMO-001", "device_id": "BP-DEMO-01", "measure_time": "2026-08-15T07:30:00+09:00", "sys": 148, "dia": 94, "pulse": 76}, member_id=member.id, created_by="health_manager_demo")
+                        session.commit()
+                    st.success(f"同步{_label(result.status)}：新增 {result.created} 条。")
+            if st.button("同步演示 Oura 数据"):
                 with SessionLocal() as session:
-                    result = ingest(session, "mock_yuwell", {"user_id": "YUWELL-DEMO-001", "device_id": "BP-DEMO-01", "measure_time": "2026-08-15T07:30:00+09:00", "sys": 148, "dia": 94, "pulse": 76}, member_id=member.id, created_by="health_manager_demo")
+                    result = ingest(session, "mock_oura", {"user_id": "OURA-DEMO-001", "day": "2026-08-14", "total_sleep_duration": 21120, "score": 72, "resting_heart_rate": 61}, member_id=member.id, created_by="health_manager_demo")
                     session.commit()
-                st.success(f"同步{_label(result.status)}：新增 {result.created} 条。")
-        if st.button("同步模拟 Oura 数据"):
-            with SessionLocal() as session:
-                result = ingest(session, "mock_oura", {"user_id": "OURA-DEMO-001", "day": "2026-08-14", "total_sleep_duration": 21120, "score": 72, "resting_heart_rate": 61}, member_id=member.id, created_by="health_manager_demo")
-                session.commit()
-            st.success(f"同步{_label(result.status)}：新增 {result.created} 条健康数据。")
-        if st.button("同步模拟苹果健康数据"):
-            payload = {"samples": [{"sample_id": "apple-steps-ui-001", "type": "stepCount", "value": 12032, "unit": "count", "start_date": "2026-08-14T00:00:00+09:00", "end_date": "2026-08-14T23:59:00+09:00"}, {"sample_id": "apple-weight-ui-001", "type": "bodyMass", "value": 81, "unit": "kg", "start_date": "2026-08-14T07:30:00+09:00", "end_date": "2026-08-14T07:30:00+09:00"}]}
-            with SessionLocal() as session:
-                result = ingest(session, "apple_health", payload, member_id=member.id, created_by="mock_apple_health")
-                session.commit()
-            st.success(f"苹果健康同步{_label(result.status)}：新增 {result.created} 条，已拦截重复 {result.duplicates} 条。")
-    with st.expander("高级信息：备用导入流程"):
-        st.markdown("#### 文件数据导入")
-        uploaded = st.file_uploader("选择演示用 CSV、Excel 或 PDF 文件", type=["csv", "xlsx", "pdf"], key="gateway-file-advanced")
-        dry_run = st.checkbox("仅预览，不写入数据库", value=True, key="gateway-dry-run-advanced")
-        if uploaded and st.button("验证并导入", key="gateway-import-advanced"):
-            provider = "excel" if uploaded.name.lower().endswith(".xlsx") else "pdf" if uploaded.name.lower().endswith(".pdf") else "csv"
-            mapping = {"timestamp": "observed_at", "高压": "systolic_bp", "低压": "diastolic_bp", "heart_rate": "heart_rate"}
-            with SessionLocal() as session:
-                if provider == "pdf":
-                    job = IngestionJob(source_system="pdf", source_type="file", patient_id=member.id, status="PARTIAL_SUCCESS", records_received=1, records_valid=0, records_invalid=0, records_duplicate=0, records_created=0, records_updated=0, error_count=0, created_by="health_manager_upload", completed_at=datetime.now(TOKYO_TIMEZONE))
-                    session.add(job); session.flush()
-                    session.add(Document(patient_id=member.id, document_type="health_check_pdf", title=uploaded.name, storage_reference=f"gateway-upload://{job.id}/{uploaded.name}", source="pdf_gateway", status="WAITING_REVIEW"))
-                    session.add(RawIngestionRecord(job_id=job.id, patient_id=member.id, source_system="pdf", source_type="file", source_record_id=uploaded.name, payload_json={"filename": uploaded.name, "bytes": uploaded.size}, adapter_name="PDFParserInterface", adapter_version="v1", status="WAITING_REVIEW", normalization_json={"message": "DEMO / RULE-BASED EXTRACTION NOT RUN; human review required."}))
+                st.success(f"同步{_label(result.status)}：新增 {result.created} 条健康数据。")
+            if st.button("同步演示 Apple Health 数据"):
+                payload = {"samples": [{"sample_id": "apple-steps-ui-001", "type": "stepCount", "value": 12032, "unit": "count", "start_date": "2026-08-14T00:00:00+09:00", "end_date": "2026-08-14T23:59:00+09:00"}, {"sample_id": "apple-weight-ui-001", "type": "bodyMass", "value": 81, "unit": "kg", "start_date": "2026-08-14T07:30:00+09:00", "end_date": "2026-08-14T07:30:00+09:00"}]}
+                with SessionLocal() as session:
+                    result = ingest(session, "apple_health", payload, member_id=member.id, created_by="mock_apple_health")
                     session.commit()
-                    st.success("PDF 健康报告已登记，正在等待人工复核；系统不会自动做医学结论。")
-                    return
-                result = ingest(session, provider, uploaded.getvalue(), member_id=member.id, mapping=mapping, dry_run=dry_run, created_by="health_manager_upload")
-                session.commit()
-            st.success(f"文件导入{_label(result.status)}：收到 {result.received} 条，有效 {result.valid} 条，新增 {result.created} 条，重复 {result.duplicates} 条，无效 {result.invalid} 条。")
-    with st.expander("高级信息：数据同步记录"):
-        if jobs:
-            member_names = {member.id: (member.display_name or member.external_id or "未命名成员") for member in members}
-            st.dataframe(pd.DataFrame([{
-                "时间": _fmt_dt(job.started_at), "数据来源": display_provider(job.source_system),
-                "成员": member_names.get(job.patient_id, "未匹配成员"), "状态": _label(job.status),
-                "接收记录": job.records_received, "成功创建": job.records_created,
-                "重复数据": job.records_duplicate, "错误记录": job.error_count,
-            } for job in jobs[:30]]), hide_index=True, width="stretch")
+                st.success(f"Apple Health 同步{_label(result.status)}：新增 {result.created} 条，已拦截重复 {result.duplicates} 条。")
+    if TECHNICAL_DETAILS_ENABLED:
+        with st.expander("高级信息：备用导入流程"):
+            st.markdown("#### 文件数据导入")
+            uploaded = st.file_uploader("选择演示用 CSV、Excel 或 PDF 文件", type=["csv", "xlsx", "pdf"], key="gateway-file-advanced")
+            dry_run = st.checkbox("仅预览，不写入数据库", value=True, key="gateway-dry-run-advanced")
+            if uploaded and st.button("验证并导入", key="gateway-import-advanced"):
+                provider = "excel" if uploaded.name.lower().endswith(".xlsx") else "pdf" if uploaded.name.lower().endswith(".pdf") else "csv"
+                mapping = {"timestamp": "observed_at", "高压": "systolic_bp", "低压": "diastolic_bp", "heart_rate": "heart_rate"}
+                with SessionLocal() as session:
+                    if provider == "pdf":
+                        job = IngestionJob(source_system="pdf", source_type="file", patient_id=member.id, status="PARTIAL_SUCCESS", records_received=1, records_valid=0, records_invalid=0, records_duplicate=0, records_created=0, records_updated=0, error_count=0, created_by="health_manager_upload", completed_at=datetime.now(TOKYO_TIMEZONE))
+                        session.add(job); session.flush()
+                        session.add(Document(patient_id=member.id, document_type="health_check_pdf", title=uploaded.name, storage_reference=f"gateway-upload://{job.id}/{uploaded.name}", source="pdf_gateway", status="WAITING_REVIEW"))
+                        session.add(RawIngestionRecord(job_id=job.id, patient_id=member.id, source_system="pdf", source_type="file", source_record_id=uploaded.name, payload_json={"filename": uploaded.name, "bytes": uploaded.size}, adapter_name="PDFParserInterface", adapter_version="v1", status="WAITING_REVIEW", normalization_json={"message": "DEMO / RULE-BASED EXTRACTION NOT RUN; human review required."}))
+                        session.commit()
+                        st.success("PDF 健康报告已登记，正在等待人工复核；系统不会自动做医学结论。")
+                        return
+                    result = ingest(session, provider, uploaded.getvalue(), member_id=member.id, mapping=mapping, dry_run=dry_run, created_by="health_manager_upload")
+                    session.commit()
+                st.success(f"文件导入{_label(result.status)}：收到 {result.received} 条，有效 {result.valid} 条，新增 {result.created} 条，重复 {result.duplicates} 条，无效 {result.invalid} 条。")
+    if TECHNICAL_DETAILS_ENABLED:
+        with st.expander("高级信息：数据同步记录"):
+            if jobs:
+                member_names = {member.id: (member.display_name or member.external_id or "未命名成员") for member in members}
+                st.dataframe(pd.DataFrame([{
+                    "时间": _fmt_dt(job.started_at), "数据来源": display_provider(job.source_system),
+                    "成员": member_names.get(job.patient_id, "未匹配成员"), "状态": _label(job.status),
+                    "接收记录": job.records_received, "成功创建": job.records_created,
+                    "重复数据": job.records_duplicate, "错误记录": job.error_count,
+                } for job in jobs[:30]]), hide_index=True, width="stretch")
     _render_data_review_queue(records)
 
 
@@ -5723,11 +5885,11 @@ def _render_data_review_queue(records: list[RawIngestionRecord]) -> None:
     for record in records[:20]:
         with st.expander(f"{_label(record.status)} · {display_provider(record.source_system)} · 需要人工确认"):
             st.write(record.error_message or "需要人工确认")
-            with st.expander("高级信息：处理详情"):
-                st.caption("技术详情、原始数据和解析结果仅供授权人员核对。")
-                st.json(record.normalization_json)
-            with st.expander("高级信息：原始数据内容"):
-                st.json(record.payload_json)
+            if TECHNICAL_DETAILS_ENABLED:
+                with st.expander("高级信息"):
+                    st.caption("技术详情、原始数据和解析结果仅供授权人员核对。")
+                    with st.expander("查看原始技术信息"):
+                        st.json({"处理信息": record.normalization_json, "原始记录": record.payload_json})
             if record.patient_id and record.status in {"SUSPECT", "INVALID"}:
                 new_value = st.text_input("更正数值", key=f"correct-value-{record.id}")
                 reason = st.text_input("更正原因", key=f"correct-reason-{record.id}")
@@ -5742,7 +5904,7 @@ def _render_data_review_queue(records: list[RawIngestionRecord]) -> None:
 
 def render_member_device_assignments(members: list[Patient]) -> None:
     st.subheader("成员设备分配")
-    st.caption("“已分配”与“已连接”是不同状态；本页不会把模拟设备显示为真实连接。")
+    st.caption("“已分配”与“已连接”是不同状态；演示设备不会被显示为真实连接。")
     member = st.selectbox("选择成员以管理设备", members, format_func=_member_display, key="device-assignment-member")
     with SessionLocal() as session:
         assignments = list(session.scalars(select(MemberDeviceAssignment).where(MemberDeviceAssignment.patient_id == member.id).order_by(MemberDeviceAssignment.assigned_at.desc())))
@@ -5766,7 +5928,7 @@ def render_member_device_assignments(members: list[Patient]) -> None:
         with st.form(f"device-assignment-{member.id}"):
             provider = st.selectbox("设备", ["apple_health", "mock_oura", "mock_yuwell", "mock_cgm", "glucose_meter_interface"], format_func=display_provider)
             category = st.radio("设备类别", ["WELLNESS", "MEDICAL_MONITOR"], format_func=lambda item: "日常健康" if item == "WELLNESS" else "医疗监测", horizontal=True)
-            connection = st.selectbox("连接状态", ["PENDING", "CONNECTED", "SYNCING", "MOCK", "DISABLED"], format_func=lambda item: {"PENDING": "已分配，尚未连接", "CONNECTED": "已连接", "SYNCING": "同步中", "MOCK": "合成演示", "DISABLED": "已停用"}[item])
+            connection = st.selectbox("连接状态", ["PENDING", "CONNECTED", "SYNCING", "MOCK", "DISABLED"], format_func=lambda item: {"PENDING": "已分配，尚未连接", "CONNECTED": "已连接", "SYNCING": "同步中", "MOCK": "演示数据", "DISABLED": "已停用"}[item])
             notes = st.text_input("说明（可选）")
             if st.form_submit_button("保存设备分配"):
                 with SessionLocal() as session:

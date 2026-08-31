@@ -106,7 +106,8 @@ def test_saved_library_defaults_to_all_active_review_states_not_only_approved() 
 def test_source_result_display_keeps_attribution_and_provider_specific_safety_boundary() -> None:
     source = Path("streamlit_app.py").read_text(encoding="utf-8")
     search = source.split("def _render_knowledge_search(sources", 1)[1].split("def _render_knowledge_source_cards", 1)[0]
-    assert "RxCUI" in search
+    assert "药物标准资料" in search
+    assert "RxCUI：" not in search
     detail = source.split("def _render_knowledge_search_detail", 1)[1].split("def _render_knowledge_search(sources", 1)[0]
     assert "查看官方来源" in detail
     assert "不构成个体化诊疗或用药建议" in detail

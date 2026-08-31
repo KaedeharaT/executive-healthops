@@ -5,6 +5,8 @@ from pathlib import Path
 from executive_health_ai.ui.display import (
     get_entity_type_display,
     get_event_type_display,
+    get_provider_display,
+    get_quality_display,
     get_role_display,
     get_source_type_display,
     get_status_display,
@@ -134,11 +136,38 @@ def test_generic_timeline_evidence_does_not_use_vague_health_record_fallback() -
 
 def test_raw_ingestion_json_is_only_in_advanced_information() -> None:
     queue = _source("_render_data_review_queue", "def render_member_device_assignments")
-    assert 'with st.expander("高级信息：处理详情"):' in queue
-    assert queue.index('with st.expander("高级信息：处理详情"):') < queue.index("st.json(record.normalization_json)")
+    assert 'if TECHNICAL_DETAILS_ENABLED:' in queue
+    assert 'with st.expander("高级信息"):' in queue
+    assert queue.index('if TECHNICAL_DETAILS_ENABLED:') < queue.index("st.json({")
 
 
 def test_device_assignment_control_has_no_provider_code_label() -> None:
     assignments = _source("render_member_device_assignments", "def render_risk_rules")
     assert 'st.selectbox("设备",' in assignments
     assert "设备/Provider" not in assignments
+
+
+def test_health_data_uses_grouped_empty_states_and_never_renders_raw_provenance_columns() -> None:
+    health_data = _source("render_health_data", "def render_medications")
+    for forbidden in ("canonical_code", "source_record_id", "raw_record_id", "ingestion_job_id"):
+        assert forbidden not in health_data
+    assert "尚未接入可用活动数据" in health_data
+    assert "暂无睡眠数据" in health_data
+    assert "数据来源" in health_data
+    assert '"数据来源": get_provider_display(source)' in health_data
+
+
+def test_provider_and_quality_codes_have_product_facing_labels() -> None:
+    assert get_provider_display("apple_health") == "Apple Health"
+    assert get_provider_display("mock_cgm") == "演示连续血糖设备"
+    assert get_provider_display("mock_yuwell") == "演示血压设备"
+    assert get_quality_display("VALID") == "数据正常"
+    assert get_quality_display("SUSPECT") == "数据需确认"
+
+
+def test_knowledge_and_report_technical_details_are_hidden_by_default() -> None:
+    knowledge = _source("_render_knowledge_detail", "def _render_knowledge_search")
+    report_parse = _source("_render_report_parse_method", "def _run_report_parse_with_progress")
+    assert knowledge.index("if TECHNICAL_DETAILS_ENABLED:") < knowledge.index("st.json(document.metadata_json)")
+    assert "if TECHNICAL_DETAILS_ENABLED:" in report_parse
+    assert "with st.expander(\"高级信息\")" in report_parse
