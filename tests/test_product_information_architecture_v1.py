@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 APP = Path(__file__).resolve().parents[1] / "streamlit_app.py"
+MORE_SHELL = APP.parent / "src" / "executive_health_ai" / "ui" / "pages" / "shell.py"
 
 
 def _source(name: str, next_marker: str) -> str:
@@ -65,7 +66,7 @@ def test_medical_collaboration_and_service_operations_are_separate() -> None:
 
 def test_more_is_configuration_only_and_navigation_has_no_engine_side_effects() -> None:
     source = APP.read_text(encoding="utf-8")
-    more = _source("render_more_workspace", "def render_collaboration_workspace")
+    more = MORE_SHELL.read_text(encoding="utf-8")
     main = _source("main", 'if __name__ == "__main__"')
     assert "数据接入与设备" in more and "风险规则" in more and "知识库" in more
     assert all(token not in main for token in ("RiskEvaluationService", "ReportParsingService", "ingest(", "LocalLLM"))

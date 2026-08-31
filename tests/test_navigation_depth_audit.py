@@ -9,6 +9,7 @@ from pathlib import Path
 
 APP = Path(__file__).resolve().parents[1] / "streamlit_app.py"
 AUDIT = APP.parent / "docs" / "NAVIGATION_DEPTH_AUDIT.md"
+MORE_SHELL = APP.parent / "src" / "executive_health_ai" / "ui" / "pages" / "shell.py"
 
 
 def _source(name: str, next_marker: str) -> str:
@@ -55,7 +56,7 @@ def test_reports_medical_doctors_services_and_timeline_use_inline_detail_pattern
 def test_member_detail_and_more_respect_secondary_navigation_limits() -> None:
     source = APP.read_text(encoding="utf-8")
     detail = _source("render_member_detail", "def render_member_archive")
-    more = _source("render_more_workspace", "def render_oversight_summary")
+    more = MORE_SHELL.read_text(encoding="utf-8")
     assert '["概览", "管理", "健康", "医疗", "历程"]' in detail
     assert 'options = ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]' in more
 

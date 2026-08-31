@@ -9,6 +9,7 @@ from streamlit.testing.v1 import AppTest
 
 
 APP = Path(__file__).resolve().parents[1] / "streamlit_app.py"
+MORE_SHELL = APP.parent / "src" / "executive_health_ai" / "ui" / "pages" / "shell.py"
 
 
 def _function_source(name: str, next_marker: str) -> str:
@@ -34,10 +35,12 @@ def test_dashboard_context_never_queries_observations_and_is_bounded() -> None:
 
 
 def test_more_root_routes_before_loading_its_selected_module() -> None:
-    source = _function_source("render_more_workspace", "def render_collaboration_workspace")
-    assert 'st.session_state.get("more-navigation")' in source
-    assert source.index('if more == "数据接入与设备"') < source.index("render_data_gateway")
-    assert "render_audit(_context(" not in source
+    root_source = _function_source("render_more_workspace", "def render_collaboration_workspace")
+    shell_source = MORE_SHELL.read_text(encoding="utf-8")
+    assert "render_more_workspace_shell(" in root_source
+    assert 'st.session_state.get("more-navigation")' in shell_source
+    assert shell_source.index('if more == "数据接入与设备"') < shell_source.index("render_data_gateway(load_members())")
+    assert "render_audit(_context(" not in shell_source
 
 
 def test_main_routes_before_loading_members() -> None:
@@ -51,7 +54,7 @@ def test_main_routes_before_loading_members() -> None:
 
 
 def test_more_menu_uses_only_basic_installed_streamlit_widgets() -> None:
-    source = _function_source("render_more_workspace", "def _report_candidate_label")
+    source = MORE_SHELL.read_text(encoding="utf-8")
     assert "placeholder=" not in source
     assert "st.button(" in source and "st.navigation(" not in source
 

@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 APP = Path(__file__).resolve().parents[1] / "streamlit_app.py"
+MORE_SHELL = APP.parent / "src" / "executive_health_ai" / "ui" / "pages" / "shell.py"
 
 
 def _source(name: str, next_marker: str) -> str:
@@ -94,13 +95,13 @@ def test_primary_surfaces_use_product_facing_page_headers() -> None:
     assert "_page_header(\"今日\"" in _source("render_manager_dashboard", "def _render_member_header")
     assert "_page_header(\"成员\"" in _source("render_members_workspace", "KNOWLEDGE_CATEGORIES")
     assert "_page_header(\"医疗协同\"" in _source("render_collaboration_workspace", "def _report_candidate_label")
-    assert "_page_header(\"更多\"" in _source("render_more_workspace", "def render_collaboration_workspace")
+    assert 'page_header("更多"' in MORE_SHELL.read_text(encoding="utf-8")
     assert "_page_header(\"健康数据\"" in _source("render_health_data", "def render_medications")
 
 
 def test_member_health_and_more_use_a_second_level_content_selector() -> None:
     archive = _source("render_member_archive", "def _select_archive_timeline")
-    more = _source("render_more_workspace", "def render_collaboration_workspace")
+    more = MORE_SHELL.read_text(encoding="utf-8")
     assert 'st.radio("成员健康内容", views' in archive
     assert "entries = [" in more and 'more-open-' in more
 
@@ -114,16 +115,17 @@ def test_report_first_screen_is_result_first_and_progressively_disclosed() -> No
 
 
 def test_more_root_remains_a_lazy_menu() -> None:
-    source = _source("render_more_workspace", "def render_collaboration_workspace")
+    source = MORE_SHELL.read_text(encoding="utf-8")
     assert 'if more is None:' in source
-    assert source.index('if more is None:') < source.index('render_data_gateway')
+    assert source.index('if more is None:') < source.index('render_data_gateway(load_members())')
     assert "管理工具" in source
 
 
 def test_primary_navigation_and_collaboration_are_task_and_member_oriented() -> None:
     source = APP.read_text(encoding="utf-8")
+    more = MORE_SHELL.read_text(encoding="utf-8")
     assert '["今日", "成员", "医疗协同", "服务运营", "更多"]' in source
-    assert 'options = ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]' in source
+    assert 'options = ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]' in more
     collaboration = _source("render_collaboration_workspace", "def _report_candidate_label")
     assert 'st.radio("医疗协同内容", ["内部医生", "外部医疗"]' in collaboration
 
@@ -131,7 +133,7 @@ def test_primary_navigation_and_collaboration_are_task_and_member_oriented() -> 
 def test_surface_switcher_is_global_and_member_center_is_not_a_more_subpage() -> None:
     source = APP.read_text(encoding="utf-8")
     main = _source("main", "if __name__")
-    more = _source("render_more_workspace", "def render_collaboration_workspace")
+    more = MORE_SHELL.read_text(encoding="utf-8")
     assert '"运营后台", "成员健康中心"' in _source("_render_surface_switcher", "def _render_member_center_navigation")
     assert "_render_surface_switcher" in main and 'if surface == "成员健康中心"' in main
     assert "客户视图预览" not in more and "client-preview-open" not in more
