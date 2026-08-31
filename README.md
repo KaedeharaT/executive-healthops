@@ -4,6 +4,8 @@
 
 企业高管 AI 健康运营平台：将体检报告、连续健康数据、风险分流、健康管理师与医生协同、健康计划和长期健康追踪组织为可追溯的 HealthOps 闭环。
 
+English | [简体中文](README_zh.md)
+
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
