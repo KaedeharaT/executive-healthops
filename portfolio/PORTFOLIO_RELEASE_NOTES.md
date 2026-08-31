@@ -18,7 +18,7 @@
 ## Start
 
 ```powershell
-./scripts/start_portfolio_demo.ps1 -Rebuild
+pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 ```
 
 更多启动与安全边界见根目录 [README](../README.md)。

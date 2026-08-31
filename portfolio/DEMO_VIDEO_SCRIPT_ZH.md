@@ -1,6 +1,6 @@
 # Executive HealthOps 作品集演示视频脚本
 
-建议使用 Windows 录屏或 OBS 录制；全程约 3 分钟。启动前运行 `scripts/start_portfolio_demo.ps1 -Rebuild`，并使用 `Demo Executive A`。
+建议使用 Windows 录屏或 OBS 录制；全程约 3 分钟。启动前使用 PowerShell 7 运行 `pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild`，并使用 `Demo Executive A`。
 
 | 时间 | 画面与操作 | 旁白 |
 |---|---|---|

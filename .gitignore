@@ -42,6 +42,10 @@ portfolio/.recordings/
 portfolio/.screenshots/
 demo_assets/private/
 
+# Local browser automation cache used by optional portfolio screenshot tooling
+ms-playwright/
+playwright/.cache/
+
 # Editor and operating-system files
 .idea/
 .vscode/

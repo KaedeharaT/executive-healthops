@@ -151,8 +151,10 @@ python -m venv .venv
 
 ### Start the isolated Portfolio Demo
 
+Use PowerShell 7 (`pwsh`) for the UTF-8 Chinese product copy in the launcher:
+
 ```powershell
-./scripts/start_portfolio_demo.ps1 -Rebuild
+pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 ```
 
 The launcher builds an isolated `data/portfolio_demo.db`, sets `PORTFOLIO_DEMO=true`, and starts:
@@ -164,7 +166,7 @@ It does not modify the normal development database. See [Portfolio release notes
 
 ### Optional LLM assistance
 
-LLM assistance is optional. Configure a local or compatible provider in `.env` only after completing the relevant privacy review:
+LLM assistance is optional. The default local path uses Ollama; compatible API providers are also supported only after the relevant privacy review:
 
 ```dotenv
 LOCAL_LLM_ENABLED=true
@@ -173,7 +175,7 @@ LOCAL_LLM_MODEL=<your-model>
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 ```
 
-External endpoints remain disabled for health data unless `ALLOW_EXTERNAL_PHI_LLM=true` is explicitly set after privacy review.
+For a compatible API provider, set `LOCAL_LLM_PROVIDER=openai_compatible`, `LLM_API_BASE=<provider-base-url>`, `LOCAL_LLM_MODEL=<your-model>`, and (when needed) `LLM_API_KEY` in `.env`. External endpoints remain blocked unless `ALLOW_EXTERNAL_PHI_LLM=true` is explicitly set after privacy review.
 
 ## Testing
 
@@ -190,6 +192,8 @@ Current v0.9.0 portfolio regression suite: **325 passed / 0 failed**.
 - [Demo 数据说明](portfolio/DEMO_DATA_DESCRIPTION.md)
 - [Portfolio release notes](portfolio/PORTFOLIO_RELEASE_NOTES.md)
 - [Usage-logic audit](docs/USAGE_LOGIC_AUDIT.md)
+
+`scripts/capture_portfolio.ps1` is optional portfolio-development tooling for reproducing local screenshots. It installs Playwright only into `.venv`; it is not an application runtime dependency.
 
 ## License and Data
 

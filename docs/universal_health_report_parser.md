@@ -50,10 +50,10 @@ PDF / 图片 / Excel / CSV / DOCX / TXT
 
 ## 隐私与 LLM
 
-本模块遵循本地优先。默认 `ALLOW_EXTERNAL_PHI_LLM=false`。可选语义兜底仅支持本机 Ollama 的 open-source LLM，并且默认关闭；它只处理 Generic Parser 未可靠处理的影像、肺功能和随访自然语言片段。请求在发送前去除常见直接身份标识，限制为单页/单段，必须结构化输出页码、原文证据和置信度；不得发送完整报告或默认发送姓名、档案号、电话、身份证等信息。
+本模块遵循本地优先。默认 `ALLOW_EXTERNAL_PHI_LLM=false`。可选语义兜底默认关闭，可配置为本机 Ollama 或兼容 API Provider；非本机端点只有在完成隐私审查后显式设置 `ALLOW_EXTERNAL_PHI_LLM=true` 才会被代码允许。它只处理 Generic Parser 未可靠处理的影像、肺功能和随访自然语言片段。请求在发送前去除常见直接身份标识，限制为单页/单段，必须结构化输出页码、原文证据和置信度；不得发送完整报告或默认发送姓名、档案号、电话、身份证等信息。该清理不是完整脱敏或生产级访问控制。
 
 真实报告仅允许本地验收：可通过 `HEALTH_REPORT_ACCEPTANCE_PATH` 由人工在本机选择，不应复制到项目、fixture、日志或 Git。应用日志仅应记录 document/run ID、页数、候选计数、耗时和错误类型。
 
 ## 未来 RAG 与适配器
 
-报告解析不属于知识库，也不会自动调用 RAG。未来可在人工确认的个人资料与已审核知识之间生成辅助摘要，但必须保留来源并经人工复核。医院 Adapter、OCR Provider、受控语义兜底均是输入层扩展，不影响 Observation、Risk Engine、HealthProgram 或 DoctorReview 的核心模型。
+报告解析不属于知识库，也不会自动调用 RAG。当前产品允许在报告 Finding 与医生上下文中按需检索已审核知识作为解释性参考；该检索不改变报告候选、Risk Engine、诊断或处方。医院 Adapter、OCR Provider、受控语义兜底均是输入层扩展，不影响 Observation、Risk Engine、HealthProgram 或 DoctorReview 的核心模型。

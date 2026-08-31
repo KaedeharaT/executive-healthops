@@ -10,10 +10,10 @@ flowchart TB
   services[领域服务层\n✅]
   orm[SQLAlchemy 2.x\n✅]
   db[SQLite\n默认 sqlite:///./executive_health_ai.db\n✅ 当前本地]
-  migration[Alembic migrations 0001–0018\n✅]
+  migration[Alembic migrations 0001–0020\n✅]
   files[本地报告文件 / storage_reference\n🟡]
   adapters[Provider adapters\nApple Health、mock Yuwell/Oura/CGM、JSON/CSV/Excel\n🟡 / 🧪]
-  ollama[Ollama :11434\nlocal open-source LLM\n🟡 可选本机服务]
+  llm[Configurable LLM Provider\ndefault: local Ollama; compatible API requires explicit privacy permission\n🟡 optional]
 
   browser --> streamlit
   browser --> api
@@ -23,7 +23,7 @@ flowchart TB
   migration --> db
   services --> files
   adapters --> services
-  services -.仅 ReportSemanticFallback.-> ollama
+  services -.仅 ReportSemanticFallback.-> llm
 ```
 
 当前 `pyproject.toml` 定义 Python ≥3.11、Streamlit、FastAPI、SQLAlchemy、Alembic、pandas、pypdf、python-docx、openpyxl 与 requests。数据库工厂支持未来 PostgreSQL URL，但默认与本地审计实际都是 SQLite；PostgreSQL 不是 CURRENT 部署。
@@ -39,7 +39,7 @@ flowchart TB
 | 长期健康 | `HealthAssessmentService`、`ManagementRoutingService`、`ReportComparisonService`、`HealthTimelineService`、`TimelineV4Service`、结果服务 | ✅ / 🟡 管理信号。 |
 | 健管/医生 | `workflow.py`、`chronic_care.py`、`doctor_brief_agent.py` | ✅ 人工工作流基础。 |
 | 服务运营 | `MemberServiceOperations` | ✅ 状态迁移与配额；🧪 目录/计划。 |
-| 知识 | `KnowledgeService`、`KnowledgeDocument` | 🟡 foundation，非完整临床知识治理。 |
+| 知识 | `KnowledgeService`、`KnowledgeDocument`、`KnowledgeChunk`、`KnowledgeRetrievalService`、`KnowledgeUseRecord` | ✅ Portfolio 级来源、审核、分块、检索与使用追溯；不宣称正式临床知识治理。 |
 
 ## 图中模块的代码追溯
 
@@ -48,10 +48,10 @@ flowchart TB
 | Streamlit surfaces / router | `streamlit_app.py`：`main()`、`render_member_client_view()`、`render_member_detail()`。 |
 | FastAPI | `src/executive_health_ai/api.py`：`create_app()`。 |
 | ORM / database | `src/executive_health_ai/database.py`、`src/executive_health_ai/models/`。 |
-| migrations | `alembic/versions/0001_*.py` 至 `0018_*.py`。 |
+| migrations | `alembic/versions/0001_*.py` 至 `0020_*.py`。 |
 | ingestion / adapters | `src/executive_health_ai/integrations/service.py`、`adapters.py`、`apple_health.py`。 |
 | report | `src/executive_health_ai/services/report_parsing.py`、`models/report_parsing.py`。 |
-| local LLM | `src/executive_health_ai/llm/local_llm_client.py`。 |
+| configurable LLM | `src/executive_health_ai/llm/local_llm_client.py`（默认 Ollama，也支持兼容 API Provider）。 |
 | risk | `src/executive_health_ai/services/risk_triage.py`、`risk_operations.py`、`models/risk.py`。 |
 | timeline | `src/executive_health_ai/services/longitudinal.py`，旧版为 `services/timeline.py`。 |
 | service operations | `src/executive_health_ai/services/member_services.py`、`models/member_service.py`。 |
@@ -131,8 +131,8 @@ flowchart LR
   api --> localdb
   streamlit --> reportfiles[本地文件存储引用]
   api --> reportfiles
-  streamlit -.报告解析时可选.-> ollama[localhost:11434 Ollama]
-  api -.报告解析时可选.-> ollama
+  streamlit -.报告解析时可选.-> llm[configured LLM Provider\ndefault local Ollama]
+  api -.报告解析时可选.-> llm
 
   future[未来部署目标：\n托管数据库、身份/RBAC、TLS、受管文件存储、监控]:::future
   classDef future fill:#f7f7f7,stroke:#9aa0a6,color:#545b66,stroke-dasharray: 5 5
@@ -150,7 +150,7 @@ flowchart TB
   db[(本地 SQLite\n❌ 未见应用层 at-rest encryption)]
   files[本地报告文件\n❌ 未见受管对象存储或加密策略]
   logs[AuditLog append-only\n✅ 业务审计；❌ 非完整安全审计/SIEM]
-  local_llm[本地 Ollama open-source LLM\n🟡 常见直接标识清理；非完整脱敏]
+  local_llm[可配置 LLM Provider\n默认本机 Ollama；非本机端点需显式允许\n🟡 常见直接标识清理；非完整脱敏]
 
   memberphi --> browser --> api --> db
   memberphi --> files
@@ -165,5 +165,5 @@ flowchart TB
 | TLS | ❌ 本地 `http://127.0.0.1` 运行；未见 TLS termination。 |
 | Encryption at rest | ❌ SQLite 与本地文件未见应用层加密。 |
 | Apple bridge auth | 🟡 仅该 sync route 读取 `APPLE_HEALTH_BRIDGE_TOKEN`。 |
-| LLM egress | 🟡 仅允许本机环回 Ollama；有简单 PII 清理，仍需正式隐私评估。 |
+| LLM egress | 🟡 默认允许本机环回 Ollama；兼容 API 的非本机端点必须显式设置 `ALLOW_EXTERNAL_PHI_LLM=true`。有简单 PII 清理，仍需正式隐私评估。 |
 | Audit trail | ✅ `AuditLog` 有不可变更新监听；不等于访问审计或保留策略。 |

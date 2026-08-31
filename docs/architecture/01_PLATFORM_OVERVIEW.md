@@ -45,8 +45,8 @@ flowchart TB
     manual[人工 Observation、健管/医生记录\n✅]
   end
 
-  subgraph localai[本地可选 AI]
-    local_llm[Ollama + local open-source LLM\n仅本机环回地址\n🟡 可选且可能未启用]
+  subgraph localai[可选语义辅助]
+    local_llm[可配置 LLM Provider\n默认本机 Ollama；兼容 API 需显式隐私许可\n🟡 可选且可能未启用]
   end
 
   member --> services
@@ -73,7 +73,7 @@ flowchart TB
 flowchart LR
   reportText[报告文本 / 表格] --> parser[规则解析\n✅]
   parser --> decision{复杂片段且本地 AI 已启用？}
-  decision -- 是 --> local_llm[local LLM semantic fallback\n🟡]
+  decision -- 是 --> local_llm[configured LLM semantic fallback\n🟡]
   decision -- 否或不可用 --> candidates[候选资料\n✅]
   local_llm --> candidates
   candidates --> human[人工确认 / 修正 / 拒绝\n✅]
@@ -85,4 +85,4 @@ flowchart LR
   local_llm -.禁止.-> forbidden
 ```
 
-`LocalLLMClient` 会清理常见直接标识并限制为本机环回 Ollama；这不是完整脱敏、访问控制或合规边界。
+`LocalLLMClient` 默认面向本机环回 Ollama，也支持兼容 API Provider；非本机端点只有在 `ALLOW_EXTERNAL_PHI_LLM=true` 时才会通过端点校验。调用前会清理常见直接标识，但这不是完整脱敏、访问控制或合规边界。

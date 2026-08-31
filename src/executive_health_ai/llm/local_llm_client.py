@@ -1,4 +1,4 @@
-"""Small local Ollama open-source LLM client, based on the validated research client flow."""
+"""Configurable local or compatible-API LLM client for optional semantic assistance."""
 
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ class LocalLLMClient:
         return self.health_check().available
 
     def health_check(self) -> LocalLLMHealth:
-        """Check only local Ollama availability and model presence; no inference."""
+        """Check the configured provider and model presence without running inference."""
         if not self.settings.enabled:
             return LocalLLMHealth(False, False, self.settings.provider, self.settings.model, self.settings.base_url, "本地语义模型未启用")
         if not self.settings.model:

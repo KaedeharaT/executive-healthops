@@ -152,8 +152,10 @@ python -m venv .venv
 
 ### 启动隔离的 Portfolio Demo
 
+启动脚本包含 UTF-8 中文产品文案，建议使用 PowerShell 7（`pwsh`）：
+
 ```powershell
-./scripts/start_portfolio_demo.ps1 -Rebuild
+pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 ```
 
 启动脚本会构建隔离的 `data/portfolio_demo.db`，设置 `PORTFOLIO_DEMO=true`，并启动：
@@ -165,7 +167,7 @@ python -m venv .venv
 
 ### 可选的 LLM 语义辅助
 
-LLM 语义辅助是可选能力。完成相应隐私评估后，可在 `.env` 中配置本地或兼容 Provider：
+LLM 语义辅助是可选能力。默认本地路径使用 Ollama；完成相应隐私评估后，也可在 `.env` 中配置兼容 API Provider：
 
 ```dotenv
 LOCAL_LLM_ENABLED=true
@@ -174,7 +176,7 @@ LOCAL_LLM_MODEL=<your-model>
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 ```
 
-除非完成隐私审查后显式设置 `ALLOW_EXTERNAL_PHI_LLM=true`，否则健康数据不会发送到外部端点。
+如使用兼容 API Provider，设置 `LOCAL_LLM_PROVIDER=openai_compatible`、`LLM_API_BASE=<provider-base-url>`、`LOCAL_LLM_MODEL=<your-model>`，并在需要时设置 `LLM_API_KEY`。除非完成隐私审查后显式设置 `ALLOW_EXTERNAL_PHI_LLM=true`，否则健康数据不会发送到外部端点。
 
 ## 测试（Testing）
 
@@ -191,6 +193,8 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 - [Demo 数据说明](portfolio/DEMO_DATA_DESCRIPTION.md)
 - [Portfolio 发布说明](portfolio/PORTFOLIO_RELEASE_NOTES.md)
 - [使用逻辑审计](docs/USAGE_LOGIC_AUDIT.md)
+
+`scripts/capture_portfolio.ps1` 是用于复现本地作品集截图的可选开发工具；它只把 Playwright 安装到 `.venv`，不属于应用运行时依赖。
 
 ## 许可证与数据（License and Data）
 

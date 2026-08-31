@@ -1,4 +1,4 @@
-"""Small, auditable knowledge-asset service; no RAG or clinical automation."""
+"""Small, auditable knowledge-asset service; retrieval is separate and clinical automation is prohibited."""
 
 from __future__ import annotations
 

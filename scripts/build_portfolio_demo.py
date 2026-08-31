@@ -21,6 +21,16 @@ DEFAULT_DATABASE = ROOT / "data" / "portfolio_demo.db"
 DEMO_EXTERNAL_ID = "portfolio-demo-executive-a"
 
 
+def _configure_console_encoding() -> None:
+    """Keep synthetic-demo status output usable in legacy Windows consoles."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, OSError):
+            # Embedded or redirected streams may not expose ``reconfigure``.
+            pass
+
+
 def _safe_target(path: Path) -> Path:
     """Allow only the dedicated portfolio SQLite file to be rebuilt."""
     target = path.resolve()
@@ -304,6 +314,7 @@ def build_portfolio_demo(target: Path = DEFAULT_DATABASE, *, rebuild: bool = Tru
 
 
 def main() -> None:
+    _configure_console_encoding()
     parser = argparse.ArgumentParser(description="创建隔离的 Executive HealthOps 作品集演示数据库。")
     parser.add_argument("--rebuild", action="store_true", help="安全地重建 data/portfolio_demo.db")
     args = parser.parse_args()

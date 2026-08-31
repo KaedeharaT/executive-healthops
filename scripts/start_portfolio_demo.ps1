@@ -1,4 +1,4 @@
-<#
+﻿<#
 Start the isolated Executive HealthOps portfolio demo on Windows.
 It creates/uses only data\portfolio_demo.db and never changes the normal
 development database.  Stop the two spawned Python processes from Task Manager

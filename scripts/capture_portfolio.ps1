@@ -1,4 +1,4 @@
-<#
+﻿<#
 Create real, local browser screenshots for the Executive HealthOps portfolio.
 
 This is a development/portfolio helper.  It installs Playwright only into the
@@ -9,6 +9,9 @@ application code, or demo data.
 param()
 
 $ErrorActionPreference = "Stop"
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    throw "Run this portfolio helper from PowerShell 7: pwsh -File .\\scripts\\capture_portfolio.ps1"
+}
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $venvPath = Join-Path $projectRoot ".venv"
 $python = Join-Path $venvPath "Scripts\python.exe"
