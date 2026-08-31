@@ -15,6 +15,10 @@ English | [简体中文](README_zh.md)
 ![Risk engine](https://img.shields.io/badge/Risk-Deterministic%20engine-A76513)
 [![CI](https://github.com/KaedeharaT/executive-healthops/actions/workflows/ci.yml/badge.svg)](https://github.com/KaedeharaT/executive-healthops/actions/workflows/ci.yml)
 
+![Executive HealthOps dashboard](docs/images/healthops-dashboard.png)
+
+*Portfolio Demo health-operations dashboard showing operational priorities, member context, and follow-up workflows.*
+
 > **Research / Portfolio Prototype.** The project demonstrates an accountable health-operations workflow; it is not a medical device, diagnostic system, or production clinical decision-support system.
 
 ## From health data to action
@@ -53,13 +57,37 @@ Executive HealthOps turns these fragmented inputs into a single longitudinal wor
 
 ## Product experience
 
-The Portfolio Demo is intentionally centered on one cohesive story rather than a collection of disconnected screens:
+The Portfolio Demo uses a repeatable synthetic member story rather than a collection of disconnected screens.
 
-1. Review an anonymous health report and inspect its evidence.
-2. Confirm the health baseline and review a clearly marked demonstration risk.
-3. Show the health-manager worklist, an internal doctor review, and the resulting follow-up.
-4. Review plan tasks, service progress, outcome decisions, and the longitudinal timeline.
-5. Open the knowledge center to show approved sources as explainable references—not executable medical rules.
+### Health Manager Dashboard
+
+![Health Manager Dashboard](docs/images/healthops-dashboard.png)
+
+The workbench surfaces operational priorities, a compact KPI strip, member context, and the next follow-up action in one view.
+
+### Member Overview
+
+![Member Overview](docs/images/healthops-member-overview.png)
+
+Member-level context brings active problems, observations, plan tasks, ownership, and follow-up into a concise health-management record.
+
+### Doctor Review & Evidence Traceability
+
+![Doctor Review and Evidence Traceability](docs/images/healthops-doctor-review.png)
+
+Doctors receive an evidence-linked review context and make the medical judgement. AI assists information organization; it does not autonomously make medical decisions.
+
+### Longitudinal Health Timeline
+
+![Longitudinal Health Timeline](docs/images/healthops-timeline.png)
+
+The timeline connects check-ups, risks, manager follow-up, doctor review, tasks, plans, and outcomes into a longitudinal record.
+
+### Knowledge Center
+
+![HealthOps Knowledge Center](docs/images/healthops-knowledge-center.png)
+
+Governed medical knowledge supports RAG with source attribution and review status. It is reference material, not executable medical logic.
 
 ## Architecture
 

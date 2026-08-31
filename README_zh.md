@@ -15,6 +15,10 @@
 ![Risk engine](https://img.shields.io/badge/Risk-Deterministic%20engine-A76513)
 [![CI](https://github.com/KaedeharaT/executive-healthops/actions/workflows/ci.yml/badge.svg)](https://github.com/KaedeharaT/executive-healthops/actions/workflows/ci.yml)
 
+![Executive HealthOps 健康运营工作台](docs/images/healthops-dashboard.png)
+
+*Portfolio Demo 健康运营工作台：集中展示运营优先级、成员上下文与后续跟进事项。*
+
 > **Research / Portfolio Prototype（研究与作品集原型）**：本项目用于展示可追责的健康运营工作流，不是医疗器械、诊断系统或生产级临床决策支持系统。
 
 ## 从健康数据到行动
@@ -54,13 +58,37 @@ Executive HealthOps 将这些输入组织为一条长期工作流：**报告 →
 
 ## 产品体验
 
-作品集演示围绕一条连贯路径，而不是一组互不相干的页面：
+Portfolio Demo 围绕可重复的匿名成员故事展开，而不是一组互不相干的功能页面。
 
-1. 查看匿名体检报告，并打开“查看依据”追溯原始内容。
-2. 确认健康基线，查看明确标注为演示的风险分流。
-3. 展示健康管理师工作列表、内部医生复核与随后的跟进。
-4. 查看计划任务、服务进度、阶段结果和长期健康时间轴。
-5. 打开医学知识中心，展示经批准的资料如何作为可解释参考，而不是可执行医疗规则。
+### 健康运营工作台
+
+![健康运营工作台](docs/images/healthops-dashboard.png)
+
+工作台将运营优先级、轻量 KPI、成员上下文与下一步跟进动作集中在同一视图，帮助健康管理师判断当天先处理什么。
+
+### 成员健康总览
+
+![成员健康总览](docs/images/healthops-member-overview.png)
+
+成员总览把当前问题、健康观测、计划任务、负责人和后续跟进收敛为简洁的长期健康管理记录。
+
+### 医生复核与证据追溯
+
+![医生复核与证据追溯](docs/images/healthops-doctor-review.png)
+
+医生在带有来源依据的上下文中完成医学判断。AI 负责整理信息，不会自主做出医学决策。
+
+### 长期健康时间线
+
+![长期健康时间线](docs/images/healthops-timeline.png)
+
+时间线串联体检、风险、健管跟进、医生复核、任务、计划与阶段结果，呈现持续演进的健康记录。
+
+### 医学知识中心
+
+![医学知识中心](docs/images/healthops-knowledge-center.png)
+
+知识中心以来源归属和审核状态治理 RAG 参考资料；它是解释与检索依据，不是可自动执行的医疗逻辑。
 
 ## 系统架构（Architecture）
 
