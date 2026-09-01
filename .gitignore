@@ -24,6 +24,7 @@ htmlcov/
 
 # Local databases, raw data, and logs
 *.db
+*.db-journal
 *.sqlite
 *.sqlite3
 data/raw/

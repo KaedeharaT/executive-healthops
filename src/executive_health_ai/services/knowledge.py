@@ -46,6 +46,8 @@ class KnowledgeService:
         review_status: str = "DRAFT",
         processing_status: str = "NOT_REQUIRED",
         review_due_at: date | None = None,
+        effective_date: date | None = None,
+        expires_at: date | None = None,
         supersedes_id=None,
         metadata_json: dict | None = None,
     ) -> KnowledgeDocument:
@@ -72,6 +74,8 @@ class KnowledgeService:
             review_status=review_status,
             processing_status=processing_status,
             review_due_at=review_due_at,
+            effective_date=effective_date,
+            expires_at=expires_at,
             supersedes_id=supersedes_id,
             metadata_json=metadata_json or {},
         )
@@ -280,10 +284,13 @@ class KnowledgeService:
 
     @staticmethod
     def _eligible_for_formal_ai(document: KnowledgeDocument) -> bool:
+        today = date.today()
         return bool(
             document.is_active
             and document.review_status == "APPROVED"
-            and (document.review_due_at is None or document.review_due_at >= date.today())
+            and (document.effective_date is None or document.effective_date <= today)
+            and (document.review_due_at is None or document.review_due_at >= today)
+            and (document.expires_at is None or document.expires_at >= today)
         )
 
     def approve_document(self, session: Session, document: KnowledgeDocument, reviewer: str, comment: str | None = None) -> None:
@@ -333,7 +340,7 @@ class KnowledgeService:
         session.flush()
 
     def approved_documents_for_ai(self, session: Session) -> list[KnowledgeDocument]:
-        """Future RAG boundary: only approved, active material is eligible."""
+        """Formal retrieval boundary: only approved, active, current material is eligible."""
         self.ensure_approved_chunks(session)
         approved = list(session.scalars(select(KnowledgeDocument).where(
             KnowledgeDocument.is_active.is_(True), KnowledgeDocument.review_status == "APPROVED"
@@ -352,12 +359,13 @@ class KnowledgeService:
         member_id=None,
         model: str | None = None,
         request_context_hash: str | None = None,
+        session_id: str | None = None,
+        conversation_id: str | None = None,
+        answer_id: str | None = None,
+        retrieved_at: datetime | None = None,
+        citation_snapshots: dict | None = None,
     ) -> list[KnowledgeUseRecord]:
-        """Record only documents actually passed to an AI call after approval checks.
-
-        This service does not call LLM.  A future caller must explicitly pass
-        the exact approved documents used for one output.
-        """
+        """Record the exact approved chunks actually cited by one AI output."""
         chunk_list = list(chunks)
         document_by_id = {document.id: document for document in documents}
         for chunk in chunk_list:
@@ -386,10 +394,15 @@ class KnowledgeService:
                     chunk_ids=chunk_ids_by_document.get(document.id, []),
                     feature=feature, member_id=member_id, model=model,
                     request_context_hash=request_context_hash,
+                    session_id=session_id, conversation_id=conversation_id,
+                    answer_id=answer_id, retrieved_at=retrieved_at,
+                    citation_snapshot_json=(citation_snapshots or {}).get(document.id, []),
                 )
                 session.add(existing)
             elif chunk_ids_by_document.get(document.id):
                 existing.chunk_ids = chunk_ids_by_document[document.id]
+                if (citation_snapshots or {}).get(document.id):
+                    existing.citation_snapshot_json = (citation_snapshots or {})[document.id]
             records.append(existing)
         session.flush()
         return records

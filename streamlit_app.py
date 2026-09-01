@@ -44,6 +44,7 @@ from executive_health_ai.ui.display import (
     get_source_type_display, get_status_display, humanize_source_name,
 )
 from executive_health_ai.ui.pages.shell import render_more_workspace_shell, render_portfolio_landing
+from executive_health_ai.ui.pages.training import render_training_copilot
 from executive_health_ai.services.knowledge import KnowledgeService
 from executive_health_ai.services.knowledge_retrieval import KnowledgeRetrievalService
 from executive_health_ai.services.knowledge_sources import KnowledgeProviderError
@@ -2819,7 +2820,7 @@ def render_members_workspace(members: list[Patient]) -> None:
                 )
 
 
-KNOWLEDGE_CATEGORIES = ["PATIENT_EDUCATION", "MEDICATION", "LAB_TEST", "CLINICAL_GUIDELINE", "TEXTBOOK_REFERENCE", "INTERNAL_SOP"]
+KNOWLEDGE_CATEGORIES = ["PATIENT_EDUCATION", "MEDICATION", "LAB_TEST", "CLINICAL_GUIDELINE", "TEXTBOOK_REFERENCE", "INTERNAL_SOP", "TRAINING_MATERIAL"]
 KNOWLEDGE_SOURCE_TYPES = ["GUIDELINE", "TEXTBOOK", "INTERNAL_SOP", "AUTHORIZED_UPLOAD", "MANUAL_ENTRY"]
 
 
@@ -3377,6 +3378,7 @@ def render_more_workspace() -> None:
         load_members=_members,
         render_data_gateway=render_data_gateway,
         render_knowledge_library=render_knowledge_library_entry,
+        render_training_copilot=lambda: render_training_copilot(SessionLocal),
         render_risk_rules=render_risk_rules,
         render_audit=render_audit,
         audit_context=_audit_context,

@@ -76,7 +76,9 @@ Executive HealthOps 将这些输入组织为一条长期工作流：**报告 →
 - **Deterministic Risk Engine（确定性风险引擎）**：由受治理的代码规则执行分流，并将事项路由给合适的人。
 - **Human-in-the-loop（人工在环）**：明确健康管理师动作、医生复核、负责人、期限与下一步。
 - **长期健康时间轴**：串联发生了什么、团队如何处理、后续结果如何变化。
-- **受治理的医学知识库 / RAG**：支持来源、审核状态、知识分块与关键词检索；仓库同时定义了未来 AI 输出实际使用知识片段时的受限使用记录契约。
+- **受治理的医学知识库 / RAG**：支持来源、审核状态、知识分块、APPROVED-only 检索，以及 AI 回答实际使用 Chunk 的审计记录。
+- **健管培训助手**：通过已审核培训资料完成流程问答、Synthetic 案例训练和确定性 Rubric 能力评估。
+- **有依据的 AI 解释**：所有用户可见生成式解释必须引用真实事实依据和/或已批准知识 Chunk；依据不足时明确拒答，不用模型记忆补全。
 - **可重复的 Portfolio Demo**：使用隔离的 synthetic 数据库，围绕匿名成员 **Demo Executive A** 展示完整故事。
 
 ## 产品体验
@@ -149,7 +151,7 @@ LLM 接口是可配置、模型无关的：完成相应验证后可使用本地�
 | 持久化 | SQLAlchemy、Alembic、隔离 SQLite 演示数据库 |
 | 健康数据 | Canonical Observations、原始摄取追溯、报告候选项 |
 | AI | 可配置 LLM 接口，用于可选语义辅助 |
-| 知识库 | 来源治理、已批准 Chunk、关键词检索，以及未来 AI 输出的使用记录契约 |
+| 知识库 | 来源治理、已批准 Chunk、关键词检索、AI 回答引用与实际使用 Chunk 审计 |
 | 质量保障 | pytest 自动化回归测试与 Streamlit 交互覆盖 |
 
 ## 安全边界（Safety Boundaries）
@@ -207,7 +209,7 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-当前 v0.9.0 Portfolio 回归套件：**330 passed / 0 failed**。
+当前 v0.9.0 Portfolio 回归套件：**350 passed / 0 failed**。
 
 ## 作品集资料（Portfolio Materials）
 
@@ -216,6 +218,7 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 - [Demo 数据说明](portfolio/DEMO_DATA_DESCRIPTION.md)
 - [Portfolio 发布说明](portfolio/PORTFOLIO_RELEASE_NOTES.md)
 - [使用逻辑审计](docs/USAGE_LOGIC_AUDIT.md)
+- [AI 依据与引用策略](docs/AI_GROUNDING_AND_CITATION_POLICY.md)
 
 `scripts/capture_portfolio.ps1` 是用于复现本地作品集截图的可选开发工具；它只把 Playwright 安装到 `.venv`，不属于应用运行时依赖。
 

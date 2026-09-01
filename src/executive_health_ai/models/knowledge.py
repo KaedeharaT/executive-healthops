@@ -80,7 +80,7 @@ class KnowledgeSourceRegistry(Base):
 
 
 class KnowledgeUseRecord(Base):
-    """An auditable record of knowledge actually supplied to a future AI output."""
+    """An auditable record of chunks actually cited by a grounded AI output."""
 
     __tablename__ = "knowledge_use_records"
     __table_args__ = (UniqueConstraint("output_type", "output_reference", "knowledge_document_id", name="uq_knowledge_use_output_document"),)
@@ -98,6 +98,12 @@ class KnowledgeUseRecord(Base):
     member_id: Mapped[UUID | None] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     model: Mapped[str | None] = mapped_column(String(128), nullable=True)
     request_context_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    session_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    conversation_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    answer_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    retrieved_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    used_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utc_now)
+    citation_snapshot_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utc_now)
 
 

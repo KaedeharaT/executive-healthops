@@ -75,7 +75,9 @@ Executive HealthOps turns these fragmented inputs into a single longitudinal wor
 - **Deterministic risk triage** — evaluate governed rules in code, then route work to the appropriate human owner.
 - **Human-in-the-loop operations** — make health-manager actions, doctor review, ownership, due dates, and next actions explicit.
 - **Longitudinal health timeline** — show what happened, what the team did, and what followed over time.
-- **Governed medical knowledge** — support approved knowledge chunks, source attribution, review state, and keyword retrieval; the repository also defines a bounded usage-record contract for any future AI output that consumes retrieved chunks.
+- **Governed medical knowledge** — support approved knowledge chunks, source attribution, review state, keyword retrieval, and exact used-chunk auditing for grounded AI answers.
+- **Health Manager Training Copilot** — practice operational Q&A, synthetic cases, and deterministic rubric-based assessment using only approved training knowledge.
+- **Grounded AI explanations** — every user-visible generated explanation must cite actual fact evidence and/or approved Knowledge Center chunks; unsupported answers are withheld rather than completed from model memory.
 - **Portfolio demo workflow** — ships with a repeatable, isolated synthetic demo for **Demo Executive A**.
 
 ## Product experience
@@ -148,7 +150,7 @@ The LLM interface is configurable and model-agnostic: local or compatible API pr
 | Persistence | SQLAlchemy, Alembic, isolated SQLite demo database |
 | Health data | Canonical observations, raw-ingestion provenance, report candidates |
 | AI | Configurable LLM interface for optional semantic assistance |
-| Knowledge | Governed sources, approved chunks, keyword retrieval, and a future-output usage-record contract |
+| Knowledge | Governed sources, approved chunks, keyword retrieval, grounded-answer citations, and exact used-chunk audit records |
 | Validation | Automated pytest regression suite and Streamlit interaction coverage |
 
 ## Safety Boundaries
@@ -206,7 +208,7 @@ For a compatible API provider, set `LOCAL_LLM_PROVIDER=openai_compatible`, `LLM_
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current v0.9.0 portfolio regression suite: **330 passed / 0 failed**.
+Current v0.9.0 portfolio regression suite: **350 passed / 0 failed**.
 
 ## Portfolio Materials
 
@@ -215,6 +217,7 @@ Current v0.9.0 portfolio regression suite: **330 passed / 0 failed**.
 - [Demo 数据说明](portfolio/DEMO_DATA_DESCRIPTION.md)
 - [Portfolio release notes](portfolio/PORTFOLIO_RELEASE_NOTES.md)
 - [Usage-logic audit](docs/USAGE_LOGIC_AUDIT.md)
+- [AI grounding and citation policy](docs/AI_GROUNDING_AND_CITATION_POLICY.md)
 
 `scripts/capture_portfolio.ps1` is optional portfolio-development tooling for reproducing local screenshots. It installs Playwright only into `.venv`; it is not an application runtime dependency.
 

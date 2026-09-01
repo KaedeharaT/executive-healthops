@@ -8,7 +8,7 @@ contract without changing governance rules.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+import re
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -42,6 +42,8 @@ class KnowledgeRetrievalService:
     def search(
         self, session: Session, query: str, *, category: str | None = None,
         source_provider: str | None = None, language: str | None = None, limit: int = 6,
+        categories: tuple[str, ...] = (), source_types: tuple[str, ...] = (),
+        audience: str | None = None,
     ) -> list[KnowledgeRetrievalHit]:
         phrase = query.strip().lower()
         if not phrase:
@@ -60,11 +62,35 @@ class KnowledgeRetrievalService:
             statement = statement.where(KnowledgeDocument.source_provider == source_provider)
         if language:
             statement = statement.where(KnowledgeDocument.language == language)
+        if categories:
+            statement = statement.where(KnowledgeDocument.category.in_(categories))
+        if source_types:
+            statement = statement.where(KnowledgeDocument.source_type.in_(source_types))
 
-        tokens = [token for token in phrase.split() if token] or [phrase]
+        tokens = [token for token in re.findall(r"[a-z0-9_]+|[\u4e00-\u9fff]{2,}", phrase) if token]
+        # Chinese questions often contain no whitespace.  Bigrams make the
+        # deterministic first-pass retrieval useful without inventing semantic
+        # similarity or adding a vector-store dependency.
+        expanded: list[str] = []
+        for token in tokens or [phrase]:
+            expanded.append(token)
+            if any("\u4e00" <= char <= "\u9fff" for char in token) and len(token) > 2:
+                expanded.extend(token[index:index + 2] for index in range(len(token) - 1))
+        # Common question scaffolding must not make an unrelated query look
+        # grounded merely because an SOP also contains words such as “流程”.
+        stop_tokens = {
+            "一个", "一些", "什么", "怎么", "如何", "应该", "当前", "以后",
+            "知识", "知识库", "没有", "完全", "覆盖", "问题", "流程", "告诉",
+        }
+        tokens = [token for token in dict.fromkeys(expanded) if token not in stop_tokens]
+        if not tokens:
+            return []
         hits: list[KnowledgeRetrievalHit] = []
         for chunk, document in session.execute(statement).all():
             if not KnowledgeService._eligible_for_formal_ai(document):
+                continue
+            audiences = (document.metadata_json or {}).get("audience", [])
+            if audience and audience not in audiences and "all" not in audiences:
                 continue
             title = document.title.lower()
             body = f"{chunk.heading or ''}\n{chunk.content}".lower()
