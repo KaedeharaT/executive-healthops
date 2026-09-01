@@ -16,7 +16,11 @@ if TYPE_CHECKING:
 
 
 class CarePlan(Base):
-    """A clinician-confirmed management plan for the demo patient."""
+    """Legacy V0.1 care-plan compatibility record.
+
+    Current HealthOps programs and operational tasks use HealthProgram and
+    Task; this model remains for historical fixtures and migration stability.
+    """
 
     __tablename__ = "care_plans"
 
@@ -39,7 +43,7 @@ class CarePlan(Base):
 
 
 class CareTask(Base):
-    """A specific daily action derived from a clinician-confirmed plan."""
+    """Legacy V0.1 task linked to CarePlan; new work uses operations.Task."""
 
     __tablename__ = "care_tasks"
 

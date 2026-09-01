@@ -1,4 +1,4 @@
-"""Deterministic screening only; it creates reviewable alerts, not diagnoses."""
+"""Deprecated V0.1 deterministic Alert screening compatibility."""
 
 from __future__ import annotations
 
@@ -19,10 +19,11 @@ REQUIRED_CONSECUTIVE_DAYS = 5
 
 
 def screen_persistent_bp_signal(session: Session, patient_id: UUID) -> Alert | None:
-    """Screen for five consecutive calendar days with a high BP reading.
+    """Create a legacy Alert fixture for the explicitly deprecated V0.1 API.
 
     The thresholds are transparent operational screening settings.  The result
     explicitly requires manager/clinician review and is never a diagnosis.
+    Current product risk evaluation uses RiskEvaluationService and RiskEvent.
     """
     observations = session.scalars(
         select(Observation).where(Observation.patient_id == patient_id, Observation.quality_flag == "valid", Observation.excluded_from_analysis.is_(False))

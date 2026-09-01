@@ -165,3 +165,21 @@ class OperationalWorklistService:
             ))
 
         return sorted(items, key=lambda item: (item.priority, item.due_at or now, item.event_at or now, item.title))
+
+    @staticmethod
+    def dashboard_counts(items: list[OperationalWorkItem]) -> dict[str, int]:
+        """Map the current worklist into the legacy dashboard response shape."""
+        waiting_manager_states = {
+            "高风险", "中风险", "待处理", "今日跟进", "逾期", "已接手",
+            "处理中", "待随访", "建议健康管理", "已通过", "已安排", "服务中",
+        }
+        return {
+            "high_priority_alerts": sum(item.priority == 0 for item in items),
+            "waiting_manager_review": sum(
+                item.status in waiting_manager_states and item.status != "等待医生"
+                for item in items
+            ),
+            "waiting_doctor_review": sum(item.status == "等待医生" for item in items),
+            "overdue_tasks": sum(item.source_type == "task" and item.status == "逾期" for item in items),
+            "upcoming_followups": sum(item.status == "待随访" for item in items),
+        }

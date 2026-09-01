@@ -150,6 +150,11 @@ class TaskOut(APIModel):
     source: str
 
 
+class TaskCompletion(APIModel):
+    actor: str = Field(default="health_manager", min_length=1, max_length=128)
+    outcome: str = Field(default="任务已完成并记录。", min_length=1, max_length=4000)
+
+
 class FollowUpCreate(APIModel):
     problem_id: UUID
     reviewer: str = Field(min_length=1, max_length=128)
@@ -220,6 +225,25 @@ class DashboardOut(APIModel):
     overdue_tasks: int
     open_problems: int
     upcoming_followups: int
+
+
+class TimelineEventOut(APIModel):
+    occurred_at: datetime
+    event_type: str
+    event_type_label: str
+    title: str
+    summary: str
+    severity: str
+    source: str
+    expandable_details: dict[str, object]
+    related_entity: str | None
+    group_key: str
+    related_entity_ids: tuple[str, ...]
+    actions: tuple[str, ...]
+    risk_level: str | None
+    risk_label: str | None
+    risk_indicator: str
+    lane: str
 
 
 class AssessmentCreate(APIModel):

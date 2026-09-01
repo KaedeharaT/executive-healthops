@@ -49,6 +49,7 @@ from executive_health_ai.services.knowledge_retrieval import KnowledgeRetrievalS
 from executive_health_ai.services.knowledge_sources import KnowledgeProviderError
 from executive_health_ai.services.health_data_summary import HealthDataSummaryService
 from executive_health_ai.services.operational_worklist import OperationalWorklistService
+from executive_health_ai.services.task_transitions import TaskTransitionService
 from executive_health_ai.services.longitudinal import (
     HealthAssessmentService, HealthDataCategoryRegistry, HealthTimelineService,
     TimelineV4Service, TimelineViewport, InterventionOutcomeService, ReportComparisonService, ReportRiskSummaryService, OversightRiskSummaryService,
@@ -1760,11 +1761,19 @@ def render_tasks(ctx: dict[str, list[object]]) -> None:
         columns[0].markdown(f"**{task.title}** {_severity_badge(severity)} {_status_badge('OVERDUE' if overdue else task.status, severity)}  \n\n执行人：{_role_label(task.responsible_role, name=task.assignee)} · 截止：{_fmt_dt(task.due_at)}  \n\n{task.instruction}")
         if task.status not in {"COMPLETED", "CANCELLED"} and columns[1].button("标记完成", key=f"complete-{task.id}"):
             with SessionLocal() as session:
-                stored = session.get(Task, task.id)
-                stored.status = "COMPLETED"
-                stored.completed_at = datetime.now(TOKYO_TIMEZONE)
-                session.commit()
-            st.rerun()
+                try:
+                    TaskTransitionService().complete(
+                        session,
+                        task.id,
+                        actor=task.assignee or "健康管理师",
+                        outcome="已在健康运营工作台记录任务完成。",
+                    )
+                    session.commit()
+                except ValueError as error:
+                    session.rollback()
+                    st.error(str(error))
+                else:
+                    st.rerun()
 
 
 def _recent_observation_table(observations: list[Observation]) -> pd.DataFrame:

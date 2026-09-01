@@ -339,9 +339,15 @@ class HealthAssessmentService:
 
     def complete_report_review_task(self, session: Session, patient_id: UUID, document_id: UUID) -> None:
         source = f"member_report_upload:{document_id}"
+        from executive_health_ai.services.task_transitions import TaskTransitionService
+
         for task in session.scalars(select(Task).where(Task.patient_id == patient_id, Task.source == source, Task.status.not_in(("COMPLETED", "CANCELLED")))):
-            task.status = "COMPLETED"
-            task.completed_at = datetime.now(timezone.utc)
+            TaskTransitionService().complete(
+                session,
+                task.id,
+                actor="health_manager",
+                outcome="报告审核已完成，并进入健康档案后续流程。",
+            )
 
 
 class ManagementRoutingService:

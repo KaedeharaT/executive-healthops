@@ -174,6 +174,24 @@ class RiskOperationsService:
         session.add(ServiceEvent(patient_id=event.patient_id, event_type="yellow_risk_monitoring", status="completed", owner=actor, detail=outcome, source="risk_operations"))
         return task
 
+    def complete_management_task(self, session: Session, event_id: UUID, actor: str, outcome: str, task_id: UUID | None = None) -> Task:
+        """Complete an in-review management action and keep the risk reviewable."""
+        if not outcome.strip():
+            raise ValueError("Management outcome is required.")
+        event = self._event(session, event_id)
+        if event.status != "IN_REVIEW":
+            raise ValueError("Management tasks can only be completed while the RiskEvent is in review.")
+        task = session.get(Task, task_id) if task_id else session.scalar(select(Task).where(
+            Task.risk_event_id == event.id,
+            Task.status.not_in(["COMPLETED", "CANCELLED"]),
+        ).order_by(Task.created_at.desc()))
+        if task is None:
+            raise ValueError("No active management task found.")
+        task.status, task.completed_at = "COMPLETED", utc_now()
+        self._audit(session, event, actor, "yellow_management_task_completed", {"task_id": str(task.id), "outcome": outcome})
+        session.add(ServiceEvent(patient_id=event.patient_id, event_type="yellow_risk_management", status="completed", owner=actor, detail=outcome, source="risk_operations"))
+        return task
+
     def close(self, session: Session, event_id: UUID, actor: str, reason: str) -> RiskEvent:
         if not reason.strip():
             raise ValueError("Close reason is required.")

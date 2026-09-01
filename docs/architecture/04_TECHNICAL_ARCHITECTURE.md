@@ -1,5 +1,40 @@
 # Technical Architecture
 
+## Product / Business Logic
+
+```mermaid
+flowchart LR
+  data[Data intelligence\n报告 / 设备 / 人工资料] --> risk[Risk intelligence\n确定性规则]
+  risk --> priority[Operational prioritization\n统一 Worklist]
+  priority --> ownership[Human ownership\n健康管理师 / 医生]
+  ownership --> execution[Execution\nProblem / Plan / Task / Service]
+  execution --> outcome[Outcome\n人工记录的结果]
+  outcome --> history[Longitudinal record\n动态时间轴投影]
+```
+
+- **AI** 是效率与语义辅助层，不决定 Risk，也不替代医生判断。
+- **Risk Engine** 是确定性决策逻辑；当前作品集规则为 TEST scope。
+- **OperationalWorklistService** 是运营优先级的统一应用层 contract。
+- **Health Manager** 是运营责任人；**Doctor** 是医学判断责任人。
+- **HealthTimelineService / TimelineV4Service** 从业务事实动态生成长期记录，不反向成为 source of truth。
+
+这条分层也承担运营效率目标：报告结构化减少资料整理，确定性风险与 Worklist 减少人工排优先级，Evidence 减少查找依据，Task / Plan 减少依赖个人记忆，结构化 Doctor Review 降低跨角色交接成本，Timeline 减少重复整理长期历史。目标是让单个健康管理师稳定支持更大的成员组合，并降低单位成员运营开销；当前没有真实运营数据，因此不声明具体效率比例或 ROI。
+
+## Source of Truth
+
+| Domain | Source of truth | Derived / projection |
+|---|---|---|
+| Risk | `RiskRule` + `RiskEvent` | Operational Worklist、Dashboard、Timeline |
+| Problem | `HealthProblem` | Member Overview、Timeline |
+| Task | `Task`，状态变更经 `TaskTransitionService` | Operational Worklist、Timeline |
+| Plan | `HealthProgram` / `ProgramPhase` / `ManagementPlan` | Program UI、Timeline |
+| Doctor Review | `DoctorReview` | Operational Worklist、Timeline |
+| Knowledge | `KnowledgeDocument` / `KnowledgeChunk` / `KnowledgeReviewAudit` | APPROVED-only retrieval、引用与使用记录 |
+| Report evidence | `Document` / `ReportExtractionRun` / `ReportExtractionCandidate` | Evidence UI、人工确认后的 Observation |
+| Timeline | 上述底层业务实体 | `HealthTimelineService` / `TimelineV4Service` 只读投影 |
+
+Dashboard、Timeline、Streamlit `session_state`、LLM output 和 legacy `Alert` 都不是当前业务 source of truth。`Alert` 仅保留 V0.1 历史读取与显式 deprecated API 兼容。
+
 ## 当前运行形态
 
 ```mermaid
@@ -37,7 +72,7 @@ flowchart TB
 | 报告 | `ReportParsingService`、预检、规则解析、可选 `ReportSemanticFallback`、候选人工确认 | ✅ / 🟡 AI。 |
 | 风险 | `RiskEvaluationService`、`RiskOperationsService`、`OperationalWorklistService` | ✅ 引擎；🧪 TEST rule 内容。 |
 | 长期健康 | `HealthAssessmentService`、`ManagementRoutingService`、`ReportComparisonService`、`HealthTimelineService`、`TimelineV4Service`、结果服务 | ✅ / 🟡 管理信号。 |
-| 健管/医生 | `workflow.py`、`chronic_care.py`、`doctor_brief_agent.py` | ✅ 人工工作流基础。 |
+| 健管/医生 | `RiskOperationsService`、`TaskTransitionService`、`chronic_care.py`、`doctor_brief_agent.py` | ✅ 当前人工工作流；`workflow.py` 仅 legacy Alert 兼容。 |
 | 服务运营 | `MemberServiceOperations` | ✅ 状态迁移与配额；🧪 目录/计划。 |
 | 知识 | `KnowledgeService`、`KnowledgeDocument`、`KnowledgeChunk`、`KnowledgeRetrievalService`、`KnowledgeUseRecord` | ✅ Portfolio 级来源、审核、分块、检索与使用追溯；不宣称正式临床知识治理。 |
 
@@ -119,7 +154,7 @@ erDiagram
 
 - `TimelineEvent`、`TimelineViewModel`、`TimelineCluster` 是 `services/longitudinal.py` 的 dataclass/view model，**不是数据库表**。
 - `HealthTimelineService.get_timeline()` 从 `HealthAssessment`、`RiskEvent`、`HealthProblem`、`MedicationPlan`、`HealthEvent`、`DoctorReview`、`HealthProgram`、`ExternalReferral`、`OutcomeEvaluation`、`ServiceRequest`、`ReportExtractionRun` 和月度 Observation summary 动态读取。
-- `HealthTimelineService` 与较早的 `services/timeline.py` 同时存在；后者面向旧 API 的逐条 timeline，属于待收敛架构。
+- `HealthTimelineService` 与较早的 `services/timeline.py` 同时存在；current API 使用 `/members/{id}/timeline/v2`，旧 `/members/{id}/timeline` 已标记 deprecated 并保留兼容。
 
 ## Data / Deployment Flow
 

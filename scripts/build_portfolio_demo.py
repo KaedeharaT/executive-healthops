@@ -58,7 +58,9 @@ def _run_migrations(target: Path) -> None:
 def _seed_existing_demo() -> None:
     """Reuse the tested synthetic foundation, then replace portfolio-facing data."""
     seeded = runpy.run_path(str(ROOT / "scripts" / "seed_full_demo.py"), run_name="portfolio_seed")
-    seeded["seed_full_demo"]()
+    # Portfolio/current workflow deliberately excludes the legacy V0.1 Alert
+    # fixture.  The following RiskEvent seed is the only new risk write path.
+    seeded["seed_full_demo"](include_legacy_alert_workflow=False)
     # This script creates TEST-scope workflow fixtures only.  It never creates
     # a Clinical RiskRule and its UI is marked as an 演示风险 by the app.
     runpy.run_path(str(ROOT / "scripts" / "seed_risk_demo.py"), run_name="portfolio_risk_seed")

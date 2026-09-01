@@ -19,7 +19,7 @@ from executive_health_ai.schemas import (
     AlertOut, DashboardOut, DoctorReviewCreate, DoctorReviewOut, DocumentCreate, DocumentOut,
     FollowUpCreate, FollowUpOut, HealthProblemOut, ManagerConfirmation, MemberOut,
     AppleHealthSyncRequest, AssessmentCreate, BarrierCreate, FileIngestionRequest, IngestionRequest, MedicalReferralCreate, ObservationCreate, OutcomeCreate, ProgramCreate, ProgramOut,
-    ReportCandidateReview, ReportUploadRequest, TaskOut, WeeklyReviewCreate, YellowAcknowledge, YellowClose, YellowContact, YellowDoctorCompletion, YellowDoctorEscalation, YellowFollowUp, YellowManagementAdjustment, YellowMonitoring,
+    ReportCandidateReview, ReportUploadRequest, TaskCompletion, TaskOut, TimelineEventOut, WeeklyReviewCreate, YellowAcknowledge, YellowClose, YellowContact, YellowDoctorCompletion, YellowDoctorEscalation, YellowFollowUp, YellowManagementAdjustment, YellowMonitoring,
 )
 from executive_health_ai.services.chronic_care import (
     create_assessment, create_program, escalate_to_medical_care, record_execution_barrier,
@@ -30,8 +30,10 @@ from executive_health_ai.integrations.service import ingest, manually_correct_re
 from executive_health_ai.services.timeline import build_patient_timeline
 from executive_health_ai.services.report_parsing import ReportParsingService
 from executive_health_ai.services.risk_triage import RiskEvaluationService
-from executive_health_ai.services.longitudinal import ManagementRoutingService
+from executive_health_ai.services.longitudinal import HealthTimelineService, ManagementRoutingService
+from executive_health_ai.services.operational_worklist import OperationalWorklistService
 from executive_health_ai.services.risk_operations import RiskOperationsService
+from executive_health_ai.services.task_transitions import TaskTransitionService
 from executive_health_ai.services.workflow import (
     complete_follow_up, confirm_alert_as_manager, record_doctor_review, screen_member,
 )
@@ -80,6 +82,13 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
         """Deprecated raw-event compatibility endpoint; product UI uses Longitudinal Timeline."""
         member_or_404(session, member_id)
         return [item.__dict__ for item in build_patient_timeline(session, member_id, days)]
+
+    @app.get("/members/{member_id}/timeline/v2", response_model=list[TimelineEventOut])
+    def member_timeline_v2(member_id: UUID, limit: int = 100, session: Session = Depends(get_session)) -> list[dict[str, object]]:
+        """Current read-only projection assembled from source business entities."""
+        member_or_404(session, member_id)
+        bounded_limit = max(1, min(limit, 200))
+        return [item.__dict__ for item in HealthTimelineService().get_timeline(session, member_id, limit=bounded_limit)]
 
     @app.post("/assessments", status_code=status.HTTP_201_CREATED)
     def create_member_assessment(payload: AssessmentCreate, session: Session = Depends(get_session)) -> dict[str, object]:
@@ -405,21 +414,23 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
         member_or_404(session, member_id)
         return list(session.scalars(select(Document).where(Document.patient_id == member_id).order_by(Document.created_at.desc())))
 
-    @app.post("/members/{member_id}/screen", response_model=AlertOut | None)
+    @app.post("/members/{member_id}/screen", response_model=AlertOut | None, deprecated=True)
     def screen(member_id: UUID, session: Session = Depends(get_session)) -> Alert | None:
+        """Deprecated V0.1 compatibility write; current risk evaluation creates RiskEvent."""
         member_or_404(session, member_id)
         alert = screen_member(session, member_id)
         session.commit()
         return alert
 
-    @app.get("/alerts", response_model=list[AlertOut])
+    @app.get("/alerts", response_model=list[AlertOut], deprecated=True)
     def list_alerts(member_id: UUID | None = None, session: Session = Depends(get_session)) -> list[Alert]:
+        """Read historical V0.1 Alert rows; new risk workflows do not write here."""
         statement = select(Alert).order_by(Alert.created_at.desc())
         if member_id is not None:
             statement = statement.where(Alert.patient_id == member_id)
         return list(session.scalars(statement))
 
-    @app.post("/alerts/{alert_id}/manager-confirm", response_model=HealthProblemOut)
+    @app.post("/alerts/{alert_id}/manager-confirm", response_model=HealthProblemOut, deprecated=True)
     def manager_confirm(alert_id: UUID, payload: ManagerConfirmation, session: Session = Depends(get_session)) -> HealthProblem:
         alert = session.get(Alert, alert_id)
         if alert is None:
@@ -535,13 +546,17 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
         return list(session.scalars(statement))
 
     @app.post("/tasks/{task_id}/complete", response_model=TaskOut)
-    def complete_task(task_id: UUID, session: Session = Depends(get_session)) -> Task:
-        task = session.get(Task, task_id)
-        if task is None:
-            raise HTTPException(status_code=404, detail="Task not found")
-        task.status = "COMPLETED"
-        task.completed_at = datetime.now(timezone.utc)
-        session.commit()
+    def complete_task(task_id: UUID, payload: TaskCompletion | None = None, session: Session = Depends(get_session)) -> Task:
+        completion = payload or TaskCompletion()
+        try:
+            task = TaskTransitionService().complete(
+                session, task_id, actor=completion.actor, outcome=completion.outcome,
+            )
+            session.commit()
+        except ValueError as error:
+            session.rollback()
+            status_code = 404 if str(error) == "Task not found." else 409
+            raise HTTPException(status_code=status_code, detail=str(error)) from error
         return task
 
     @app.post("/followups", response_model=FollowUpOut, status_code=status.HTTP_201_CREATED)
@@ -557,14 +572,12 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
     @app.get("/dashboard/manager", response_model=DashboardOut)
     def manager_dashboard(session: Session = Depends(get_session)) -> dict[str, int]:
         now = datetime.now(timezone.utc)
+        worklist = OperationalWorklistService()
+        counts = worklist.dashboard_counts(worklist.list_items(session, now))
         count = lambda statement: int(session.scalar(statement) or 0)
         return {
-            "high_priority_alerts": count(select(func.count(Alert.id)).where(Alert.severity.in_(["HIGH", "CRITICAL"]), Alert.status != "CLOSED")),
-            "waiting_manager_review": count(select(func.count(Alert.id)).where(Alert.status.in_(["NEW", "AI_SCREENED", "WAITING_MANAGER_REVIEW"]))),
-            "waiting_doctor_review": count(select(func.count(Alert.id)).where(Alert.status == "WAITING_DOCTOR_REVIEW")),
-            "overdue_tasks": count(select(func.count(Task.id)).where(Task.status.not_in(["COMPLETED", "CANCELLED"]), Task.due_at.is_not(None), Task.due_at < now)),
+            **counts,
             "open_problems": count(select(func.count(HealthProblem.id)).where(HealthProblem.status != "CLOSED")),
-            "upcoming_followups": count(select(func.count(FollowUp.id)).where(FollowUp.status != "COMPLETED")),
         }
 
     return app

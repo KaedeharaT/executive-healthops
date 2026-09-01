@@ -49,8 +49,12 @@ def local_datetime(day: date, hour: int, minute: int = 0) -> datetime:
     return datetime(day.year, day.month, day.day, hour, minute, tzinfo=TOKYO_TIMEZONE)
 
 
-def seed_full_demo(session_factory: Callable[[], Session] = SessionLocal) -> dict[str, int]:
-    """Add missing records for the fixed 30-day synthetic patient story."""
+def seed_full_demo(
+    session_factory: Callable[[], Session] = SessionLocal,
+    *,
+    include_legacy_alert_workflow: bool = True,
+) -> dict[str, int]:
+    """Add the synthetic foundation; optionally retain the V0.1 Alert fixture."""
 
     created = {"patients": 0, "devices": 0, "observations": 0, "sleep_sessions": 0, "medication_events": 0, "care_tasks": 0}
     with session_factory() as session:
@@ -94,7 +98,8 @@ def seed_full_demo(session_factory: Callable[[], Session] = SessionLocal) -> dic
         session.flush()
         _ensure_rule_insights(session, patient.id)
         program = _ensure_chronic_care_demo(session, patient.id)
-        _ensure_operations_demo(session, patient.id, program)
+        if include_legacy_alert_workflow:
+            _ensure_operations_demo(session, patient.id, program)
         _ensure_longitudinal_demo(session, patient.id)
         session.commit()
     return created

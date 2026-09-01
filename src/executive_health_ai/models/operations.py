@@ -73,6 +73,12 @@ class HealthProblem(Base):
 
 
 class Alert(Base):
+    """Deprecated V0.1 compatibility model.
+
+    New risk workflows use ``RiskRule`` and ``RiskEvent``.  This table remains
+    readable for historical fixtures and API compatibility only.
+    """
+
     __tablename__ = "alerts"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

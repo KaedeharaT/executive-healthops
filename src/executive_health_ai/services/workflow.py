@@ -1,4 +1,8 @@
-"""Human-in-the-loop operational workflow for V0.1."""
+"""Deprecated V0.1 Alert compatibility workflow.
+
+Current risk detection and operations use RiskEvent.  These functions remain
+only for historical fixtures and explicitly deprecated API compatibility.
+"""
 
 from __future__ import annotations
 
@@ -22,6 +26,7 @@ def _audit(session: Session, patient_id: UUID, actor: str, actor_role: str, acti
 
 
 def screen_member(session: Session, patient_id: UUID) -> Alert | None:
+    """Deprecated: create a legacy V0.1 Alert for compatibility tests only."""
     alert = screen_persistent_bp_signal(session, patient_id)
     if alert is not None:
         _audit(session, patient_id, "signal_agent", "system", "screened_alert", alert)
@@ -135,10 +140,16 @@ def record_doctor_review(
 
 def complete_follow_up(session: Session, problem: HealthProblem, reviewer: str, outcome: str, task: Task | None = None) -> FollowUp:
     """Close the demo workflow only after a named human records an outcome."""
-    related_task = task or session.scalar(select(Task).where(Task.health_problem_id == problem.id, Task.status != "COMPLETED").order_by(Task.created_at.desc()))
+    related_task = task or session.scalar(select(Task).where(
+        Task.health_problem_id == problem.id,
+        Task.status.not_in(("COMPLETED", "CANCELLED")),
+    ).order_by(Task.created_at.desc()))
     if related_task is not None:
-        related_task.status = "COMPLETED"
-        related_task.completed_at = utc_now()
+        from executive_health_ai.services.task_transitions import TaskTransitionService
+
+        TaskTransitionService().complete(
+            session, related_task.id, actor=reviewer, outcome=outcome,
+        )
     follow_up = FollowUp(patient_id=problem.patient_id, health_problem_id=problem.id, task_id=related_task.id if related_task else None, status="COMPLETED", completed_at=utc_now(), outcome=outcome, reviewed_by=reviewer, source="health_manager_follow_up")
     session.add(follow_up)
     problem.status = "CLOSED"

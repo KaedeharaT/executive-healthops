@@ -17,14 +17,16 @@
 
 ## Architecture Debt（当前 3 项）
 
-1. **两套时间轴实现**：`services/timeline.py` 的旧逐条 `build_patient_timeline()` 仍服务 FastAPI `/members/{id}/timeline` 和演示故事；`HealthTimelineService` + `TimelineV4Service` 是当前产品生命轴。两者事件粒度与语义不同。
+1. **时间轴兼容窗口**：current `/members/{id}/timeline/v2` 已使用 `HealthTimelineService`；旧 `/members/{id}/timeline` 已标记 deprecated，但 `services/timeline.py` 仍为历史兼容与旧演示 helper 保留。两者事件粒度与语义不同，新功能不得依赖旧实现。
 2. **报告入口路径并存**：运营端和成员端都有上传/报告入口，另有 `_render_client_report_intake_entry()` helper；应在后续明确单一共享 intake 的调用边界，避免状态分叉。
-3. **旧 V0.1 workflow 与新风险/长期运营并存**：`Alert`/`workflow.py` 的血压 alert 闭环，和 Observation-driven `RiskEvent`/`RiskOperationsService` 的黄风险闭环同时存在；二者有重叠的人工作业实体与时间轴来源。
+3. **旧 V0.1 workflow 兼容表仍存在**：`Alert`/`workflow.py` 与相关 API 已明确 deprecated，仅用于历史读取和兼容测试；新风险由 Observation-driven `RiskEvent`/`RiskOperationsService` 创建并进入统一 Worklist。后续生产迁移完成前不删除历史表或 migration。
 
 已收敛的历史项：月度时间轴摘要已明确命名为
 `MonthlyTimelineSummaryService`，避免与即时健康数据的
 `HealthDataSummaryService` 同名；成员详情将“历程”作为一级入口，
-不再依赖健康档案页的旧入口卡。
+不再依赖健康档案页的旧入口卡。`CarePlan` / `CareTask` 仅保留 V0.1
+fixture 与 migration 兼容；当前工作流使用 `HealthProgram` / `Task`，
+新功能不得继续依赖 legacy care 表。
 
 ## 不应误画为 CURRENT 的能力
 

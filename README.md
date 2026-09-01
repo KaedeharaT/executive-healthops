@@ -36,6 +36,29 @@ flowchart LR
 
 Members can see their current state and next step. Health managers can prioritize work and coordinate follow-up. Doctors receive a concise, evidence-linked review context. Every important workflow outcome returns to the member record and longitudinal timeline.
 
+## Core product logic
+
+HealthOps does not stop when a risk is detected. Evidence-backed health data becomes a deterministic `RiskEvent`, prioritized operational work, human-owned actions, doctor review when needed, follow-up, outcomes, and finally a longitudinal health record.
+
+```mermaid
+flowchart LR
+    A[Health data / reports] --> B[Evidence & confirmed observations]
+    B --> C[Deterministic risk]
+    C --> D[Operational worklist]
+    D --> E[Manager / doctor action]
+    E --> F[Plan / task / service]
+    F --> G[Outcome]
+    G --> H[Longitudinal timeline]
+```
+
+The dashboard and timeline are read-only projections of the underlying workflow records—not competing sources of truth. LLM output can assist interpretation, but it cannot create a risk decision or replace human confirmation.
+
+## Operational efficiency
+
+HealthOps is designed not only to improve continuity of health operations, but also to reduce repetitive coordination work. Report structuring, deterministic prioritization, evidence-linked context, worklists, task tracking, doctor-review context, and longitudinal summaries reduce the time health managers spend assembling information and tracking routine follow-up.
+
+The goal is to enable each health manager to support a larger member portfolio and reduce per-member operational overhead while keeping medical judgement with clinicians. No unverified productivity or ROI claim is made.
+
 ## What problem does it solve?
 
 Executive health management commonly separates check-up reports, continuous health signals, human follow-up, care plans, and clinician context. That creates an incomplete health story and makes ownership, evidence, and next actions hard to track.
@@ -87,7 +110,7 @@ The timeline connects check-ups, risks, manager follow-up, doctor review, tasks,
 
 ![HealthOps Knowledge Center](docs/images/healthops-knowledge-center.png)
 
-Governed medical knowledge supports RAG with source attribution and review status. It is reference material, not executable medical logic.
+Governed medical knowledge supports RAG with source attribution and review status. It is a reference layer, not executable medical logic; direct knowledge-assisted LLM reasoning remains an incremental capability.
 
 ## Architecture
 
@@ -183,7 +206,7 @@ For a compatible API provider, set `LOCAL_LLM_PROVIDER=openai_compatible`, `LLM_
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current v0.9.0 portfolio regression suite: **325 passed / 0 failed**.
+Current v0.9.0 portfolio regression suite: **330 passed / 0 failed**.
 
 ## Portfolio Materials
 
