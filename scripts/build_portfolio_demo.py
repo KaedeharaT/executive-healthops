@@ -55,6 +55,18 @@ def _run_migrations(target: Path) -> None:
     )
 
 
+def _verify_training_schema(target: Path) -> None:
+    """Stop before seeding if the migration chain did not create training storage."""
+    from sqlalchemy import create_engine, inspect
+
+    engine = create_engine(_database_url(target))
+    try:
+        if not inspect(engine).has_table("training_sessions"):
+            raise RuntimeError("Portfolio Demo 数据库结构需要升级：缺少 training_sessions。")
+    finally:
+        engine.dispose()
+
+
 def _seed_existing_demo() -> None:
     """Reuse the tested synthetic foundation, then replace portfolio-facing data."""
     seeded = runpy.run_path(str(ROOT / "scripts" / "seed_full_demo.py"), run_name="portfolio_seed")
@@ -342,6 +354,7 @@ def build_portfolio_demo(target: Path = DEFAULT_DATABASE, *, rebuild: bool = Tru
         raise FileExistsError("作品集数据库已存在；使用 --rebuild 重新创建。")
     os.environ["DATABASE_URL"] = _database_url(target)
     _run_migrations(target)
+    _verify_training_schema(target)
     _seed_existing_demo()
     return _customize_portfolio_data()
 

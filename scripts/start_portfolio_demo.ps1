@@ -28,6 +28,13 @@ $env:DATABASE_URL = $databaseUrl
 $env:PORTFOLIO_DEMO = "true"
 $env:PYTHONPATH = (Join-Path $projectRoot "src")
 
+# Existing demo databases can outlive application code updates.  Always bring
+# the isolated schema to head before either service is allowed to start.
+& $python -m alembic upgrade head
+if ($LASTEXITCODE -ne 0) {
+    throw "Portfolio Demo 数据库结构升级失败。请先执行 alembic upgrade head。"
+}
+
 function Test-LocalPort([int]$Port) {
     return [bool](Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
 }
