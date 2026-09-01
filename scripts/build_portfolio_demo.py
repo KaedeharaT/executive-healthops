@@ -224,36 +224,9 @@ def _add_knowledge_demo(session) -> None:
         if index < 2:
             service.approve_document(session, document, "演示审核人", "已核对来源、用途与许可说明。")
 
-    training_documents = [
-        ("体检报告审核操作指南", "TRAINING_MATERIAL", "报告接收后先核对成员、体检日期、机构、原文页码与关键发现。AI提取候选必须由健管师确认后才能进入正式档案。确认后为需要复查的项目设置负责人、期限和下一动作；医学解释提交医生。"),
-        ("Yellow Risk健管处理SOP", "INTERNAL_SOP", "Yellow Risk进入待处理队列后由健康管理师接手。必须记录负责人、当前状态、下一动作和期限。可选择联系成员、继续观察、处理数据质量、调整管理或提交医生；只有记录关闭原因和最终动作后才能关闭。"),
-        ("健管与内部医生升级规范", "INTERNAL_SOP", "涉及医学解释、新重大体检发现、用药问题、风险升级、规则覆盖不足或转诊判断时，健管师不得自行诊断，应提交内部医生。提交内容包括原因、成员事实、证据、已采取动作和希望医生回答的问题。"),
-        ("健康计划跟进规范", "TRAINING_MATERIAL", "成员接受方案后应明确计划状态、任务负责人和期限。成员希望调整时创建健管跟进；暂缓时记录原因与下次复核时间。任务未完成优先进行成员提醒，不得仅因依从性不足升级为医学风险。"),
-        ("服务安排与结果回流SOP", "INTERNAL_SOP", "服务申请按已申请、已审核、已安排、执行中、已完成或已取消推进。每项服务明确负责人、预约时间和下一步。完成时记录结果摘要，并将有意义的服务结果回流成员档案和长期健康时间线。"),
-        ("数据缺失与陈旧处理规范", "TRAINING_MATERIAL", "无数据、数据陈旧和未覆盖规则都不等于正常。健管师应确认数据来源与最近同步时间，必要时创建平台内提醒补测或联系成员；数据可疑时先处理质量问题，不直接形成医学结论。"),
-    ]
-    for number, (title, category, content) in enumerate(training_documents, start=1):
-        document = service.create_document(
-            session,
-            title=title,
-            category=category,
-            source_type=category,
-            source_name="Executive HealthOps Portfolio Training SOP",
-            source_provider="PORTFOLIO_TRAINING",
-            source_external_id=f"portfolio-training-sop-{number:02d}",
-            summary=content,
-            content_text=f"# {title}\n{content}",
-            version="v1.0",
-            retrieved_at=datetime(2026, 8, 30, tzinfo=timezone.utc),
-            license_note="本项目原创的匿名化演示培训资料；不代表真实医院制度。",
-            attribution="Executive HealthOps Portfolio Training SOP · Synthetic / Demo",
-            review_status="PENDING_REVIEW",
-            review_due_at=date_type(2027, 8, 30),
-            tags=("作品集演示", "培训", "Synthetic"),
-            metadata_json={"portfolio_demo": True, "synthetic_demo": True, "portfolio_training_sop": True, "audience": ["health_manager"]},
-        )
-        service.approve_document(session, document, "演示审核人", "已审核为 Portfolio Training SOP；仅用于岗位流程演示。")
-        service.create_chunks(session, document)
+    from executive_health_ai.services.training_knowledge import seed_training_knowledge
+
+    seed_training_knowledge(session)
 
 
 def _customize_portfolio_data() -> dict[str, int]:

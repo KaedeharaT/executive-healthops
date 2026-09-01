@@ -12,7 +12,7 @@ from executive_health_ai.services.grounded_ai import AICitation, AIAnswer
 def _render_group(title: str, citations: Iterable[AICitation]) -> None:
     items = list(citations)
     if not items:
-        st.caption(f"{title}：未使用")
+        st.caption("本次没有使用成员事实。" if title == "事实依据" else "未找到可用知识依据。")
         return
     st.markdown(f"**{title}**")
     for citation in items[:5]:

@@ -17,6 +17,29 @@ from executive_health_ai.models import KnowledgeChunk, KnowledgeDocument
 from executive_health_ai.services.knowledge import KnowledgeService
 
 
+QUERY_SYNONYMS = (
+    (("yellow risk", "黄风险", "黄色风险", "中风险"), ("yellow risk", "yellow", "risk", "中风险", "黄色风险")),
+    (("接手", "领取", "接受任务"), ("接手", "负责人", "active worklist")),
+    (("内部医生", "医学复核", "医生复核", "提交医生"), ("内部医生", "doctor review", "医学判断")),
+    (("体检报告", "上传报告", "报告上传"), ("体检报告", "报告审核", "candidate", "evidence")),
+    (("健康计划", "调整计划", "暂缓计划"), ("健康计划", "成员确认", "调整", "暂缓")),
+    (("任务没完成", "任务没有完成", "未完成任务"), ("任务未完成", "成员任务", "提醒")),
+    (("服务申请", "服务通过", "安排服务"), ("服务申请", "审核", "安排", "结果回流")),
+    (("outcome", "阶段结果", "阶段复盘"), ("outcome", "阶段复盘", "下一步")),
+    (("很久没有更新", "陈旧数据", "数据过期", "缺少数据"), ("陈旧数据", "数据缺失", "新鲜度", "补测")),
+)
+
+
+def normalize_query_terms(phrase: str) -> list[str]:
+    """Expand a small, auditable HealthOps synonym set without inventing answers."""
+    normalized = phrase.strip().lower()
+    terms = [normalized]
+    for aliases, expansions in QUERY_SYNONYMS:
+        if any(alias in normalized for alias in aliases):
+            terms.extend(expansions)
+    return list(dict.fromkeys(term for term in terms if term))
+
+
 @dataclass(frozen=True)
 class KnowledgeRetrievalHit:
     document: KnowledgeDocument
@@ -67,7 +90,13 @@ class KnowledgeRetrievalService:
         if source_types:
             statement = statement.where(KnowledgeDocument.source_type.in_(source_types))
 
-        tokens = [token for token in re.findall(r"[a-z0-9_]+|[\u4e00-\u9fff]{2,}", phrase) if token]
+        normalized_terms = normalize_query_terms(phrase)
+        tokens = [
+            token
+            for term in normalized_terms
+            for token in re.findall(r"[a-z0-9_]+|[\u4e00-\u9fff]{2,}", term)
+            if token
+        ]
         # Chinese questions often contain no whitespace.  Bigrams make the
         # deterministic first-pass retrieval useful without inventing semantic
         # similarity or adding a vector-store dependency.
@@ -94,8 +123,11 @@ class KnowledgeRetrievalService:
                 continue
             title = document.title.lower()
             body = f"{chunk.heading or ''}\n{chunk.content}".lower()
-            score = sum(8 for token in tokens if token == title) + sum(4 for token in tokens if token in title)
-            score += sum(body.count(token) for token in tokens)
-            if score:
+            lexical_score = sum(8 for token in tokens if token == title) + sum(4 for token in tokens if token in title)
+            lexical_score += sum(body.count(token) for token in tokens)
+            if lexical_score:
+                category_priority = {"INTERNAL_SOP": 12, "TRAINING_MATERIAL": 10, "CLINICAL_GUIDELINE": 3, "PATIENT_EDUCATION": 1}
+                title_intent_bonus = sum(20 for term in normalized_terms if len(term) >= 4 and term in title)
+                score = lexical_score + title_intent_bonus + category_priority.get(document.category, 0)
                 hits.append(KnowledgeRetrievalHit(document=document, chunk=chunk, score=score))
         return sorted(hits, key=lambda item: (-item.score, item.document.title, item.chunk.chunk_index))[:limit]

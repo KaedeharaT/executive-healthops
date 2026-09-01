@@ -190,6 +190,8 @@ pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 
 它不会修改正常开发数据库。演示范围和安全说明见 [Portfolio 发布说明](portfolio/PORTFOLIO_RELEASE_NOTES.md)。
 
+Portfolio 重建会加入 12 份已批准的原创 Synthetic 培训资料。如需将同一批明确标注的演示资料安全加入普通开发数据库，可运行 `.\.venv\Scripts\python.exe scripts\seed_training_knowledge.py`；现有知识不会被替换。
+
 ### 可选的 LLM 语义辅助
 
 LLM 语义辅助是可选能力。默认本地路径使用 Ollama；完成相应隐私评估后，也可在 `.env` 中配置兼容 API Provider：
@@ -209,7 +211,7 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-当前 v0.9.0 Portfolio 回归套件：**357 passed / 0 failed**。
+当前 v0.9.0 Portfolio 回归套件：**369 passed / 0 failed**。
 
 ## 作品集资料（Portfolio Materials）
 

@@ -25,6 +25,27 @@ def _render_database_error(exc: Exception) -> None:
 
 
 def render_training_copilot(session_factory: sessionmaker) -> None:
+    st.markdown(
+        """<style>
+        [class*="st-key-training-copilot-layout"] [data-testid="stColumn"] {
+            min-width: 0 !important; overflow-wrap: anywhere;
+        }
+        @media (max-width: 900px) {
+            [class*="st-key-training-copilot-layout"] [data-testid="stHorizontalBlock"] {
+                flex-direction: column !important; gap: 1rem !important;
+            }
+            [class*="st-key-training-copilot-layout"] [data-testid="stColumn"] {
+                width: 100% !important; flex: 1 1 100% !important;
+            }
+        }
+        </style>""",
+        unsafe_allow_html=True,
+    )
+    with st.container(key="training-copilot-layout"):
+        _render_training_copilot_content(session_factory)
+
+
+def _render_training_copilot_content(session_factory: sessionmaker) -> None:
     st.title("健管培训助手")
     st.caption("通过标准流程、已审核知识和模拟案例，练习健康管理工作与跨角色协同。")
     st.info("Portfolio Training Prototype · 仅用于岗位流程训练，不用于诊断、处方或正式绩效考核。")
@@ -40,7 +61,7 @@ def render_training_copilot(session_factory: sessionmaker) -> None:
         _render_database_error(exc)
         return
     mode = st.radio("训练模式", ["问答学习", "案例训练", "能力评估"], horizontal=True, key="training-mode")
-    left, right = st.columns([1.9, 1], gap="large")
+    left, right = st.columns([2, 1], gap="medium")
     service = TrainingCopilotService()
 
     if mode == "问答学习":

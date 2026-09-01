@@ -189,6 +189,8 @@ The launcher builds an isolated `data/portfolio_demo.db`, sets `PORTFOLIO_DEMO=t
 
 It does not modify the normal development database. See [Portfolio release notes](portfolio/PORTFOLIO_RELEASE_NOTES.md) for demo scope and safety details.
 
+The Portfolio rebuild includes 12 approved, original synthetic training documents. To add the same clearly labelled demo foundation to a normal development database, run `.\.venv\Scripts\python.exe scripts\seed_training_knowledge.py`; existing knowledge is not replaced.
+
 ### Optional LLM assistance
 
 LLM assistance is optional. The default local path uses Ollama; compatible API providers are also supported only after the relevant privacy review:
@@ -208,7 +210,7 @@ For a compatible API provider, set `LOCAL_LLM_PROVIDER=openai_compatible`, `LLM_
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current v0.9.0 portfolio regression suite: **357 passed / 0 failed**.
+Current v0.9.0 portfolio regression suite: **369 passed / 0 failed**.
 
 ## Portfolio Materials
 

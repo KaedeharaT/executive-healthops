@@ -7,11 +7,11 @@ import sys
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect, select
+from sqlalchemy import create_engine, func, inspect, select
 from sqlalchemy.orm import Session
 from streamlit.testing.v1 import AppTest
 
-from executive_health_ai.models import TrainingSession
+from executive_health_ai.models import KnowledgeChunk, KnowledgeDocument, TrainingSession
 from executive_health_ai.services.schema_guard import DatabaseSchemaOutdated, require_training_schema
 from executive_health_ai.services.training_copilot import TrainingCopilotService
 from scripts.build_portfolio_demo import _verify_training_schema
@@ -75,6 +75,15 @@ def test_portfolio_builder_rebuild_creates_training_tables():
     database = ROOT / "data" / "portfolio_demo.db"
     engine = create_engine(f"sqlite:///{database.as_posix()}")
     assert inspect(engine).has_table("training_sessions")
+    with Session(engine) as session:
+        approved = session.scalar(select(func.count()).select_from(KnowledgeDocument).where(
+            KnowledgeDocument.source_provider == "PORTFOLIO_TRAINING",
+            KnowledgeDocument.review_status == "APPROVED",
+        ))
+        chunks = session.scalar(select(func.count()).select_from(KnowledgeChunk).join(KnowledgeDocument).where(
+            KnowledgeDocument.source_provider == "PORTFOLIO_TRAINING",
+        ))
+        assert approved == 12 and chunks == 59
     engine.dispose()
 
 
