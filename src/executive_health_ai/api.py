@@ -1,4 +1,4 @@
-"""FastAPI surface for the V0.1 human-reviewed demo workflow."""
+"""FastAPI surface for the human-reviewed HealthOps portfolio prototype."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI:
     app = FastAPI(
         title="企业高管健康运营平台 API",
-        version="0.5.0",
+        version="0.9.0",
         description="健康管理与数据接入接口。系统不进行自动诊断、处方或药物调整，医疗决定须由医生确认。",
     )
 

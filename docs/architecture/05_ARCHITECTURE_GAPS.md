@@ -13,15 +13,18 @@
 | 外部医疗 | ExternalReferral 模型与人工登记/状态/反馈 UI。 | 医院、预约、检查、反馈的受控集成与 SLA。 | **P1** |
 | 服务运营 | ServiceRequest 状态与配额消费存在；目录由 demo plan 生成。 | 真实合同、权益、排班、履约、支付/结算集成。 | **P1** |
 | 低风险成员提醒 | 风险可生成 GREEN；未发现独立成员消息/提醒投递。 | 有同意记录的提醒渠道和可审计投递。 | **P2** |
-| 知识库 | 来源注册、人工审核、版本关系、分块、APPROVED-only 检索、归属与使用追溯已实现。 | 正式临床知识治理、组织级权限与生产运营。 | **P2** |
+| 知识库 | 来源注册、人工审核、版本关系、分块与 APPROVED-only 检索已实现；未来 AI 输出的精确使用记录契约已定义，当前报告语义辅助尚未接入知识检索。 | 正式临床知识治理、组织级权限与生产运营。 | **P2** |
 
-## Architecture Debt（发现 5 项）
+## Architecture Debt（当前 3 项）
 
 1. **两套时间轴实现**：`services/timeline.py` 的旧逐条 `build_patient_timeline()` 仍服务 FastAPI `/members/{id}/timeline` 和演示故事；`HealthTimelineService` + `TimelineV4Service` 是当前产品生命轴。两者事件粒度与语义不同。
-2. **两处同名健康数据摘要服务**：`services/health_data_summary.py::HealthDataSummaryService` 负责首页/趋势即时摘要；`services/longitudinal.py::HealthDataSummaryService` 负责月度时间轴节点。职责不同但同名，容易误导导入与维护。
-3. **运营端时间轴入口不完整**：renderer、路由和概览 CTA 都存在，但 `render_member_archive()` 默认入口卡没有“健康时间轴”，造成可发现性与成员中心不一致。
-4. **报告入口路径并存**：运营端和成员端都有上传/报告入口，另有 `_render_client_report_intake_entry()` helper；应在后续明确单一共享 intake 的调用边界，避免状态分叉。
-5. **旧 V0.1 workflow 与新风险/长期运营并存**：`Alert`/`workflow.py` 的血压 alert 闭环，和 Observation-driven `RiskEvent`/`RiskOperationsService` 的黄风险闭环同时存在；二者有重叠的人工作业实体与时间轴来源。
+2. **报告入口路径并存**：运营端和成员端都有上传/报告入口，另有 `_render_client_report_intake_entry()` helper；应在后续明确单一共享 intake 的调用边界，避免状态分叉。
+3. **旧 V0.1 workflow 与新风险/长期运营并存**：`Alert`/`workflow.py` 的血压 alert 闭环，和 Observation-driven `RiskEvent`/`RiskOperationsService` 的黄风险闭环同时存在；二者有重叠的人工作业实体与时间轴来源。
+
+已收敛的历史项：月度时间轴摘要已明确命名为
+`MonthlyTimelineSummaryService`，避免与即时健康数据的
+`HealthDataSummaryService` 同名；成员详情将“历程”作为一级入口，
+不再依赖健康档案页的旧入口卡。
 
 ## 不应误画为 CURRENT 的能力
 

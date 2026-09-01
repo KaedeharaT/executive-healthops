@@ -52,7 +52,7 @@ Executive HealthOps turns these fragmented inputs into a single longitudinal wor
 - **Deterministic risk triage** — evaluate governed rules in code, then route work to the appropriate human owner.
 - **Human-in-the-loop operations** — make health-manager actions, doctor review, ownership, due dates, and next actions explicit.
 - **Longitudinal health timeline** — show what happened, what the team did, and what followed over time.
-- **Governed medical knowledge** — support approved knowledge chunks, source attribution, review state, retrieval, and usage traceability.
+- **Governed medical knowledge** — support approved knowledge chunks, source attribution, review state, and keyword retrieval; the repository also defines a bounded usage-record contract for any future AI output that consumes retrieved chunks.
 - **Portfolio demo workflow** — ships with a repeatable, isolated synthetic demo for **Demo Executive A**.
 
 ## Product experience
@@ -125,7 +125,7 @@ The LLM interface is configurable and model-agnostic: local or compatible API pr
 | Persistence | SQLAlchemy, Alembic, isolated SQLite demo database |
 | Health data | Canonical observations, raw-ingestion provenance, report candidates |
 | AI | Configurable LLM interface for optional semantic assistance |
-| Knowledge | Governed sources, approved chunks, keyword retrieval, citation usage records |
+| Knowledge | Governed sources, approved chunks, keyword retrieval, and a future-output usage-record contract |
 | Validation | Automated pytest regression suite and Streamlit interaction coverage |
 
 ## Safety Boundaries
