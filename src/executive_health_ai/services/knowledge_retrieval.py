@@ -66,7 +66,8 @@ class KnowledgeRetrievalService:
         self, session: Session, query: str, *, category: str | None = None,
         source_provider: str | None = None, language: str | None = None, limit: int = 6,
         categories: tuple[str, ...] = (), source_types: tuple[str, ...] = (),
-        audience: str | None = None,
+        audience: str | None = None, jurisdiction: str | None = None,
+        intended_use: str | None = None, feature: str | None = None,
     ) -> list[KnowledgeRetrievalHit]:
         phrase = query.strip().lower()
         if not phrase:
@@ -118,8 +119,18 @@ class KnowledgeRetrievalService:
         for chunk, document in session.execute(statement).all():
             if not KnowledgeService._eligible_for_formal_ai(document):
                 continue
-            audiences = (document.metadata_json or {}).get("audience", [])
-            if audience and audience not in audiences and "all" not in audiences:
+            metadata = document.metadata_json or {}
+            audiences = {str(item).casefold() for item in metadata.get("audience", [])}
+            if audience and audience.casefold() not in audiences and "all" not in audiences:
+                continue
+            jurisdictions = {str(item).upper() for item in metadata.get("jurisdiction", ["GLOBAL"])}
+            if jurisdiction and jurisdiction.upper() not in jurisdictions and "GLOBAL" not in jurisdictions:
+                continue
+            intended_uses = {str(item).upper() for item in metadata.get("intended_use", [])}
+            if intended_use and intended_use.upper() not in intended_uses:
+                continue
+            features = {str(item).casefold() for item in metadata.get("features", [])}
+            if feature and feature.casefold() not in features:
                 continue
             title = document.title.lower()
             body = f"{chunk.heading or ''}\n{chunk.content}".lower()
@@ -131,3 +142,21 @@ class KnowledgeRetrievalService:
                 score = lexical_score + title_intent_bonus + category_priority.get(document.category, 0)
                 hits.append(KnowledgeRetrievalHit(document=document, chunk=chunk, score=score))
         return sorted(hits, key=lambda item: (-item.score, item.document.title, item.chunk.chunk_index))[:limit]
+
+    def search_routed(self, session: Session, query: str, *, audience: str | None = None,
+                      jurisdiction: str | None = None, intended_use: str | None = None,
+                      limit: int = 6) -> list[KnowledgeRetrievalHit]:
+        """Apply a deterministic domain route before lexical scoring."""
+        from executive_health_ai.services.knowledge_foundation import KnowledgeQueryClassifier
+        route = KnowledgeQueryClassifier().classify(query)
+        categories = {
+            "MEDICATION": ("MEDICATION", "TERMINOLOGY", "REGULATORY"),
+            "LAB": ("MEDICAL_TEST", "TERMINOLOGY"),
+            "WORKFLOW": ("INTERNAL_SOP", "TRAINING_MATERIAL"),
+            "LIFESTYLE": ("LIFESTYLE", "PATIENT_EDUCATION"),
+            "DEVICE": ("DEVICE_GUIDANCE",),
+            "PRIVACY": ("PRIVACY", "AI_SAFETY"),
+            "AI_SAFETY": ("AI_SAFETY", "INTERNAL_SOP", "TRAINING_MATERIAL"),
+        }.get(route, ())
+        return self.search(session, query, categories=categories, audience=audience,
+                           jurisdiction=jurisdiction, intended_use=intended_use, limit=limit)

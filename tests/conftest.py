@@ -16,7 +16,13 @@ os.environ["LOCAL_LLM_ENABLED"] = "false"
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / ".runtime"
 RUNTIME.mkdir(exist_ok=True)
-os.environ["DATABASE_URL"] = f"sqlite:///{(RUNTIME / 'pytest_app.db').as_posix()}"
+TEST_DATABASE = RUNTIME / "pytest_app.db"
+# This file is explicitly disposable test state. Recreate it so model changes
+# cannot leave Streamlit AppTest connected to a stale schema from an earlier
+# pytest process.
+if TEST_DATABASE.exists():
+    TEST_DATABASE.unlink()
+os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DATABASE.as_posix()}"
 
 from executive_health_ai.database import engine  # noqa: E402
 from executive_health_ai.models import Base  # noqa: E402

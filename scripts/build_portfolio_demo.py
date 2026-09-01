@@ -225,8 +225,14 @@ def _add_knowledge_demo(session) -> None:
             service.approve_document(session, document, "演示审核人", "已核对来源、用途与许可说明。")
 
     from executive_health_ai.services.training_knowledge import seed_training_knowledge
+    from executive_health_ai.services.knowledge_foundation import sync_source_registry
+    from executive_health_ai.services.public_knowledge_seed import seed_public_knowledge
 
     seed_training_knowledge(session)
+    sync_source_registry(session)
+    # Only original summaries with verified official provenance are approved
+    # by the synthetic Portfolio governance path. No external page is mirrored.
+    seed_public_knowledge(session, approve_for_portfolio=True)
 
 
 def _customize_portfolio_data() -> dict[str, int]:

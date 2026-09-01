@@ -127,6 +127,13 @@ def seed_training_knowledge(session: Session) -> dict[str, int]:
             KnowledgeDocument.source_external_id == external_id,
         ))
         if existing is not None:
+            existing.metadata_json = {
+                **(existing.metadata_json or {}),
+                "jurisdiction": ["GLOBAL"],
+                "audience": ["HEALTH_MANAGER", "TRAINING", "AI_INTERNAL"],
+                "intended_use": ["TRAINING", "WORKFLOW_GUIDANCE"],
+                "prohibited_use": ["NOT_FOR_DIAGNOSIS", "NOT_FOR_PRESCRIPTION", "NOT_FOR_AUTOMATIC_RISK", "NOT_FOR_EMERGENCY_AUTOMATION"],
+            }
             continue
         document = service.create_document(
             session,
@@ -150,7 +157,10 @@ def seed_training_knowledge(session: Session) -> dict[str, int]:
                 "synthetic_demo": True,
                 "portfolio_training_sop": True,
                 "language": "zh-CN",
-                "audience": ["health_manager"],
+                "audience": ["HEALTH_MANAGER", "TRAINING", "AI_INTERNAL"],
+                "jurisdiction": ["GLOBAL"],
+                "intended_use": ["TRAINING", "WORKFLOW_GUIDANCE"],
+                "prohibited_use": ["NOT_FOR_DIAGNOSIS", "NOT_FOR_PRESCRIPTION", "NOT_FOR_AUTOMATIC_RISK", "NOT_FOR_EMERGENCY_AUTOMATION"],
             },
         )
         service.approve_document(session, document, "Portfolio Demo Governance", "原创演示资料已按当前产品工作流核对；仅用于培训演示。")

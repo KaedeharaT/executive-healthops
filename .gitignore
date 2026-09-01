@@ -1,5 +1,7 @@
 # Python environments and build artefacts
 .venv/
+knowledge_sources/external_cache/
+knowledge_sources/licensed_content/
 venv/
 env/
 __pycache__/

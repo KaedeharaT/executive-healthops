@@ -75,6 +75,10 @@ class KnowledgeSourceRegistry(Base):
     review_status: Mapped[str] = mapped_column(String(32), nullable=False, default="CANDIDATE", index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="CANDIDATE", index=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Extended governance attributes live together so the source contract can
+    # evolve without a migration for every taxonomy addition.  The normalized
+    # columns above remain the searchable operational subset.
+    governance_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utc_now, onupdate=utc_now)
 
