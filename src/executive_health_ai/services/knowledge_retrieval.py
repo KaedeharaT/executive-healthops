@@ -137,7 +137,7 @@ class KnowledgeRetrievalService:
             lexical_score = sum(8 for token in tokens if token == title) + sum(4 for token in tokens if token in title)
             lexical_score += sum(body.count(token) for token in tokens)
             if lexical_score:
-                category_priority = {"INTERNAL_SOP": 12, "TRAINING_MATERIAL": 10, "CLINICAL_GUIDELINE": 3, "PATIENT_EDUCATION": 1}
+                category_priority = {"INTERNAL_SOP": 12, "SERVICE_SOP": 11, "COMMUNICATION": 10, "AI_SAFETY": 9, "CLINICAL_GUIDELINE": 3, "PATIENT_EDUCATION": 1}
                 title_intent_bonus = sum(20 for term in normalized_terms if len(term) >= 4 and term in title)
                 score = lexical_score + title_intent_bonus + category_priority.get(document.category, 0)
                 hits.append(KnowledgeRetrievalHit(document=document, chunk=chunk, score=score))
@@ -152,11 +152,11 @@ class KnowledgeRetrievalService:
         categories = {
             "MEDICATION": ("MEDICATION", "TERMINOLOGY", "REGULATORY"),
             "LAB": ("MEDICAL_TEST", "TERMINOLOGY"),
-            "WORKFLOW": ("INTERNAL_SOP", "TRAINING_MATERIAL"),
+            "WORKFLOW": ("INTERNAL_SOP", "SERVICE_SOP", "COMMUNICATION"),
             "LIFESTYLE": ("LIFESTYLE", "PATIENT_EDUCATION"),
             "DEVICE": ("DEVICE_GUIDANCE",),
             "PRIVACY": ("PRIVACY", "AI_SAFETY"),
-            "AI_SAFETY": ("AI_SAFETY", "INTERNAL_SOP", "TRAINING_MATERIAL"),
+            "AI_SAFETY": ("AI_SAFETY", "INTERNAL_SOP"),
         }.get(route, ())
         return self.search(session, query, categories=categories, audience=audience,
                            jurisdiction=jurisdiction, intended_use=intended_use, limit=limit)

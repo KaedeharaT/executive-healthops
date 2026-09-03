@@ -16,6 +16,6 @@ An answer is **GROUNDED**, **PARTIALLY_GROUNDED**, or **INSUFFICIENT_EVIDENCE**.
 - Report semantic extraction is structured fact extraction, not a knowledge answer. Its evidence is the original report page and preserved excerpt. Any later interpretation requires Knowledge Evidence.
 - Risk is produced by deterministic rules from Observations and `RiskRule`; it is not an AI answer.
 - A doctor's conclusion is a human medical decision. An AI-generated doctor brief must cite member facts and must cite approved knowledge if it adds interpretation.
-- Training feedback uses deterministic rubrics bound to approved Portfolio Training SOP chunks. It trains workflow capability, not diagnosis and not employee performance scoring.
+- SOP and workflow answers use approved internal knowledge chunks. The cancelled Training Copilot product is not part of this contract; generic grounding, refusal, citation validation and usage auditing remain platform infrastructure.
 
 The LLM never diagnoses, prescribes, changes medication, decides risk, or overrides clinicians.

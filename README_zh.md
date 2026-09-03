@@ -77,7 +77,6 @@ Executive HealthOps 将这些输入组织为一条长期工作流：**报告 →
 - **Human-in-the-loop（人工在环）**：明确健康管理师动作、医生复核、负责人、期限与下一步。
 - **长期健康时间轴**：串联发生了什么、团队如何处理、后续结果如何变化。
 - **受治理的医学知识库 / RAG**：支持来源、审核状态、知识分块、APPROVED-only 检索，以及 AI 回答实际使用 Chunk 的审计记录。
-- **健管培训助手**：通过已审核培训资料完成流程问答、Synthetic 案例训练和确定性 Rubric 能力评估。
 - **有依据的 AI 解释**：所有用户可见生成式解释必须引用真实事实依据和/或已批准知识 Chunk；依据不足时明确拒答，不用模型记忆补全。
 - **可重复的 Portfolio Demo**：使用隔离的 synthetic 数据库，围绕匿名成员 **Demo Executive A** 展示完整故事。
 
@@ -113,7 +112,7 @@ Portfolio Demo 围绕可重复的匿名成员故事展开，而不是一组互�
 
 ![医学知识中心](docs/images/healthops-knowledge-center.png)
 
-知识中心以来源归属和审核状态治理 RAG 参考资料；它是解释与检索依据，不是可自动执行的医疗逻辑。知识检索直接参与 LLM 推理仍属于渐进式能力。
+知识中心以来源归属和审核状态治理 RAG 参考资料，并为有依据的回答提供真实引用；它是解释与检索依据，不是可自动执行的医疗逻辑。更广泛的 AI 助手界面仍属于渐进式能力。
 
 ## 系统架构（Architecture）
 
@@ -190,7 +189,7 @@ pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 
 它不会修改正常开发数据库。演示范围和安全说明见 [Portfolio 发布说明](portfolio/PORTFOLIO_RELEASE_NOTES.md)。
 
-Portfolio 重建会加入 12 份已批准的原创 Synthetic 培训资料。如需将同一批明确标注的演示资料安全加入普通开发数据库，可运行 `.\.venv\Scripts\python.exe scripts\seed_training_knowledge.py`；现有知识不会被替换。
+Portfolio 重建会加入 12 份已批准的原创 Synthetic 内部 SOP、沟通、服务与 AI 安全资料。如需将同一批明确标注的演示知识安全加入普通开发数据库，可运行 `.\.venv\Scripts\python.exe scripts\seed_healthops_internal_knowledge.py`；现有知识不会被替换。这些资料用于有依据的流程问答，不代表医院正式制度。
 
 ### 可选的 LLM 语义辅助
 
@@ -211,7 +210,7 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-当前 v0.9.0 Portfolio 回归套件：**369 passed / 0 failed**。
+当前 v0.9.0 Portfolio 回归套件：**364 passed / 0 failed**。
 
 ## 作品集资料（Portfolio Materials）
 

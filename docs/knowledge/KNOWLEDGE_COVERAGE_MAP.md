@@ -18,11 +18,11 @@ Coverage is measured by governed Golden Queries, not by document count.
 | L Risk | source material for governed rules | guideline metadata | PARTIAL | candidate only; no auto-rule |
 | M SOP | report/risk/plan/task/service/outcome/data quality | versioned Internal Demo SOP | STRONG | Portfolio SOP label required |
 | N Doctor collaboration | escalation and brief requirements | Internal Demo SOP | STRONG | doctor owns medical judgement |
-| O Communication | reminders, refusal, anxiety, escalation | training material | STRONG | no fear or false assurance |
+| O Communication | reminders, refusal, anxiety, escalation | approved communication knowledge | STRONG | no fear or false assurance |
 | P Service | request through result | Internal Demo SOP | STRONG | operational only |
 | Q Outcome | observed change and next cycle | Internal Demo SOP | STRONG | no causal claim |
-| R Training | cases, rubrics, mistakes | approved SOP/training chunks | STRONG | prototype, not HR scoring |
-| S Privacy/AI safety | design and training reference | NIST, FDA, HHS, CN/JP official metadata | PARTIAL | no legal-compliance claim |
+| R HealthOps AI Q&A | grounded workflow and SOP questions | approved SOP/service/communication chunks | STRONG | no unsupported answer or medical judgement |
+| S Privacy/AI safety | design and operations reference | NIST, FDA, HHS, CN/JP official metadata | PARTIAL | no legal-compliance claim |
 
 ## Priority
 

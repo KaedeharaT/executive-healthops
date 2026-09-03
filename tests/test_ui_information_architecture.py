@@ -125,7 +125,8 @@ def test_primary_navigation_and_collaboration_are_task_and_member_oriented() -> 
     source = APP.read_text(encoding="utf-8")
     more = MORE_SHELL.read_text(encoding="utf-8")
     assert '["今日", "成员", "医疗协同", "服务运营", "更多"]' in source
-    assert 'options = ["健管培训助手", "数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]' in more
+    assert 'options = ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]' in more
+    assert "健管培训助手" not in more
     collaboration = _source("render_collaboration_workspace", "def _report_candidate_label")
     assert 'st.radio("医疗协同内容", ["内部医生", "外部医疗"]' in collaboration
 

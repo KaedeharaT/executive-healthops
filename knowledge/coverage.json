@@ -9,9 +9,9 @@
     "lifestyle": {"status": "STRONG", "sources": ["CDC", "USDA_DGA", "MHLW_JP", "NIH_ODS"], "limitations": "Jurisdiction must be displayed."},
     "device": {"status": "PARTIAL", "sources": ["FDA", "APPLE_HEALTHKIT"], "limitations": "Manufacturer material is technical/product information, not medical evidence."},
     "risk_reference": {"status": "PARTIAL", "sources": ["USPSTF", "NICE", "NHLBI"], "limitations": "Knowledge can only become a rule candidate after human clinical governance."},
-    "internal_sop": {"status": "STRONG", "sources": ["INTERNAL_SOP"], "limitations": "Synthetic Portfolio SOP, not a hospital policy."},
-    "training": {"status": "STRONG", "sources": ["TRAINING_MATERIAL", "INTERNAL_SOP"], "limitations": "Training prototype, not employee performance assessment."},
-    "service": {"status": "STRONG", "sources": ["INTERNAL_SOP"], "limitations": "Product workflow guidance only."},
+    "internal_sop": {"status": "STRONG", "sources": ["HEALTHOPS_INTERNAL"], "limitations": "Synthetic Portfolio SOP, not a hospital policy."},
+    "sop_qa": {"status": "STRONG", "sources": ["HEALTHOPS_INTERNAL"], "limitations": "Grounded workflow guidance, not medical judgement."},
+    "service": {"status": "STRONG", "sources": ["HEALTHOPS_INTERNAL"], "limitations": "Product workflow guidance only."},
     "privacy_ai_safety": {"status": "PARTIAL", "sources": ["NIST_AI_RMF", "HHS_HIPAA", "CN_PIPL", "JP_PPC", "FDA"], "limitations": "Design reference, not a legal compliance claim."}
   }
 }

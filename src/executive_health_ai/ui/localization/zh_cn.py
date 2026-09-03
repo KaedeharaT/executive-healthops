@@ -13,7 +13,7 @@ PROGRAM_TYPE={"NINETY_DAY":"90天健康管理","STABILIZATION":"稳定管理","A
 PROGRAM_PHASE={"STARTUP":"启动与基线建立","EXECUTION":"执行与调整","STABILIZATION":"稳定与适应","REASSESSMENT":"阶段复评","ONGOING":"持续管理"}
 RISK_LEVEL={"GREEN":"低风险","YELLOW":"中风险","RED":"高风险","UNKNOWN":"暂无正式风险评估","NEEDS_REVIEW":"等待人工确认"}
 DEVICE_CLASS={"WELLNESS":"日常健康设备","MEDICAL_MONITOR":"医疗监测设备","UNKNOWN":"待确认设备类型"}
-KNOWLEDGE_CATEGORY={"PATIENT_EDUCATION":"疾病与健康教育","MEDICATION":"药物","LAB_TEST":"检查与化验","DISEASE_CLASSIFICATION":"标准术语","INTERNAL_SOP":"内部SOP","TRAINING_MATERIAL":"培训资料","RISK_RULE_EVIDENCE":"风险规则依据（仅参考）","CLINICAL_GUIDELINE":"医疗指南","TEXTBOOK_REFERENCE":"教材与参考书","CHRONIC_RISK":"慢病与风险","MANAGEMENT_PROGRAM":"管理方案","SERVICE_SOP":"服务SOP","DATA_DEVICE":"数据与设备","SAFETY_COMPLIANCE":"医疗边界与合规"}
+KNOWLEDGE_CATEGORY={"PATIENT_EDUCATION":"疾病与健康教育","MEDICATION":"药物","LAB_TEST":"检查与化验","DISEASE_CLASSIFICATION":"标准术语","INTERNAL_SOP":"内部SOP","COMMUNICATION":"成员沟通","AI_SAFETY":"AI安全边界","PRIVACY":"隐私与数据边界","RISK_RULE_EVIDENCE":"风险规则依据（仅参考）","CLINICAL_GUIDELINE":"医疗指南","TEXTBOOK_REFERENCE":"教材与参考书","CHRONIC_RISK":"慢病与风险","MANAGEMENT_PROGRAM":"管理方案","SERVICE_SOP":"服务SOP","DATA_DEVICE":"数据与设备","SAFETY_COMPLIANCE":"医疗边界与合规"}
 KNOWLEDGE_REVIEW_STATUS={"DRAFT":"草稿","PENDING_REVIEW":"待审核","APPROVED":"已批准","REJECTED":"未通过","ARCHIVED":"已归档"}
 def status(value: str|None)->str:return STATUS.get(value or "", "待确认" if value else "未记录")
 def priority(value: str|None)->str:return PRIORITY.get(value or "", "一般")

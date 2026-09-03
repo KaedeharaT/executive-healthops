@@ -36,7 +36,7 @@ Research date: 2026-09-02. Search engines were used only for discovery; each row
 | [Japan PPC/APPI](https://www.ppc.go.jp/en/) | Personal Information Protection Commission | privacy / JP | Official legal guidance; legal-review reference | none general | LINK_ONLY | A | METADATA_ONLY |
 | [EMA](https://www.ema.europa.eu/en/about-us/legal-notice) | European Medicines Agency | medication regulatory / EU | Legal notice and document-specific rights | selected data | METADATA_ONLY | A | CONDITIONAL |
 | Internal Demo SOP | Executive HealthOps | workflow / internal | Original synthetic Portfolio content, project licence | local seed | OPEN_FULLTEXT | C | APPROVED_SOURCE |
-| Demo Training Material | Executive HealthOps | training / internal | Original synthetic Portfolio content, project licence | local seed | OPEN_FULLTEXT | C | APPROVED_SOURCE |
+| Internal Demo Knowledge | Executive HealthOps | workflow / communication / service / AI safety | Original synthetic Portfolio content, project licence | local seed | OPEN_FULLTEXT | C | APPROVED_SOURCE |
 | [UpToDate](https://www.uptodate.com/) | Wolters Kluwer | commercial clinical database | Subscription/copyrighted; no scraping, mirroring or redistribution | licensed only | DO_NOT_INGEST | D | DO_NOT_INGEST |
 
 ## Decisions

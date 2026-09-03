@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from executive_health_ai.models import Base
 from executive_health_ai.services.knowledge_retrieval import KnowledgeRetrievalService
 from executive_health_ai.services.public_knowledge_seed import seed_public_knowledge
-from executive_health_ai.services.training_knowledge import seed_training_knowledge
+from executive_health_ai.services.healthops_internal_knowledge import seed_healthops_internal_knowledge
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -22,7 +22,7 @@ def run() -> tuple[int, list[str]]:
     queries = json.loads((ROOT / "knowledge" / "golden_queries.json").read_text(encoding="utf-8"))
     failures: list[str] = []
     with Session(engine) as session:
-        seed_training_knowledge(session)
+        seed_healthops_internal_knowledge(session)
         seed_public_knowledge(session, approve_for_portfolio=True)
         session.commit()
         service = KnowledgeRetrievalService()
@@ -30,8 +30,8 @@ def run() -> tuple[int, list[str]]:
             hits = service.search_routed(session, item["query"], limit=20)
             providers = {hit.document.source_provider for hit in hits}
             expected = item["expected_source"]
-            if expected in {"INTERNAL_SOP", "TRAINING_MATERIAL"}:
-                ok = "PORTFOLIO_TRAINING" in providers
+            if expected in {"INTERNAL_SOP", "COMMUNICATION", "SERVICE_SOP", "AI_SAFETY"}:
+                ok = "HEALTHOPS_INTERNAL" in providers
             elif expected in {"LOINC", "OPENFDA"}:
                 # Metadata-only/on-demand sources are intentionally not approved
                 # as local answer chunks; a safe refusal is the expected result.

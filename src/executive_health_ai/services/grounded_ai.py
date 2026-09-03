@@ -34,7 +34,7 @@ AI_SURFACE_CONTRACTS = {
     "doctor_brief": "DETERMINISTIC_FACTUAL_NOT_AI",
     "signal_agent": "DETERMINISTIC_RULE_NOT_AI",
     "knowledge_reference": "APPROVED_RETRIEVAL_NOT_GENERATIVE",
-    "training_copilot": "KNOWLEDGE_EVIDENCE_REQUIRED",
+    "sop_workflow_assistant": "KNOWLEDGE_EVIDENCE_REQUIRED",
     "member_ai_advice": "FACT_AND_KNOWLEDGE_EVIDENCE_REQUIRED",
 }
 
@@ -231,7 +231,7 @@ class GroundedAnswerService:
         return AIAnswer(
             answer_id=answer_id, content=content, fact_citations=fact_citations,
             knowledge_citations=citations, model_info=model_info, grounded=status,
-            limitations=("仅供健康运营与培训参考，不构成诊断、处方或风险决策。",),
+            limitations=("仅供健康运营与知识解释参考，不构成诊断、处方或风险决策。",),
         )
 
     @staticmethod

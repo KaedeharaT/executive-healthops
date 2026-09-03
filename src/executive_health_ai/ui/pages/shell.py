@@ -35,7 +35,6 @@ def render_more_workspace_shell(
     load_members: Callable[[], list[Any]],
     render_data_gateway: Callable[[list[Any]], None],
     render_knowledge_library: Callable[[], None],
-    render_training_copilot: Callable[[], None],
     render_risk_rules: Callable[[], None],
     render_audit: Callable[[dict[str, list[object]]], None],
     audit_context: Callable[[Any], dict[str, list[object]]],
@@ -43,7 +42,7 @@ def render_more_workspace_shell(
 ) -> None:
     """Keep the More-page navigation shell separate from domain renderers."""
     page_header("更多", "数据接入、专业资料与系统管理。", eyebrow="平台工具")
-    options = ["健管培训助手", "数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]
+    options = ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]
     if st.session_state.get("more-navigation") not in {None, *options}:
         st.session_state.pop("more-navigation", None)
     more = st.session_state.get("more-navigation")
@@ -51,7 +50,6 @@ def render_more_workspace_shell(
         st.subheader("管理工具")
         st.caption("选择一个工具后才加载对应内容。")
         entries = [
-            ("健管培训助手", "使用已审核资料练习标准流程与跨角色协同"),
             ("数据接入与设备", "查看设备状态与成员设备分配"),
             ("知识库", "浏览经审核的专业资料与服务 SOP"),
             ("风险规则", "查看已审核的风险与健康管理规则"),
@@ -72,9 +70,7 @@ def render_more_workspace_shell(
     if st.button("← 返回更多", key="more-back"):
         st.session_state.pop("more-navigation", None)
         st.rerun()
-    if more == "健管培训助手":
-        render_training_copilot()
-    elif more == "数据接入与设备":
+    if more == "数据接入与设备":
         render_data_gateway(load_members())
     elif more == "知识库":
         render_knowledge_library()

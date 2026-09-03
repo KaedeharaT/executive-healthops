@@ -1,4 +1,10 @@
-"""Deterministic Health Manager training with approved-knowledge coaching."""
+"""Deprecated training-product compatibility service.
+
+The Training Copilot is not a current Executive HealthOps product surface.
+Grounded answers, retrieval and citations live in the generic services and do
+not depend on this module.  This module remains temporarily for historical
+data and migration compatibility only.
+"""
 
 from __future__ import annotations
 

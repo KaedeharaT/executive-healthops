@@ -19,8 +19,8 @@ from executive_health_ai.models import KnowledgeSourceRegistry
 STRATEGIES = {"OPEN_FULLTEXT", "PUBLIC_SUMMARY", "METADATA_ONLY", "API_ON_DEMAND", "LINK_ONLY", "LICENSE_RESTRICTED", "DO_NOT_INGEST"}
 TRUST_TIERS = {"TIER_A", "TIER_B", "TIER_C", "TIER_D"}
 SOURCE_STATUSES = {"APPROVED_SOURCE", "CONDITIONAL", "METADATA_ONLY", "DO_NOT_INGEST", "UNAVAILABLE"}
-AUDIENCES = {"MEMBER", "HEALTH_MANAGER", "DOCTOR", "ADMIN", "AI_INTERNAL", "TRAINING"}
-INTENDED_USES = {"EXPLANATION", "NORMALIZATION", "TRAINING", "WORKFLOW_GUIDANCE", "DOCTOR_REFERENCE", "MEMBER_EDUCATION", "RULE_REFERENCE_CANDIDATE"}
+AUDIENCES = {"MEMBER", "HEALTH_MANAGER", "DOCTOR", "ADMIN", "AI_INTERNAL"}
+INTENDED_USES = {"EXPLANATION", "NORMALIZATION", "WORKFLOW_GUIDANCE", "DOCTOR_REFERENCE", "MEMBER_EDUCATION", "RULE_REFERENCE_CANDIDATE"}
 PROHIBITED_USES = {"NOT_FOR_DIAGNOSIS", "NOT_FOR_PRESCRIPTION", "NOT_FOR_AUTOMATIC_RISK", "NOT_FOR_EMERGENCY_AUTOMATION"}
 
 
@@ -120,8 +120,7 @@ FOUNDATION_SOURCES: tuple[GovernedSource, ...] = (
     _s("CN_PIPL", "个人信息保护法官方文本", "中国人大网", "CN", "CN", "PRIVACY", "privacy", "https://www.gov.cn/xinwen/2021-08/20/content_5632486.htm", "LINK_ONLY", "TIER_A", "METADATA_ONLY", "Official legal text; legal-review reference only", languages=("zh-CN",), redistribution="LINK_ONLY"),
     _s("JP_PPC", "Japan PPC / APPI", "Personal Information Protection Commission", "JP", "JP", "PRIVACY", "privacy", "https://www.ppc.go.jp/en/", "LINK_ONLY", "TIER_A", "METADATA_ONLY", "Official legal guidance; legal-review reference only", languages=("ja", "en"), redistribution="LINK_ONLY"),
     _s("EMA", "European Medicines Agency", "European Medicines Agency", "EU", "EU", "REGULATORY", "medication", "https://www.ema.europa.eu/en/about-us/legal-notice", "METADATA_ONLY", "TIER_A", "CONDITIONAL", "EMA legal notice and document-level rights apply", redistribution="SOURCE_SPECIFIC"),
-    _s("INTERNAL_SOP", "Executive HealthOps Internal Demo SOP", "Executive HealthOps Portfolio", "INTERNAL", "GLOBAL", "INTERNAL_SOP", "workflow|training|service|outcome", "https://github.com/KaedeharaT/executive-healthops", "OPEN_FULLTEXT", "TIER_C", "APPROVED_SOURCE", "Original synthetic Portfolio material", commercial="PROJECT_LICENSE", redistribution="PROJECT_LICENSE", update="manual version", versioning="semantic document version"),
-    _s("TRAINING_MATERIAL", "Executive HealthOps Demo Training Material", "Executive HealthOps Portfolio", "INTERNAL", "GLOBAL", "TRAINING_MATERIAL", "training|communication", "https://github.com/KaedeharaT/executive-healthops", "OPEN_FULLTEXT", "TIER_C", "APPROVED_SOURCE", "Original synthetic Portfolio material", commercial="PROJECT_LICENSE", redistribution="PROJECT_LICENSE", update="manual version", versioning="semantic document version"),
+    _s("HEALTHOPS_INTERNAL", "Executive HealthOps Internal Demo Knowledge", "Executive HealthOps Portfolio", "INTERNAL", "GLOBAL", "INTERNAL_SOP", "workflow|service|outcome|communication|ai_safety", "https://github.com/KaedeharaT/executive-healthops", "OPEN_FULLTEXT", "TIER_C", "APPROVED_SOURCE", "Original synthetic Portfolio knowledge; not hospital policy", commercial="PROJECT_LICENSE", redistribution="PROJECT_LICENSE", update="manual version", versioning="semantic document version"),
     _s("UPTODATE", "UpToDate", "Wolters Kluwer", "GLOBAL", "GLOBAL", "COMMERCIAL_DATABASE", "medical", "https://www.uptodate.com/", "DO_NOT_INGEST", "TIER_D", "DO_NOT_INGEST", "Subscription content; no scraping, mirroring or redistribution", enabled=False, commercial="LICENSE_REQUIRED", redistribution="PROHIBITED"),
 )
 

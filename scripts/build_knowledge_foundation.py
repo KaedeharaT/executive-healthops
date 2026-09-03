@@ -11,7 +11,7 @@ from pathlib import Path
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.services.knowledge_foundation import FOUNDATION_SOURCES, sync_source_registry, validate_source_catalog
 from executive_health_ai.services.public_knowledge_seed import PUBLIC_SEEDS, seed_public_knowledge
-from executive_health_ai.services.training_knowledge import seed_training_knowledge
+from executive_health_ai.services.healthops_internal_knowledge import seed_healthops_internal_knowledge
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -36,7 +36,7 @@ def main() -> int:
     if args.dry_run: return 0
     with SessionLocal() as session:
         sync_source_registry(session)
-        seed_training_knowledge(session)
+        seed_healthops_internal_knowledge(session)
         docs, chunks = seed_public_knowledge(session, approve_for_portfolio=args.approve_public_demo)
         session.commit()
     print(f"Imported documents: {docs}; chunks: {chunks}; public review status: {'APPROVED demo' if args.approve_public_demo else 'PENDING_REVIEW'}")

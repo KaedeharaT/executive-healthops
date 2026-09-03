@@ -9,7 +9,7 @@
 - 构建体检报告解析与 Evidence Traceability 链路：将规则解析与本地开源大模型 语义辅助结果整理为可人工确认的健康资料，并回溯至来源页码、表格或原始片段。
 - 设计“确定性规则 + Human-in-the-loop”主流程：Canonical Health Data 经规则生成 `RiskEvent`，进入统一运营工作台，并驱动健康管理师、Problem / Plan / Task、医生复核、服务跟进、Outcome 与长期健康时间线。
 - 通过报告结构化、风险优先级、证据整理、任务追踪、医生复核上下文和成员历史汇总，减少健康管理师重复的信息整理与跨角色协调工作，目标是提升单个健康管理师可管理的成员规模并降低单位运营成本，不虚构 ROI。
-- 基于 Streamlit、FastAPI、SQLAlchemy、Alembic 与可配置的本地 / 兼容 API LLM 接口实现可运行原型，并建立 **330 条自动化回归测试**保障核心流程（v0.9.0 作品集验收）。
+- 基于 Streamlit、FastAPI、SQLAlchemy、Alembic 与可配置的本地 / 兼容 API LLM 接口实现可运行原型，并建立 **364 条自动化回归测试**保障核心流程（v0.9.0 作品集验收）。
 
 ## 5 条详细版本
 

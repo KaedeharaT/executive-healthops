@@ -76,7 +76,6 @@ Executive HealthOps turns these fragmented inputs into a single longitudinal wor
 - **Human-in-the-loop operations** — make health-manager actions, doctor review, ownership, due dates, and next actions explicit.
 - **Longitudinal health timeline** — show what happened, what the team did, and what followed over time.
 - **Governed medical knowledge** — support approved knowledge chunks, source attribution, review state, keyword retrieval, and exact used-chunk auditing for grounded AI answers.
-- **Health Manager Training Copilot** — practice operational Q&A, synthetic cases, and deterministic rubric-based assessment using only approved training knowledge.
 - **Grounded AI explanations** — every user-visible generated explanation must cite actual fact evidence and/or approved Knowledge Center chunks; unsupported answers are withheld rather than completed from model memory.
 - **Portfolio demo workflow** — ships with a repeatable, isolated synthetic demo for **Demo Executive A**.
 
@@ -112,7 +111,7 @@ The timeline connects check-ups, risks, manager follow-up, doctor review, tasks,
 
 ![HealthOps Knowledge Center](docs/images/healthops-knowledge-center.png)
 
-Governed medical knowledge supports RAG with source attribution and review status. It is a reference layer, not executable medical logic; direct knowledge-assisted LLM reasoning remains an incremental capability.
+Governed medical knowledge supports grounded answers with source attribution and review status. It is a reference layer, not executable medical logic; broader assistant surfaces remain incremental.
 
 ## Architecture
 
@@ -189,7 +188,7 @@ The launcher builds an isolated `data/portfolio_demo.db`, sets `PORTFOLIO_DEMO=t
 
 It does not modify the normal development database. See [Portfolio release notes](portfolio/PORTFOLIO_RELEASE_NOTES.md) for demo scope and safety details.
 
-The Portfolio rebuild includes 12 approved, original synthetic training documents. To add the same clearly labelled demo foundation to a normal development database, run `.\.venv\Scripts\python.exe scripts\seed_training_knowledge.py`; existing knowledge is not replaced.
+The Portfolio rebuild includes 12 approved, original synthetic internal SOP, communication, service, and AI-safety documents. To add the same clearly labelled demo knowledge to a normal development database, run `.\.venv\Scripts\python.exe scripts\seed_healthops_internal_knowledge.py`; existing knowledge is not replaced. These documents support grounded workflow Q&A and are not hospital policies.
 
 ### Optional LLM assistance
 
@@ -210,7 +209,7 @@ For a compatible API provider, set `LOCAL_LLM_PROVIDER=openai_compatible`, `LLM_
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current v0.9.0 portfolio regression suite: **369 passed / 0 failed**.
+Current v0.9.0 portfolio regression suite: **364 passed / 0 failed**.
 
 ## Portfolio Materials
 

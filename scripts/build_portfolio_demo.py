@@ -55,18 +55,6 @@ def _run_migrations(target: Path) -> None:
     )
 
 
-def _verify_training_schema(target: Path) -> None:
-    """Stop before seeding if the migration chain did not create training storage."""
-    from sqlalchemy import create_engine, inspect
-
-    engine = create_engine(_database_url(target))
-    try:
-        if not inspect(engine).has_table("training_sessions"):
-            raise RuntimeError("Portfolio Demo 数据库结构需要升级：缺少 training_sessions。")
-    finally:
-        engine.dispose()
-
-
 def _seed_existing_demo() -> None:
     """Reuse the tested synthetic foundation, then replace portfolio-facing data."""
     seeded = runpy.run_path(str(ROOT / "scripts" / "seed_full_demo.py"), run_name="portfolio_seed")
@@ -224,11 +212,11 @@ def _add_knowledge_demo(session) -> None:
         if index < 2:
             service.approve_document(session, document, "演示审核人", "已核对来源、用途与许可说明。")
 
-    from executive_health_ai.services.training_knowledge import seed_training_knowledge
+    from executive_health_ai.services.healthops_internal_knowledge import seed_healthops_internal_knowledge
     from executive_health_ai.services.knowledge_foundation import sync_source_registry
     from executive_health_ai.services.public_knowledge_seed import seed_public_knowledge
 
-    seed_training_knowledge(session)
+    seed_healthops_internal_knowledge(session)
     sync_source_registry(session)
     # Only original summaries with verified official provenance are approved
     # by the synthetic Portfolio governance path. No external page is mirrored.
@@ -333,7 +321,6 @@ def build_portfolio_demo(target: Path = DEFAULT_DATABASE, *, rebuild: bool = Tru
         raise FileExistsError("作品集数据库已存在；使用 --rebuild 重新创建。")
     os.environ["DATABASE_URL"] = _database_url(target)
     _run_migrations(target)
-    _verify_training_schema(target)
     _seed_existing_demo()
     return _customize_portfolio_data()
 
