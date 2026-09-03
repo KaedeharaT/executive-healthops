@@ -33,8 +33,7 @@ def render_more_workspace_shell(
     *,
     page_header: Callable[..., None],
     load_members: Callable[[], list[Any]],
-    render_data_gateway: Callable[[list[Any]], None],
-    render_knowledge_library: Callable[[], None],
+    render_integration_center: Callable[[], None],
     render_ai_improvement: Callable[[], None],
     render_risk_rules: Callable[[], None],
     render_audit: Callable[[dict[str, list[object]]], None],
@@ -43,7 +42,7 @@ def render_more_workspace_shell(
 ) -> None:
     """Keep the More-page navigation shell separate from domain renderers."""
     page_header("更多", "数据接入、专业资料与系统管理。", eyebrow="平台工具")
-    options = ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]
+    options = ["风险规则", "操作记录", "系统"]
     if st.session_state.get("more-navigation") not in {None, *options}:
         st.session_state.pop("more-navigation", None)
     more = st.session_state.get("more-navigation")
@@ -51,11 +50,9 @@ def render_more_workspace_shell(
         st.subheader("管理工具")
         st.caption("选择一个工具后才加载对应内容。")
         entries = [
-            ("数据接入与设备", "查看设备状态与成员设备分配"),
-            ("知识库", "浏览经审核的专业资料与服务 SOP"),
             ("风险规则", "查看已审核的风险与健康管理规则"),
             ("操作记录", "查看最近的人工处理记录"),
-            ("系统信息", "查看当前演示环境和处理边界"),
+            ("系统", "查看集成状态、导入数据和高级治理信息"),
         ]
         for start in range(0, len(entries), 2):
             columns = st.columns(2)
@@ -71,11 +68,7 @@ def render_more_workspace_shell(
     if st.button("← 返回更多", key="more-back"):
         st.session_state.pop("more-navigation", None)
         st.rerun()
-    if more == "数据接入与设备":
-        render_data_gateway(load_members())
-    elif more == "知识库":
-        render_knowledge_library()
-    elif more == "风险规则":
+    if more == "风险规则":
         render_risk_rules()
     elif more == "操作记录":
         st.subheader("操作记录")
@@ -83,10 +76,6 @@ def render_more_workspace_shell(
         patient = st.selectbox("选择成员", members, format_func=member_display, key="audit-member")
         render_audit(audit_context(patient.id))
     else:
-        st.subheader("系统信息")
-        st.info("当前为演示环境。系统保留完整审计、原始数据与医疗协同记录；这些技术信息默认不干扰日常工作。")
-        st.markdown("#### 数据在哪里处理？")
-        st.write("本地开源大模型：本机处理；健康平台：当前本地/私有服务处理；设备云：取决于未来数据来源的连接方式。")
-        st.caption("长期建议采用混合架构：本地/边缘处理提升隐私与响应，云端便于统一维护和跨设备同步。设备云连接会带来网络、合规和厂商依赖边界。")
+        render_integration_center()
         with st.expander("AI 质量治理（高级）"):
             render_ai_improvement()

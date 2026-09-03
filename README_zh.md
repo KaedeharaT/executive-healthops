@@ -82,6 +82,7 @@ Executive HealthOps 将这些输入组织为一条长期工作流：**报告 / �
 - **有依据的 AI 解释**：所有用户可见生成式解释必须引用真实事实依据和/或已批准知识 Chunk；依据不足时明确拒答，不用模型记忆补全。
 - **受治理的人工反馈**：人工纠错只有在审核和去标识化后，才能形成不可变的离线评测或 Prompt 优化数据集；不进行在线学习或自动部署。
 - **外部知识适配器**：合作方知识库提供来源完整的 Chunk，HealthOps 负责引用校验、使用审计、本地 SOP 回退与无来源拒答；平台不再自行扩建大型外部医学知识库。
+- **轻量集成与数据中心**：管理员可用业务语言检查、预览并确认 ZIP、CSV、XLSX 或 JSON 健康数据包；AI、合作方知识和设备连接保持轻量状态与测试入口。
 - **可重复的 Portfolio Demo**：使用隔离的 synthetic 数据库，围绕匿名成员 **Demo Executive A** 展示完整故事。
 
 ## 产品体验
@@ -214,7 +215,7 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-当前 v0.9.0 Portfolio 回归套件：**393 passed / 0 failed**。
+当前 v0.9.0 Portfolio 回归套件：**404 passed / 0 failed**。
 
 ## 作品集资料（Portfolio Materials）
 

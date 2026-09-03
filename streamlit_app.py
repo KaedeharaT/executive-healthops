@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 import pandas as pd
 import altair as alt
 import streamlit as st
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from executive_health_ai.ai.doctor_brief_agent import build_doctor_brief
@@ -58,6 +58,12 @@ from executive_health_ai.services.longitudinal import (
 from executive_health_ai.services.report_parsing import ReportParseProgress, ReportParsingService
 from executive_health_ai.services.member_services import MemberServiceOperations, bp_service_category
 from executive_health_ai.services.bp_product import CONSENT_SCOPES, ConsentService, current_care_cycle
+from executive_health_ai.services.data_packages import (
+    DataPackageAdapter, DataPackageError, HealthDataImportService, KnowledgePackageAdapter,
+    build_healthops_template, build_synthetic_package,
+)
+from executive_health_ai.services.knowledge_adapters import ExternalPartnerKnowledgeAdapter, KnowledgeAdapterError
+from executive_health_ai.llm.local_llm_client import LocalLLMClient, LocalLLMSettings
 from executive_health_ai.services.chronic_care import apply_outcome_decision, complete_outcome_doctor_review
 from executive_health_ai.services.workflow import (
     close_alert_as_false_positive, complete_follow_up, confirm_alert_as_manager,
@@ -3403,13 +3409,306 @@ def render_knowledge_library_entry() -> None:
         _render_pending_knowledge(sources)
 
 
+def _integration_card(title: str, status: str, description: str, mode: str, key: str) -> None:
+    with st.container(border=True):
+        st.markdown(f"### {title}")
+        st.markdown(_status_pill(status), unsafe_allow_html=True)
+        st.caption(description)
+        action_label = {
+            "数据导入": "上传数据包", "AI服务": "配置",
+            "专业知识": "查看服务", "设备接入": "查看接入",
+        }.get(mode, "打开")
+        if st.button(action_label, key=key, type="primary" if mode == "数据导入" else "secondary", width="stretch"):
+            st.session_state["integration-center-mode"] = mode
+            st.rerun()
+
+
+def _package_type_label(value: str) -> str:
+    return {
+        "members": "成员", "observations": "健康数据", "reports": "体检结果",
+        "medications": "用药记录", "medical_events": "医疗记录",
+        "services": "服务结果", "tasks": "任务",
+    }.get(value, "待确认资料")
+
+
+def _render_data_package_import(*, key_prefix: str, title: str = "上传数据包") -> None:
+    st.markdown(f"### {title}")
+    st.caption("适用于合作方交付、历史迁移和设备批量数据。成员日常上传体检报告仍在体检页面完成。")
+    steps = st.columns(4)
+    for column, label in zip(steps, ("1 上传", "2 检查", "3 预览", "4 导入完成")):
+        column.markdown(f"**{label}**")
+    template, demo = st.columns(2)
+    with template:
+        st.download_button(
+            "下载数据模板", data=build_healthops_template(),
+            file_name="HealthOps数据模板.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"{key_prefix}-template",
+        )
+    with demo:
+        st.download_button(
+            "下载匿名演示数据包", data=build_synthetic_package(),
+            file_name="synthetic_health_package.zip", mime="application/zip",
+            key=f"{key_prefix}-demo-package",
+        )
+    source = st.selectbox("数据包来源", ["合作方", "内部整理", "设备厂商", "其他"], key=f"{key_prefix}-source")
+    uploaded = st.file_uploader(
+        "拖拽文件到这里，或点击选择",
+        type=["zip", "csv", "xlsx", "json"],
+        key=f"{key_prefix}-upload",
+        help="单个文件最大 10 MB；不支持可执行文件、宏文件或嵌套压缩包。",
+    )
+    if uploaded is not None:
+        st.caption(f"文件：{uploaded.name} · 大小：{uploaded.size / 1024:.1f} KB")
+        if st.button("检查数据包", key=f"{key_prefix}-inspect", type="primary"):
+            try:
+                inspection = DataPackageAdapter().inspect(uploaded.name, uploaded.getvalue(), source=source)
+                st.session_state[f"{key_prefix}-inspection"] = inspection
+                st.session_state.pop(f"{key_prefix}-import-result", None)
+            except DataPackageError as exc:
+                st.session_state.pop(f"{key_prefix}-inspection", None)
+                st.error(str(exc))
+            except Exception:
+                LOGGER.exception("data package inspection failed")
+                st.error("数据包检查未完成。现有健康数据没有受到影响，请确认文件后重试。")
+    inspection = st.session_state.get(f"{key_prefix}-inspection")
+    if inspection is None:
+        return
+    st.success("数据包检查完成。确认预览后才会写入健康档案。")
+    summary_columns = st.columns(4)
+    summary_columns[0].metric("成员", inspection.member_count)
+    summary_columns[1].metric("健康数据", inspection.counts.get("observations", 0))
+    summary_columns[2].metric("其他资料", sum(count for kind, count in inspection.counts.items() if kind != "observations"))
+    summary_columns[3].metric("需要确认", len(inspection.issues))
+    overview = [{
+        "数据类型": _package_type_label(kind), "记录数": count,
+        "时间范围": f"{inspection.date_start or '待确认'} ～ {inspection.date_end or '待确认'}" if kind == "observations" else "按记录时间",
+        "来源": inspection.source, "成员数": inspection.member_count if kind == "observations" else "待确认",
+        "异常项": len(inspection.issues) if kind == "observations" else 0,
+    } for kind, count in inspection.counts.items()]
+    if overview:
+        st.dataframe(pd.DataFrame(overview), hide_index=True, width="stretch")
+    if inspection.issues:
+        with st.expander(f"查看需要确认的项目（{len(inspection.issues)}）"):
+            for issue in inspection.issues[:20]:
+                st.write(f"第 {issue.row_number} 条：{issue.message}" if issue.row_number else issue.message)
+    preview = DataPackageAdapter().preview(inspection)
+    if preview:
+        with st.expander("查看前20条"):
+            st.dataframe(pd.DataFrame([{
+                "成员": row.member, "指标": row.metric, "数值": row.value,
+                "单位": row.unit, "采集时间": row.observed_at, "来源": row.source,
+            } for row in preview]), hide_index=True, width="stretch")
+    with SessionLocal() as session:
+        import_service = HealthDataImportService()
+        unmatched_codes = import_service.unmatched_member_codes(session, inspection)
+        available_members = list(session.scalars(select(Patient).order_by(Patient.display_name, Patient.external_id)))
+    member_overrides: dict[str, str] = {}
+    if unmatched_codes:
+        st.warning(f"有 {len(unmatched_codes)} 名成员需要确认。")
+        member_options = ["暂不导入", "创建新成员草稿", *[f"关联：{_member_display(member)}" for member in available_members]]
+        for code in unmatched_codes:
+            choice = st.selectbox(f"外部成员 {code}", member_options, key=f"{key_prefix}-member-{code}")
+            if choice == "创建新成员草稿":
+                member_overrides[code] = "CREATE_DRAFT"
+            elif choice.startswith("关联："):
+                selected_member = available_members[member_options.index(choice) - 2]
+                member_overrides[code] = str(selected_member.id)
+    with SessionLocal() as session:
+        previous = session.scalar(select(IngestionJob).where(
+            IngestionJob.source_system == "healthops_data_package",
+            IngestionJob.external_sync_id == inspection.package_hash,
+            IngestionJob.status.in_(("SUCCESS", "PARTIAL_SUCCESS")),
+        ).order_by(IngestionJob.created_at.desc()))
+    if previous:
+        st.warning("该数据包已导入过。可在最近导入记录中查看上次结果。")
+    elif st.button("确认导入", key=f"{key_prefix}-confirm", type="primary"):
+        try:
+            with SessionLocal() as session:
+                result = HealthDataImportService().import_package(
+                    session, inspection, imported_by="管理员", member_overrides=member_overrides,
+                )
+                session.commit()
+            st.session_state[f"{key_prefix}-import-result"] = result
+            st.rerun()
+        except Exception:
+            LOGGER.exception("data package import failed")
+            st.error("数据包未能导入，所有变更已撤回；现有健康数据没有受到影响。")
+    result = st.session_state.get(f"{key_prefix}-import-result")
+    if result:
+        st.success("导入完成。健康数据已进入标准化、质量检查和现有健康运营流程。")
+        columns = st.columns(4)
+        columns[0].metric("成员", result.members)
+        columns[1].metric("新增健康数据", result.created)
+        columns[2].metric("跳过重复", result.duplicates)
+        columns[3].metric("待人工确认", result.pending_review)
+        st.caption("导入记录已保留文件指纹、来源、数量、操作人与时间；页面不显示内部编号。")
+
+
+def _render_ai_service_integration() -> None:
+    settings = LocalLLMSettings.from_environment()
+    st.markdown("### AI服务")
+    st.caption("AI只辅助整理、摘要和有依据的解释，不决定风险或替代医生。")
+    current_type = "外部兼容AI" if settings.is_openai_compatible() else "本地AI"
+    st.info(f"当前：{current_type} · {'已配置' if settings.enabled and settings.model else '未配置'}")
+    with st.form("integration-ai-form"):
+        service_type = st.radio("服务类型", ["本地AI", "外部兼容AI"], index=1 if settings.is_openai_compatible() else 0, horizontal=True)
+        address = st.text_input("服务地址", value=settings.base_url)
+        model = st.text_input("模型名称", value=settings.model)
+        api_key = st.text_input("API Key", value="", type="password", placeholder="已配置" if settings.api_key else "未配置")
+        with st.expander("高级设置"):
+            timeout = st.number_input("连接超时（秒）", min_value=1, max_value=30, value=min(settings.timeout_seconds, 30))
+            max_input = st.number_input("最大输入字符", min_value=200, max_value=20000, value=settings.max_input_chars)
+            allow_external = st.checkbox("允许向外部AI服务发送去标识化健康内容", value=False)
+            st.warning("默认不向外部服务发送健康隐私数据。开启前需完成组织授权和隐私评估。")
+        test = st.form_submit_button("测试连接")
+    if test:
+        candidate = LocalLLMSettings(
+            enabled=True, provider="local" if service_type == "本地AI" else "openai_compatible",
+            base_url=address.rstrip("/"), model=model.strip(), timeout_seconds=int(timeout),
+            max_input_chars=int(max_input), api_key=api_key or settings.api_key,
+            allow_external_phi=bool(allow_external and service_type == "外部兼容AI"),
+        )
+        health = LocalLLMClient(candidate).health_check()
+        if health.available:
+            st.success("连接正常，已找到所选模型。测试未发送成员健康数据。")
+        else:
+            st.warning(health.reason or "AI服务暂不可用。测试未发送成员健康数据。")
+    st.caption("配置由部署环境安全保存；页面不会显示完整密钥。")
+
+
+def _render_knowledge_service_integration() -> None:
+    provider = os.getenv("KNOWLEDGE_PROVIDER", "local").lower()
+    partner_ready = provider == "partner" and bool(os.getenv("KNOWLEDGE_API_BASE"))
+    with SessionLocal() as session:
+        knowledge_service = KnowledgeService()
+        sources = knowledge_service.list_sources(session)
+        knowledge_service.ensure_approved_chunks(session)
+        session.commit()
+        local_count = int(session.scalar(select(func.count(KnowledgeDocument.id)).where(
+            KnowledgeDocument.review_status == "APPROVED", KnowledgeDocument.is_active.is_(True),
+            KnowledgeDocument.category.in_(("INTERNAL_SOP", "COMMUNICATION", "SERVICE_SOP")),
+        )) or 0)
+    st.markdown("### 专业知识服务")
+    columns = st.columns(2)
+    columns[0].metric("本地内部规范", "可用" if local_count else "暂无")
+    columns[0].caption(f"{local_count} 份已审核资料")
+    columns[1].metric("合作方知识服务", "已连接" if partner_ready else "未配置")
+    columns[1].caption("必须返回标题、来源、机构和版本")
+    with st.form("integration-knowledge-form"):
+        partner_address = st.text_input("服务地址", value=os.getenv("KNOWLEDGE_API_BASE", ""))
+        partner_key = st.text_input(
+            "API Key", value="", type="password",
+            placeholder="已配置" if os.getenv("KNOWLEDGE_API_KEY") else "未配置",
+        )
+        test_partner = st.form_submit_button("测试连接")
+    if test_partner:
+        if not partner_address.strip():
+            st.warning("专业知识服务暂不可用；内部规范仍可使用。")
+        else:
+            try:
+                results = ExternalPartnerKnowledgeAdapter(
+                    api_base=partner_address.strip(),
+                    api_key=partner_key or os.getenv("KNOWLEDGE_API_KEY", ""),
+                ).search("高血压健康教育", category="PATIENT_EDUCATION", audience="MEMBER", top_k=1)
+                if results:
+                    result = results[0]
+                    st.success("连接正常。")
+                    st.write(f"{result.title} · {result.organization} · {result.version}")
+                    st.caption(result.source_name)
+                else:
+                    st.warning("服务已连接，但固定测试查询没有返回可引用资料。")
+            except KnowledgeAdapterError:
+                LOGGER.exception("partner knowledge health check failed")
+                st.warning("专业知识服务暂不可用；内部规范仍可使用。")
+    st.caption("知识数据包需包含资料名称、来源机构、版本或日期以及内容；缺少来源的资料不能正式启用。")
+    knowledge_package = st.file_uploader("上传知识包（可选）", type=["zip"], key="integration-knowledge-package")
+    if knowledge_package and st.button("检查知识包", key="integration-knowledge-package-inspect"):
+        try:
+            inspection = KnowledgePackageAdapter().inspect(knowledge_package.getvalue())
+            st.session_state["integration-knowledge-package-ready"] = inspection
+        except DataPackageError as exc:
+            st.error(str(exc))
+        except Exception:
+            LOGGER.exception("knowledge package inspection failed")
+            st.error("知识数据包检查未完成，现有知识资料没有受到影响。")
+    knowledge_inspection = st.session_state.get("integration-knowledge-package-ready")
+    if knowledge_inspection:
+        st.success(f"检查完成：{len(knowledge_inspection.documents)} 份资料、{len(knowledge_inspection.chunks)} 个知识片段、{knowledge_inspection.source_count} 个来源。")
+        st.caption("确认后仅进入待审核区，不会直接供 AI 使用。")
+        if st.button("确认导入待审核区", key="integration-knowledge-package-confirm"):
+            try:
+                with SessionLocal() as session:
+                    created = KnowledgePackageAdapter().import_for_review(session, knowledge_inspection)
+                    session.commit()
+                st.success(f"已导入 {created} 份待审核资料。完成来源与版本审核后才可启用。")
+                st.session_state.pop("integration-knowledge-package-ready", None)
+            except Exception:
+                LOGGER.exception("knowledge package import failed")
+                st.error("知识资料未能导入，所有变更已撤回。")
+    _render_knowledge_search(sources)
+    with st.expander("查看已审核内部规范"):
+        _render_saved_knowledge(sources)
+
+
+def _render_device_integration() -> None:
+    jobs, _ = _device_overview_snapshot()
+    latest = {job.source_system: job for job in jobs}
+    st.markdown("### 设备接入")
+    rows = []
+    for code, name in (("apple_health", "Apple Health"), ("mock_yuwell", "血压设备"), ("mock_cgm", "连续血糖设备"), ("json", "其他设备")):
+        job = latest.get(code)
+        rows.append({"设备": name, "状态": "已连接" if job and job.status == "SUCCESS" else "演示" if code.startswith("mock_") else "接口已预留", "最近同步": _fmt_dt(job.completed_at) if job else "暂无同步"})
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    st.caption("设备只负责采集和触达；正式风险仍由平台规则和人工流程判断。")
+    _render_data_package_import(key_prefix="device-batch", title="导入设备数据")
+
+
+def render_integration_center() -> None:
+    _page_header("集成与数据", "连接外部数据、AI、专业知识和设备服务。", eyebrow="系统")
+    st.info("仅管理员或部署人员可修改连接；当前原型在运营后台展示管理员验收边界，成员端与医生工作视图不提供配置入口。")
+    with SessionLocal() as session:
+        latest_import = session.scalar(select(IngestionJob).where(IngestionJob.source_system == "healthops_data_package").order_by(IngestionJob.created_at.desc()))
+        try:
+            revision = session.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
+        except Exception:
+            revision = None
+    llm = LocalLLMSettings.from_environment()
+    partner_ready = os.getenv("KNOWLEDGE_PROVIDER", "local").lower() == "partner" and bool(os.getenv("KNOWLEDGE_API_BASE"))
+    cards = st.columns(4)
+    with cards[0]:
+        _integration_card("数据导入", "正常" if latest_import is None or latest_import.status != "FAILED" else "需要处理", "导入合作方或服务团队整理的数据包。", "数据导入", "integration-open-data")
+    with cards[1]:
+        _integration_card("AI服务", "已连接" if llm.enabled and llm.model else "未配置", "用于报告整理、摘要与有依据的解释。", "AI服务", "integration-open-ai")
+    with cards[2]:
+        _integration_card("专业知识", "已连接" if partner_ready else "本地规范可用", "连接外部专业知识并保留真实出处。", "专业知识", "integration-open-knowledge")
+    with cards[3]:
+        _integration_card("设备接入", "接口已准备", "查看连接状态或批量导入设备数据。", "设备接入", "integration-open-device")
+    mode = st.session_state.get("integration-center-mode", "数据导入")
+    if mode == "数据导入":
+        if latest_import:
+            st.caption(f"最近导入：{_fmt_dt(latest_import.completed_at or latest_import.created_at)} · {_label(latest_import.status)} · 新增 {latest_import.records_created} 条")
+        else:
+            st.caption("尚无批量导入记录。")
+        _render_data_package_import(key_prefix="integration-data")
+    elif mode == "AI服务":
+        _render_ai_service_integration()
+    elif mode == "专业知识":
+        _render_knowledge_service_integration()
+    else:
+        _render_device_integration()
+    with st.expander("数据存储"):
+        st.write("SQLite（当前）")
+        st.caption(f"连接状态：正常 · 数据版本：{'最新' if revision else '待检查'} · 备份：{'可用' if (Path('data/backups').exists()) else '未配置'}")
+        st.caption("数据库连接信息由部署环境管理，不在业务页面中修改或显示。")
+
+
 def render_more_workspace() -> None:
     """Compatibility wrapper for the extracted tools-shell page."""
     render_more_workspace_shell(
         page_header=_page_header,
         load_members=_members,
-        render_data_gateway=render_data_gateway,
-        render_knowledge_library=render_knowledge_library_entry,
+        render_integration_center=render_integration_center,
         render_ai_improvement=lambda: render_ai_improvement(SessionLocal),
         render_risk_rules=render_risk_rules,
         render_audit=render_audit,

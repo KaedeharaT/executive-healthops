@@ -68,7 +68,8 @@ def test_more_is_configuration_only_and_navigation_has_no_engine_side_effects() 
     source = APP.read_text(encoding="utf-8")
     more = MORE_SHELL.read_text(encoding="utf-8")
     main = _source("main", 'if __name__ == "__main__"')
-    assert "数据接入与设备" in more and "风险规则" in more and "知识库" in more
+    assert "系统" in more and "风险规则" in more and "操作记录" in more
+    assert "render_integration_center" in more
     assert all(token not in main for token in ("RiskEvaluationService", "ReportParsingService", "ingest(", "LocalLLM"))
 
 

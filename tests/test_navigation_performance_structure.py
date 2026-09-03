@@ -39,7 +39,8 @@ def test_more_root_routes_before_loading_its_selected_module() -> None:
     shell_source = MORE_SHELL.read_text(encoding="utf-8")
     assert "render_more_workspace_shell(" in root_source
     assert 'st.session_state.get("more-navigation")' in shell_source
-    assert shell_source.index('if more == "数据接入与设备"') < shell_source.index("render_data_gateway(load_members())")
+    assert shell_source.index('else:\n        render_integration_center()') > shell_source.index('elif more == "操作记录"')
+    assert "render_data_gateway(load_members())" not in shell_source
     assert "render_audit(_context(" not in shell_source
 
 
@@ -102,7 +103,7 @@ def test_all_sidebar_and_more_pages_render_without_exception() -> None:
         _radio(app, "工作区").set_value(workspace)
         app.run(timeout=30)
         assert not app.exception
-    for page in ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]:
+    for page in ["风险规则", "操作记录", "系统"]:
         app = AppTest.from_file(root)
         app.run(timeout=30)
         _radio(app, "工作区").set_value("更多")

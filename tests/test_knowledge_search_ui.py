@@ -37,7 +37,9 @@ def _knowledge_library() -> AppTest:
     app.run(timeout=30)
     next(item for item in app.radio if item.label == "工作区").set_value("更多")
     app.run(timeout=30)
-    next(item for item in app.button if item.key == "more-open-知识库").click()
+    next(item for item in app.button if item.key == "more-open-系统").click()
+    app.run(timeout=30)
+    next(item for item in app.button if item.key == "integration-open-knowledge").click()
     app.run(timeout=30)
     assert not app.exception
     return app
@@ -64,12 +66,10 @@ def test_search_button_calls_provider_and_renders_normalized_results_in_same_pag
     assert not app.exception
 
 
-def test_governance_mode_keeps_registered_source_metadata_out_of_default_view() -> None:
+def test_registered_sources_remain_available_in_the_existing_knowledge_service() -> None:
     app = _knowledge_library()
-    next(item for item in app.radio if item.label == "知识功能").set_value("知识治理")
-    app.run(timeout=30)
-    assert any(item.key == "knowledge-source-card-RXNORM" for item in app.button)
-    assert any("知识来源" in str(item.value) for item in app.markdown)
+    assert any(item.label == "来源" for item in app.selectbox)
+    assert any("搜索知识" in str(item.value) for item in app.markdown)
     assert not app.exception
 
 
@@ -84,11 +84,12 @@ def test_who_without_credentials_recovers_with_plain_language_state() -> None:
     assert not app.exception
 
 
-def test_knowledge_center_first_screen_prioritizes_product_search_and_connection_state() -> None:
+def test_knowledge_integration_prioritizes_connection_state_and_search() -> None:
     app = _knowledge_library()
     visible = "\n".join(str(item.value) for item in app.markdown)
-    for heading in ("搜索知识", "外部专业知识服务", "内部操作规范"):
+    for heading in ("搜索知识", "专业知识服务"):
         assert heading in visible
-    assert "专业知识中心" in "\n".join(str(item.value) for item in app.title)
-    assert "知识来源" not in visible and "待审核" not in visible
+    assert any(item.label == "本地内部规范" for item in app.metric)
+    assert "集成与数据" in "\n".join(str(item.value) for item in app.title)
+    assert "待审核" not in visible
     assert not app.exception

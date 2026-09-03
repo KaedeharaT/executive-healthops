@@ -79,7 +79,7 @@ def test_product_navigation_hides_quality_governance_and_uses_blue_tokens() -> N
     assert '"运营后台", "成员健康中心"' in app
     assert '["首页", "健康", "历程", "计划", "服务"]' in app
     assert '["今日", "成员", "医疗协同", "服务运营", "更多"]' in app
-    assert 'options = ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]' in shell
+    assert 'options = ["风险规则", "操作记录", "系统"]' in shell
     assert 'with st.expander("AI 质量治理（高级）")' in shell
     assert "--blue:#2563eb" in app and "linear-gradient" not in app
     assert "健管培训助手" not in shell

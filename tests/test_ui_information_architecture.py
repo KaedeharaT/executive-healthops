@@ -117,7 +117,7 @@ def test_report_first_screen_is_result_first_and_progressively_disclosed() -> No
 def test_more_root_remains_a_lazy_menu() -> None:
     source = MORE_SHELL.read_text(encoding="utf-8")
     assert 'if more is None:' in source
-    assert source.index('if more is None:') < source.index('render_data_gateway(load_members())')
+    assert source.index('if more is None:') < source.index('render_integration_center()')
     assert "管理工具" in source
 
 
@@ -125,7 +125,8 @@ def test_primary_navigation_and_collaboration_are_task_and_member_oriented() -> 
     source = APP.read_text(encoding="utf-8")
     more = MORE_SHELL.read_text(encoding="utf-8")
     assert '["今日", "成员", "医疗协同", "服务运营", "更多"]' in source
-    assert 'options = ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]' in more
+    assert 'options = ["风险规则", "操作记录", "系统"]' in more
+    assert "render_integration_center()" in more
     assert 'with st.expander("AI 质量治理（高级）")' in more
     assert "健管培训助手" not in more
     collaboration = _source("render_collaboration_workspace", "def _report_candidate_label")

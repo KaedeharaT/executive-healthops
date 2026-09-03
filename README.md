@@ -81,6 +81,7 @@ The operating cadence is explicit: establish the baseline in the first month, ex
 - **Grounded AI explanations** — every user-visible generated explanation must cite actual fact evidence and/or approved Knowledge Center chunks; unsupported answers are withheld rather than completed from model memory.
 - **Governed human feedback** — reviewed corrections can become de-identified, immutable offline evaluation or prompt-optimization datasets; there is no online learning or automatic deployment.
 - **External knowledge adapter** — partner knowledge supplies source-complete chunks while HealthOps retains citation validation, usage audit, local SOP fallback, and no-source refusal; HealthOps does not mirror a large external medical library.
+- **Lightweight integration center** — administrators can inspect, preview, and confirm ZIP, CSV, XLSX, or JSON health-data packages without exposing database concepts; AI, partner knowledge, and device connections remain compact status-and-test surfaces.
 - **Portfolio demo workflow** — ships with a repeatable, isolated synthetic demo for **Demo Executive A**.
 
 ## Product experience
@@ -213,7 +214,7 @@ For a compatible API provider, set `LOCAL_LLM_PROVIDER=openai_compatible`, `LLM_
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current v0.9.0 portfolio regression suite: **393 passed / 0 failed**.
+Current v0.9.0 portfolio regression suite: **404 passed / 0 failed**.
 
 ## Portfolio Materials
 
