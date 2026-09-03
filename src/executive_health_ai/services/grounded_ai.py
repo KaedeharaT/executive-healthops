@@ -18,9 +18,10 @@ from uuid import UUID, uuid4
 from sqlalchemy.orm import Session
 
 from executive_health_ai.llm import LocalLLMClient, LocalLLMUnavailable
-from executive_health_ai.models import KnowledgeDocument, KnowledgeUseRecord
+from executive_health_ai.models import KnowledgeChunk, KnowledgeDocument, KnowledgeUseRecord
 from executive_health_ai.services.knowledge import KnowledgeService
 from executive_health_ai.services.knowledge_retrieval import KnowledgeRetrievalHit, KnowledgeRetrievalService
+from executive_health_ai.services.knowledge_adapters import KnowledgeAdapter, KnowledgeAdapterError, KnowledgeResult
 
 
 GROUNDED = "GROUNDED"
@@ -234,11 +235,103 @@ class GroundedAnswerService:
             limitations=("仅供健康运营与知识解释参考，不构成诊断、处方或风险决策。",),
         )
 
+    def answer_with_adapter(
+        self, session: Session, *, question: str, feature: str,
+        adapter: KnowledgeAdapter, fact_citations: tuple[AICitation, ...] = (),
+        require_fact_evidence: bool = False, category: str | None = None,
+        audience: str | None = None, jurisdiction: str | None = None,
+        member_id: UUID | None = None, top_k: int = 5,
+    ) -> AIAnswer:
+        """Generate from exact adapter results and audit only cited partner chunks."""
+        answer_id = str(uuid4())
+        if require_fact_evidence and not fact_citations:
+            return self._refusal(answer_id, (), "成员级回答缺少可追溯的事实依据。")
+        try:
+            results = adapter.search(
+                question, category=category, audience=audience,
+                jurisdiction=jurisdiction, top_k=max(1, min(top_k, 8)),
+            )
+        except KnowledgeAdapterError:
+            return self._refusal(answer_id, fact_citations)
+        if not results:
+            return self._refusal(answer_id, fact_citations)
+
+        context = "\n\n".join(
+            f"[K{index}]\n标题：{item.title}\n章节：{item.section}\n内容：{item.content}"
+            for index, item in enumerate(results, start=1)
+        )
+        prompt = f"<approved_knowledge>\n{context}\n</approved_knowledge>\n<user_question>\n{question.strip()}\n</user_question>"
+        try:
+            payload, model_info = self.generator.generate(
+                system_prompt=self.SYSTEM_PROMPT, user_prompt=prompt, answer_id=answer_id,
+            )
+            content = str(payload.get("content") or "").strip()
+            declared = {str(value).strip("[]") for value in payload.get("citations", [])}
+        except LocalLLMUnavailable:
+            used_count = min(3, len(results))
+            content = "根据当前有来源的资料：\n" + "\n".join(
+                f"- {item.content[:220].strip()} [K{index}]"
+                for index, item in enumerate(results[:used_count], start=1)
+            )
+            declared = {f"K{index}" for index in range(1, used_count + 1)}
+            model_info = {"provider": "application", "model": "grounded-template"}
+        markers = set(re.findall(r"\[(K\d+)\]", content)) | declared
+        valid = {f"K{index}" for index in range(1, len(results) + 1)}
+        if not content or not markers or not markers <= valid:
+            return self._refusal(answer_id, fact_citations, "模型引用了本次检索中不存在的资料，回答已拦截。")
+
+        used: list[KnowledgeResult] = [item for index, item in enumerate(results, start=1) if f"K{index}" in markers][:5]
+        citations = tuple(AICitation(
+            citation_type="KNOWLEDGE", title=item.title, organization=item.organization,
+            display_location=item.section, source_url=item.source_url, version=item.version,
+            retrieved_at=item.retrieved_at, excerpt=item.content[:500], current_status="APPROVED_AT_USE",
+            document_id=item.document_id, chunk_id=item.chunk_id,
+        ) for item in used)
+        local_entries = [(item, citation) for item, citation in zip(used, citations) if item.document_id and item.chunk_id]
+        if local_entries:
+            local_chunks = [session.get(KnowledgeChunk, item.chunk_id) for item, _ in local_entries]
+            if any(chunk is None for chunk in local_chunks):
+                return self._refusal(answer_id, fact_citations, "本地知识依据已失效，回答未输出。")
+            snapshots: dict[UUID, list[dict[str, object]]] = {}
+            for item, citation in local_entries:
+                snapshots.setdefault(item.document_id, []).append(citation.public_payload())
+            KnowledgeService().record_ai_usage(
+                session, output_type="AIAnswer", output_reference=answer_id,
+                chunks=[chunk for chunk in local_chunks if chunk is not None], feature=feature,
+                member_id=member_id, model=model_info.get("model"),
+                request_context_hash=sha256(question.encode("utf-8")).hexdigest(),
+                answer_id=answer_id, retrieved_at=datetime.now(timezone.utc),
+                citation_snapshots=snapshots,
+            )
+        grouped: dict[tuple[str, str], list[tuple[KnowledgeResult, AICitation]]] = {}
+        for item, citation in zip(used, citations):
+            if item.document_id and item.chunk_id:
+                continue
+            grouped.setdefault((item.source_name, item.version), []).append((item, citation))
+        retrieved_at = datetime.now(timezone.utc)
+        for (source_name, version), entries in grouped.items():
+            KnowledgeService().record_external_ai_usage(
+                session, output_reference=answer_id, source_title=entries[0][0].title,
+                source_provider=source_name, source_version=version,
+                external_chunk_ids=[item.external_chunk_id for item, _ in entries],
+                citation_snapshots=[citation.public_payload() for _, citation in entries],
+                feature=feature, member_id=member_id, model=model_info.get("model"),
+                request_context_hash=sha256(question.encode("utf-8")).hexdigest(),
+                answer_id=answer_id, retrieved_at=retrieved_at,
+            )
+        return AIAnswer(
+            answer_id=answer_id, content=content, fact_citations=fact_citations,
+            knowledge_citations=citations, model_info=model_info,
+            grounded=GROUNDED, limitations=("仅供健康运营与知识解释参考，不构成诊断、处方或风险决策。",),
+        )
+
     @staticmethod
     def historical_citations(session: Session, usage: KnowledgeUseRecord) -> tuple[AICitation, ...]:
         """Render immutable citation snapshots with the source's current status."""
-        document = session.get(KnowledgeDocument, usage.knowledge_document_id)
-        if document is None:
+        document = session.get(KnowledgeDocument, usage.knowledge_document_id) if usage.knowledge_document_id else None
+        if usage.knowledge_document_id is None:
+            current_status = "EXTERNAL_SOURCE_AT_USE"
+        elif document is None:
             current_status = "SOURCE_REMOVED"
         elif document.review_status != "APPROVED" or not document.is_active:
             current_status = document.review_status

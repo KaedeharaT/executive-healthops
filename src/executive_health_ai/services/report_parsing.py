@@ -1012,7 +1012,14 @@ class ReportParsingService:
         if value: candidate.normalized_value = value
         if unit: candidate.unit = unit
         candidate.status, candidate.reviewed_by, candidate.reviewed_at = "CORRECTED", actor, utc_now()
-        session.add(AuditLog(patient_id=candidate.patient_id, actor=actor, actor_role="health_manager", action="corrected_report_candidate", entity_type="ReportExtractionCandidate", entity_id=str(candidate.id), detail_json={"before": before, "after": {"canonical_code": candidate.canonical_code, "normalized_value": candidate.normalized_value, "unit": candidate.unit}, "reason": reason}))
+        after = {"canonical_code": candidate.canonical_code, "normalized_value": candidate.normalized_value, "unit": candidate.unit}
+        session.add(AuditLog(patient_id=candidate.patient_id, actor=actor, actor_role="health_manager", action="corrected_report_candidate", entity_type="ReportExtractionCandidate", entity_id=str(candidate.id), detail_json={"before": before, "after": after, "reason": reason}))
+        # Persist only a compact, de-identified correction sample. The raw
+        # report and full prompt stay in their existing evidence boundary.
+        from executive_health_ai.services.ai_feedback import FeedbackService
+        FeedbackService().capture_report_correction(
+            session, candidate=candidate, actor=actor, before=before, after=after, reason=reason,
+        )
 
     def reject_candidate(self, session: Session, candidate: ReportExtractionCandidate, actor: str, reason: str) -> None:
         candidate.status, candidate.reviewed_by, candidate.reviewed_at = "REJECTED", actor, utc_now()

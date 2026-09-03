@@ -35,6 +35,7 @@ def render_more_workspace_shell(
     load_members: Callable[[], list[Any]],
     render_data_gateway: Callable[[list[Any]], None],
     render_knowledge_library: Callable[[], None],
+    render_ai_improvement: Callable[[], None],
     render_risk_rules: Callable[[], None],
     render_audit: Callable[[dict[str, list[object]]], None],
     audit_context: Callable[[Any], dict[str, list[object]]],
@@ -42,7 +43,7 @@ def render_more_workspace_shell(
 ) -> None:
     """Keep the More-page navigation shell separate from domain renderers."""
     page_header("更多", "数据接入、专业资料与系统管理。", eyebrow="平台工具")
-    options = ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]
+    options = ["数据接入与设备", "知识库", "AI 改进", "风险规则", "操作记录", "系统信息"]
     if st.session_state.get("more-navigation") not in {None, *options}:
         st.session_state.pop("more-navigation", None)
     more = st.session_state.get("more-navigation")
@@ -52,6 +53,7 @@ def render_more_workspace_shell(
         entries = [
             ("数据接入与设备", "查看设备状态与成员设备分配"),
             ("知识库", "浏览经审核的专业资料与服务 SOP"),
+            ("AI 改进", "查看人工反馈、离线数据集与模型评测门禁"),
             ("风险规则", "查看已审核的风险与健康管理规则"),
             ("操作记录", "查看最近的人工处理记录"),
             ("系统信息", "查看当前演示环境和处理边界"),
@@ -74,6 +76,8 @@ def render_more_workspace_shell(
         render_data_gateway(load_members())
     elif more == "知识库":
         render_knowledge_library()
+    elif more == "AI 改进":
+        render_ai_improvement()
     elif more == "风险规则":
         render_risk_rules()
     elif more == "操作记录":

@@ -102,7 +102,7 @@ def test_all_sidebar_and_more_pages_render_without_exception() -> None:
         _radio(app, "工作区").set_value(workspace)
         app.run(timeout=30)
         assert not app.exception
-    for page in ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]:
+    for page in ["数据接入与设备", "知识库", "AI 改进", "风险规则", "操作记录", "系统信息"]:
         app = AppTest.from_file(root)
         app.run(timeout=30)
         _radio(app, "工作区").set_value("更多")

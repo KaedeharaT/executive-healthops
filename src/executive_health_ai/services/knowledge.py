@@ -407,6 +407,30 @@ class KnowledgeService:
         session.flush()
         return records
 
+    def record_external_ai_usage(
+        self, session: Session, *, output_reference: str, source_title: str,
+        source_provider: str, source_version: str, external_chunk_ids: list[str],
+        citation_snapshots: list[dict[str, object]], feature: str | None = None,
+        member_id=None, model: str | None = None, request_context_hash: str | None = None,
+        answer_id: str | None = None, retrieved_at: datetime | None = None,
+    ) -> KnowledgeUseRecord:
+        """Audit actually cited partner chunks without mirroring partner content."""
+        if not source_title or not source_provider or not source_version or not external_chunk_ids or not citation_snapshots:
+            raise ValueError("External knowledge usage requires complete citation metadata.")
+        record = KnowledgeUseRecord(
+            output_type="AIAnswer", output_reference=output_reference,
+            knowledge_document_id=None, source_title=source_title,
+            source_provider=source_provider, source_version=source_version,
+            source_retrieved_at=retrieved_at, chunk_ids=[],
+            external_chunk_ids=external_chunk_ids, feature=feature, member_id=member_id,
+            model=model, request_context_hash=request_context_hash,
+            answer_id=answer_id, retrieved_at=retrieved_at,
+            citation_snapshot_json=citation_snapshots,
+        )
+        session.add(record)
+        session.flush()
+        return record
+
     def review_audits(self, session: Session, document_id) -> list[KnowledgeReviewAudit]:
         return list(session.scalars(select(KnowledgeReviewAudit).where(
             KnowledgeReviewAudit.knowledge_document_id == document_id

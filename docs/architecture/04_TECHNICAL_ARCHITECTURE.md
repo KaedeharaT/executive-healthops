@@ -154,6 +154,12 @@ erDiagram
 
 - `TimelineEvent`、`TimelineViewModel`、`TimelineCluster` 是 `services/longitudinal.py` 的 dataclass/view model，**不是数据库表**。
 - `HealthTimelineService.get_timeline()` 从 `HealthAssessment`、`RiskEvent`、`HealthProblem`、`MedicationPlan`、`HealthEvent`、`DoctorReview`、`HealthProgram`、`ExternalReferral`、`OutcomeEvaluation`、`ServiceRequest`、`ReportExtractionRun` 和月度 Observation summary 动态读取。
+
+## AI feedback governance
+
+人工确认与纠错通过 `FeedbackRecord` 与原始健康事实分离保存。只有经过审核、明确允许并完成去标识化的记录，才能由 `FeedbackDatasetBuilder` 生成不可变离线快照。`ModelVersionRegistry` 要求固定评测、无安全回归和人工批准；V1 不配置自动训练或部署。
+
+风险反馈只创建 `RiskRuleReviewCandidate`，不会修改 `RiskRule`。合作方知识通过 `KnowledgeAdapter` 返回带完整来源的 Chunk；HealthOps 保留 Grounded Answer、引用校验、`KnowledgeUseRecord` 和无来源拒答。
 - `HealthTimelineService` 与较早的 `services/timeline.py` 同时存在；current API 使用 `/members/{id}/timeline/v2`，旧 `/members/{id}/timeline` 已标记 deprecated 并保留兼容。
 
 ## Data / Deployment Flow

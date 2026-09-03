@@ -223,6 +223,59 @@ def _add_knowledge_demo(session) -> None:
     seed_public_knowledge(session, approve_for_portfolio=True)
 
 
+def _add_ai_feedback_demo(session, patient_id) -> None:
+    """Seed governance-only synthetic feedback; never train or deploy a model."""
+    from executive_health_ai.services.ai_feedback import (
+        AI_CONTENT_FEEDBACK, FeedbackDatasetBuilder, FeedbackService, ModelRegistryService,
+    )
+
+    service = FeedbackService()
+    rows = [
+        service.capture(
+            session, feedback_type=AI_CONTENT_FEEDBACK, feature="report_semantic_mapping",
+            source_entity_type="ReportExtractionCandidate", source_entity_id="synthetic-report-correction",
+            member_id=patient_id, feedback_label="HUMAN_CORRECTION", created_by="演示审核人",
+            input_material="synthetic:HbA1c:fasting_glucose", prediction_summary="HbA1c",
+            human_correction="空腹血糖", feedback_reason="演示语义字段纠正",
+            evidence_refs=[{"type": "REPORT_EVIDENCE", "page": 1}],
+            model_provider="demo", model_name="synthetic-parser", model_version="demo-v1",
+            prompt_version="report-v1", eligible_for_training=True, deidentified=True,
+        ),
+        service.capture(
+            session, feedback_type=AI_CONTENT_FEEDBACK, feature="report_summary",
+            source_entity_type="ReportExtractionRun", source_entity_id="synthetic-summary-correction",
+            member_id=patient_id, feedback_label="HUMAN_CORRECTION", created_by="演示审核人",
+            input_material="synthetic:summary", prediction_summary="需要关注",
+            human_correction="需要结合原报告依据人工复核", feedback_reason="演示摘要边界纠正",
+            evidence_refs=[{"type": "REPORT_EVIDENCE", "page": 1}],
+            model_provider="demo", model_name="synthetic-parser", model_version="demo-v1",
+            prompt_version="summary-v1", eligible_for_training=True, deidentified=True,
+        ),
+        service.capture_citation_feedback(
+            session, answer_id="synthetic-grounded-answer", label="IRRELEVANT",
+            reason="演示引用相关性反馈", actor="演示知识审核人",
+        ),
+    ]
+    for row in rows:
+        service.review(session, row.id, reviewer="演示 AI 治理审核人", accepted=True)
+        service.accept_for_dataset(session, row.id, reviewer="演示 AI 治理审核人")
+    dataset = FeedbackDatasetBuilder().build(
+        session, dataset_id="portfolio-feedback", actor="演示 AI 治理审核人",
+    )
+    registry = ModelRegistryService()
+    candidate = registry.create_candidate(
+        session, provider="demo", base_model="configurable-llm",
+        model_version="portfolio-candidate-v1", prompt_version="candidate-prompt-v1",
+        training_dataset_version=f"{dataset.dataset_id}-v{dataset.dataset_version:03d}",
+    )
+    registry.record_evaluation(session, candidate.id, actor="演示评测流程", report={
+        "citation_validity": 1.0, "hallucination_rate": 0.0,
+        "critical_task_success": 1.0, "unsafe_answer_rate": 0.0,
+        "no_source_refusal": True, "safety_regression": False,
+        "demo_only": True,
+    })
+
+
 def _customize_portfolio_data() -> dict[str, int]:
     from sqlalchemy import func, select
 
@@ -301,6 +354,7 @@ def _customize_portfolio_data() -> dict[str, int]:
                 assigned_manager="演示健康管理师",
             ))
         _add_knowledge_demo(session)
+        _add_ai_feedback_demo(session, patient.id)
         session.commit()
 
         return {

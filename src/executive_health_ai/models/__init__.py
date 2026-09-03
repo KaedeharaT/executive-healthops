@@ -24,6 +24,7 @@ from executive_health_ai.models.risk import EmergencyContact, RiskEvent, RiskRul
 from executive_health_ai.models.report_parsing import ReportExtractionCandidate, ReportExtractionRun
 from executive_health_ai.models.sleep_session import SleepSession
 from executive_health_ai.models.training import TrainingSession
+from executive_health_ai.models.ai_governance import FeedbackDatasetVersion, FeedbackRecord, ModelVersionRegistry, RiskRuleReviewCandidate
 from executive_health_ai.models.longitudinal import (
     ExternalReferral, HealthAssessment, ManagementRule, ManagementSignal,
     MemberDeviceAssignment,
@@ -43,4 +44,5 @@ __all__ = [
     "ReportExtractionRun", "ReportExtractionCandidate",
     "HealthAssessment", "ManagementRule", "ManagementSignal", "MemberDeviceAssignment", "ExternalReferral",
     "ServiceCatalogItem", "ServicePlan", "ServicePlanItem", "MemberEntitlement", "ServiceRequest", "MemberPlanChoice", "TrainingSession",
+    "FeedbackRecord", "FeedbackDatasetVersion", "ModelVersionRegistry", "RiskRuleReviewCandidate",
 ]

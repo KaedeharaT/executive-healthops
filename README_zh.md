@@ -78,6 +78,8 @@ Executive HealthOps 将这些输入组织为一条长期工作流：**报告 →
 - **长期健康时间轴**：串联发生了什么、团队如何处理、后续结果如何变化。
 - **受治理的医学知识库 / RAG**：支持来源、审核状态、知识分块、APPROVED-only 检索，以及 AI 回答实际使用 Chunk 的审计记录。
 - **有依据的 AI 解释**：所有用户可见生成式解释必须引用真实事实依据和/或已批准知识 Chunk；依据不足时明确拒答，不用模型记忆补全。
+- **受治理的人工反馈**：人工纠错只有在审核和去标识化后，才能形成不可变的离线评测或 Prompt 优化数据集；不进行在线学习或自动部署。
+- **外部知识适配器**：合作方知识库可提供来源完整的 Chunk，HealthOps 继续负责引用校验、使用审计、本地回退与无来源拒答。
 - **可重复的 Portfolio Demo**：使用隔离的 synthetic 数据库，围绕匿名成员 **Demo Executive A** 展示完整故事。
 
 ## 产品体验
@@ -210,7 +212,7 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-当前 v0.9.0 Portfolio 回归套件：**364 passed / 0 failed**。
+当前 v0.9.0 Portfolio 回归套件：**387 passed / 0 failed**。
 
 ## 作品集资料（Portfolio Materials）
 
@@ -220,6 +222,8 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 - [Portfolio 发布说明](portfolio/PORTFOLIO_RELEASE_NOTES.md)
 - [使用逻辑审计](docs/USAGE_LOGIC_AUDIT.md)
 - [AI 依据与引用策略](docs/AI_GROUNDING_AND_CITATION_POLICY.md)
+- [AI 反馈与离线改进](docs/AI_FEEDBACK_AND_IMPROVEMENT.md)
+- [知识适配器契约](docs/KNOWLEDGE_ADAPTER_CONTRACT.md)
 
 `scripts/capture_portfolio.ps1` 是用于复现本地作品集截图的可选开发工具；它只把 Playwright 安装到 `.venv`，不属于应用运行时依赖。
 

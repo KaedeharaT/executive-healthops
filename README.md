@@ -77,6 +77,8 @@ Executive HealthOps turns these fragmented inputs into a single longitudinal wor
 - **Longitudinal health timeline** — show what happened, what the team did, and what followed over time.
 - **Governed medical knowledge** — support approved knowledge chunks, source attribution, review state, keyword retrieval, and exact used-chunk auditing for grounded AI answers.
 - **Grounded AI explanations** — every user-visible generated explanation must cite actual fact evidence and/or approved Knowledge Center chunks; unsupported answers are withheld rather than completed from model memory.
+- **Governed human feedback** — reviewed corrections can become de-identified, immutable offline evaluation or prompt-optimization datasets; there is no online learning or automatic deployment.
+- **External knowledge adapter** — partner knowledge can supply source-complete chunks while HealthOps retains citation validation, usage audit, local fallback, and no-source refusal.
 - **Portfolio demo workflow** — ships with a repeatable, isolated synthetic demo for **Demo Executive A**.
 
 ## Product experience
@@ -209,7 +211,7 @@ For a compatible API provider, set `LOCAL_LLM_PROVIDER=openai_compatible`, `LLM_
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current v0.9.0 portfolio regression suite: **364 passed / 0 failed**.
+Current v0.9.0 portfolio regression suite: **387 passed / 0 failed**.
 
 ## Portfolio Materials
 
@@ -219,6 +221,8 @@ Current v0.9.0 portfolio regression suite: **364 passed / 0 failed**.
 - [Portfolio release notes](portfolio/PORTFOLIO_RELEASE_NOTES.md)
 - [Usage-logic audit](docs/USAGE_LOGIC_AUDIT.md)
 - [AI grounding and citation policy](docs/AI_GROUNDING_AND_CITATION_POLICY.md)
+- [AI feedback and offline improvement](docs/AI_FEEDBACK_AND_IMPROVEMENT.md)
+- [Knowledge adapter contract](docs/KNOWLEDGE_ADAPTER_CONTRACT.md)
 
 `scripts/capture_portfolio.ps1` is optional portfolio-development tooling for reproducing local screenshots. It installs Playwright only into `.venv`; it is not an application runtime dependency.
 

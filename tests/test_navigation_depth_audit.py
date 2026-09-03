@@ -58,7 +58,7 @@ def test_member_detail_and_more_respect_secondary_navigation_limits() -> None:
     detail = _source("render_member_detail", "def render_member_archive")
     more = MORE_SHELL.read_text(encoding="utf-8")
     assert '["概览", "管理", "健康", "医疗", "历程"]' in detail
-    assert 'options = ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]' in more
+    assert 'options = ["数据接入与设备", "知识库", "AI 改进", "风险规则", "操作记录", "系统信息"]' in more
     assert "健管培训助手" not in more
 
 
