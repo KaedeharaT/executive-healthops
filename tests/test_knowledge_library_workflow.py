@@ -38,11 +38,12 @@ def _official_result(source_code: str = "MEDLINEPLUS") -> KnowledgeSearchResult:
     )
 
 
-def test_provider_cards_are_rendered_before_saved_documents_and_include_all_required_sources() -> None:
+def test_provider_sources_remain_governed_but_are_not_the_default_product_view() -> None:
     source = Path("streamlit_app.py").read_text(encoding="utf-8")
     renderer = source.split("def render_knowledge_library_entry", 1)[1].split("def render_more_workspace", 1)[0]
     assert "_render_knowledge_source_cards(sources)" in renderer
-    assert renderer.index("_render_knowledge_source_cards(sources)") < renderer.index("_render_saved_knowledge(sources)")
+    assert '["知识查询", "内部操作规范", "知识治理"]' in renderer
+    assert "外部专业知识服务" in renderer
     cards = source.split("KNOWLEDGE_SOURCE_CARD_CODES", 1)[1].split("def _knowledge_source_status", 1)[0]
     for code in ("MEDLINEPLUS", "RXNORM", "OPENFDA", "WHO_ICD11"):
         assert code in cards

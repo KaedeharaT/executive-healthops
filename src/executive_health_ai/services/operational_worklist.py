@@ -41,6 +41,17 @@ class OperationalWorkItem:
     def summary(self) -> str:
         return self.reason
 
+    @property
+    def source_label(self) -> str:
+        return {
+            "risk_event": "健康风险",
+            "report_review": "体检报告",
+            "task": "计划与随访任务",
+            "doctor_review": "医生复核",
+            "management_signal": "健康数据变化",
+            "service_request": "服务申请",
+        }.get(self.source_type, "健康运营事项")
+
 
 def _risk_state(event: RiskEvent, review: DoctorReview | None, task: Task | None) -> tuple[int, str, str, str]:
     """Translate persistence status into the single operational state users act on."""
@@ -86,6 +97,7 @@ class OperationalWorklistService:
 
         active_risks = list(session.scalars(select(RiskEvent).where(RiskEvent.status.in_(ACTIVE_RISK_STATUSES)).order_by(RiskEvent.created_at.desc()).limit(100)))
         active_risk_ids = {event.id for event in active_risks}
+        active_risk_metrics = {(event.patient_id, event.canonical_code) for event in active_risks}
         for event in active_risks:
             task, review = tasks_by_risk.get(event.id), reviews_by_risk.get(event.id)
             priority, status, next_action, owner = _risk_state(event, review, task)
@@ -140,16 +152,21 @@ class OperationalWorklistService:
 
         signals = session.scalars(select(ManagementSignal).where(ManagementSignal.status.in_(("OPEN", "IN_PROGRESS"))).order_by(ManagementSignal.last_detected_at.desc()).limit(50))
         for signal in signals:
+            # A medical risk is the primary responsibility when the same member
+            # and metric are already represented. The management signal remains
+            # stored as evidence but is not rendered as a duplicate work item.
+            if (signal.patient_id, signal.metric_code) in active_risk_metrics:
+                continue
             items.append(OperationalWorkItem(
                 signal.patient_id, "management_signal", signal.id, 5, "建议健康管理", signal.summary,
                 "近期生活方式数据出现需要关注的变化，不等同于医学风险。", "查看趋势并决定跟进", signal.last_detected_at,
                 owner="健康管理师", route_target="member_health", created_at=signal.last_detected_at, event_at=signal.last_detected_at,
             ))
 
-        requests = session.scalars(select(ServiceRequest).where(ServiceRequest.status.in_(("REQUESTED", "REVIEWING", "APPROVED", "SCHEDULED", "IN_PROGRESS"))).order_by(ServiceRequest.requested_at.desc()).limit(50))
+        requests = session.scalars(select(ServiceRequest).where(ServiceRequest.status.in_(("REQUESTED", "REVIEWING", "APPROVED", "SCHEDULED", "IN_PROGRESS", "IN_SERVICE"))).order_by(ServiceRequest.requested_at.desc()).limit(50))
         for request in requests:
             catalog = session.get(ServiceCatalogItem, request.service_item_id)
-            if request.status == "REQUESTED":
+            if request.status in {"REQUESTED", "REVIEWING"}:
                 status, next_action = "待处理", "审核服务申请"
             elif request.status == "APPROVED":
                 status, next_action = "已通过", "安排服务时间"
@@ -159,7 +176,8 @@ class OperationalWorklistService:
                 status, next_action = "服务中", "记录服务结果"
             items.append(OperationalWorkItem(
                 request.patient_id, "service_request", request.id, 3, status, f"{catalog.name if catalog else '会员服务'}",
-                request.reason or "成员服务申请", next_action, request.scheduled_at or request.requested_at,
+                request.reason or "成员服务申请", request.next_action or next_action,
+                request.sla_due_at or request.scheduled_at or request.requested_at,
                 owner=request.assigned_manager or "待分配", route_target="member_service",
                 created_at=request.requested_at, event_at=request.scheduled_at or request.requested_at,
             ))

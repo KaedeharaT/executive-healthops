@@ -25,11 +25,17 @@ class IncomingRecord:
     device_id: str | None = None
 
 
-class BaseHealthAdapter(Protocol):
+class DeviceProviderAdapter(Protocol):
+    """Vendor boundary: translate payloads only; never classify risk or diagnose."""
+
     provider_name: str
     adapter_version: str
     source_type: str
     def parse(self, payload: Any, mapping: dict[str, str] | None = None) -> list[IncomingRecord]: ...
+
+
+# Backward-compatible name used by the existing ingestion registry.
+BaseHealthAdapter = DeviceProviderAdapter
 
 
 def _bp_records(payload: dict[str, Any], user_key: str, time_key: str, sys_key: str, dia_key: str, pulse_key: str) -> list[IncomingRecord]:

@@ -26,7 +26,7 @@ def test_design_system_exposes_shared_surface_helpers_and_tokens() -> None:
 def test_ops_today_uses_prioritized_work_cards_not_dashboard_metric_cards() -> None:
     source = _source("render_manager_dashboard", "def _render_member_header")
     assert "今日健康运营" in source
-    assert "高风险" in source and "中风险" in source and "等待医生" in source
+    assert "高优先级" in source and "到期与随访" in source and "等待医生" in source
     assert "优先处理" in source and "work_item_card(" in source
     assert source.count("st.metric(") == 0
 

@@ -43,7 +43,7 @@ def render_more_workspace_shell(
 ) -> None:
     """Keep the More-page navigation shell separate from domain renderers."""
     page_header("更多", "数据接入、专业资料与系统管理。", eyebrow="平台工具")
-    options = ["数据接入与设备", "知识库", "AI 改进", "风险规则", "操作记录", "系统信息"]
+    options = ["数据接入与设备", "知识库", "风险规则", "操作记录", "系统信息"]
     if st.session_state.get("more-navigation") not in {None, *options}:
         st.session_state.pop("more-navigation", None)
     more = st.session_state.get("more-navigation")
@@ -53,7 +53,6 @@ def render_more_workspace_shell(
         entries = [
             ("数据接入与设备", "查看设备状态与成员设备分配"),
             ("知识库", "浏览经审核的专业资料与服务 SOP"),
-            ("AI 改进", "查看人工反馈、离线数据集与模型评测门禁"),
             ("风险规则", "查看已审核的风险与健康管理规则"),
             ("操作记录", "查看最近的人工处理记录"),
             ("系统信息", "查看当前演示环境和处理边界"),
@@ -76,8 +75,6 @@ def render_more_workspace_shell(
         render_data_gateway(load_members())
     elif more == "知识库":
         render_knowledge_library()
-    elif more == "AI 改进":
-        render_ai_improvement()
     elif more == "风险规则":
         render_risk_rules()
     elif more == "操作记录":
@@ -91,3 +88,5 @@ def render_more_workspace_shell(
         st.markdown("#### 数据在哪里处理？")
         st.write("本地开源大模型：本机处理；健康平台：当前本地/私有服务处理；设备云：取决于未来数据来源的连接方式。")
         st.caption("长期建议采用混合架构：本地/边缘处理提升隐私与响应，云端便于统一维护和跨设备同步。设备云连接会带来网络、合规和厂商依赖边界。")
+        with st.expander("AI 质量治理（高级）"):
+            render_ai_improvement()

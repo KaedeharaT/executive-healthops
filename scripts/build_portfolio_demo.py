@@ -281,10 +281,11 @@ def _customize_portfolio_data() -> dict[str, int]:
 
     from executive_health_ai.database import SessionLocal
     from executive_health_ai.models import (
-        Document, DoctorReview, HealthAssessment, HealthProgram, KnowledgeDocument, MedicationPlan,
+        Consent, Document, DoctorReview, HealthAssessment, HealthProgram, KnowledgeDocument, MedicationPlan,
         Patient, RiskEvent, ServiceCatalogItem, ServiceRequest, Task,
     )
     from executive_health_ai.services.member_services import MemberServiceOperations
+    from executive_health_ai.services.bp_product import CONSENT_SCOPES, ConsentService
     from executive_health_ai.services.risk_operations import RiskOperationsService
 
     with SessionLocal() as session:
@@ -294,6 +295,11 @@ def _customize_portfolio_data() -> dict[str, int]:
         patient.external_id = DEMO_EXTERNAL_ID
         patient.display_name = "Demo Executive A"
         patient.sex = "未说明"
+
+        consent_service = ConsentService()
+        for scope in CONSENT_SCOPES:
+            if session.scalar(select(Consent).where(Consent.patient_id == patient.id, Consent.consent_type == scope)) is None:
+                consent_service.grant(session, patient.id, scope, source="演示成员确认", actor="Demo Executive A")
 
         for task in session.scalars(select(Task).where(Task.patient_id == patient.id)):
             if task.assignee:
@@ -352,6 +358,10 @@ def _customize_portfolio_data() -> dict[str, int]:
                 reason="作品集演示：展示人工服务申请与安排流程。",
                 status="SCHEDULED",
                 assigned_manager="演示健康管理师",
+                service_provider="演示服务团队",
+                scheduled_at=datetime(2026, 9, 8, 10, tzinfo=timezone.utc),
+                sla_due_at=datetime(2026, 9, 5, 18, tzinfo=timezone.utc),
+                next_action="服务团队按预约执行，健康管理师跟进结果回写",
             ))
         _add_knowledge_demo(session)
         _add_ai_feedback_demo(session, patient.id)

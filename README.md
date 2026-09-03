@@ -1,6 +1,6 @@
 # Executive HealthOps
 
-**AI-assisted longitudinal health management platform for executive healthcare**
+**Human-owned, continuous health operations for executive healthcare**
 
 企业高管 AI 健康运营平台：将体检报告、连续健康数据、风险分流、健康管理师与医生协同、健康计划和长期健康追踪组织为可追溯的 HealthOps 闭环。
 
@@ -25,16 +25,16 @@ English | [简体中文](README_zh.md)
 
 ```mermaid
 flowchart LR
-    A[Medical reports<br/>and health devices] --> B[Structured health data]
-    B --> C[Deterministic risk triage]
-    C --> D[Health manager review]
-    D --> E[Doctor review]
-    E --> F[Health plan and tasks]
-    F --> G[Continuous monitoring]
-    G --> H[Longitudinal health timeline]
+    A[Collect] --> B[Judge]
+    B --> C[Triage]
+    C --> D[Human confirmation]
+    D --> E[Action]
+    E --> F[Result writeback]
+    F --> G[Monthly / quarterly / annual review]
+    G --> A
 ```
 
-Members can see their current state and next step. Health managers can prioritize work and coordinate follow-up. Doctors receive a concise, evidence-linked review context. Every important workflow outcome returns to the member record and longitudinal timeline.
+Members see their current state, next action, responsible person, and progress. Health managers work from one prioritized queue. Licensed doctors receive concise, evidence-linked questions and retain diagnosis, prescription, investigation, treatment, and referral decisions. Every result returns to the member record and longitudinal timeline for the next cycle.
 
 ## Core product logic
 
@@ -63,7 +63,9 @@ The goal is to enable each health manager to support a larger member portfolio a
 
 Executive health management commonly separates check-up reports, continuous health signals, human follow-up, care plans, and clinician context. That creates an incomplete health story and makes ownership, evidence, and next actions hard to track.
 
-Executive HealthOps turns these fragmented inputs into a single longitudinal workflow: **report → evidence → baseline → risk → manager → doctor → plan / service → outcome → timeline**.
+Executive HealthOps turns these fragmented inputs into a single longitudinal workflow: **report / device / manual data → evidence → confirmed health facts → deterministic risk → operational worklist → manager / doctor → plan / task / service / referral → follow-up → outcome → timeline → next cycle**.
+
+The operating cadence is explicit: establish the baseline in the first month, execute and follow up monthly, recalibrate quarterly, and complete an annual review. Offline services follow an owned lifecycle with an SLA, delivery evidence, result writeback, and a visible next action.
 
 传统高端健康管理中，体检报告、设备数据、健管跟进与医生判断往往分散。本项目将它们收敛为一条持续、可追溯、有人负责下一步的健康运营链路。
 
@@ -78,7 +80,7 @@ Executive HealthOps turns these fragmented inputs into a single longitudinal wor
 - **Governed medical knowledge** — support approved knowledge chunks, source attribution, review state, keyword retrieval, and exact used-chunk auditing for grounded AI answers.
 - **Grounded AI explanations** — every user-visible generated explanation must cite actual fact evidence and/or approved Knowledge Center chunks; unsupported answers are withheld rather than completed from model memory.
 - **Governed human feedback** — reviewed corrections can become de-identified, immutable offline evaluation or prompt-optimization datasets; there is no online learning or automatic deployment.
-- **External knowledge adapter** — partner knowledge can supply source-complete chunks while HealthOps retains citation validation, usage audit, local fallback, and no-source refusal.
+- **External knowledge adapter** — partner knowledge supplies source-complete chunks while HealthOps retains citation validation, usage audit, local SOP fallback, and no-source refusal; HealthOps does not mirror a large external medical library.
 - **Portfolio demo workflow** — ships with a repeatable, isolated synthetic demo for **Demo Executive A**.
 
 ## Product experience
@@ -129,7 +131,7 @@ flowchart TB
     P --> K[Deterministic risk triage]
     K --> W[Human care-team workflows]
     W --> T[Plans, services, outcomes, and timeline]
-    N[Approved knowledge documents] -.retrieval with attribution.-> P
+    N[Partner knowledge + approved local SOP] -.retrieval with attribution.-> P
 ```
 
 Detailed source-level architecture is available in the [architecture docs](docs/architecture/README.md).
@@ -159,7 +161,7 @@ The LLM interface is configurable and model-agnostic: local or compatible API pr
 - The system does not autonomously diagnose, prescribe, stop medication, change dosage, or override clinician decisions（不自动诊断、开药、停药、调整剂量或替代医生决定）.
 - LLMs do not determine risk. Formal clinical rules require separate medical review and version governance.
 - Portfolio risks are explicitly marked **TEST / demonstration workflow rules**, not Clinical RiskRules.
-- MedlinePlus, RxNorm, openFDA, and other public references remain governed knowledge sources; they do not automatically become risk rules or treatment recommendations.
+- Partner knowledge and approved local SOPs are reference sources only; they do not automatically become risk rules or treatment recommendations.
 - Apple Health backend and iOS HealthKit bridge source are included, but real-device verification remains pending.
 
 ## Current Limitations
@@ -211,7 +213,7 @@ For a compatible API provider, set `LOCAL_LLM_PROVIDER=openai_compatible`, `LLM_
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current v0.9.0 portfolio regression suite: **387 passed / 0 failed**.
+Current v0.9.0 portfolio regression suite: **393 passed / 0 failed**.
 
 ## Portfolio Materials
 

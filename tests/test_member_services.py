@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from executive_health_ai.models import Base, Patient, RiskEvent
+from executive_health_ai.models import AuditLog, Base, Patient, RiskEvent, Task
 from executive_health_ai.services.longitudinal import HealthTimelineService, RiskSummaryService
 from executive_health_ai.services.member_services import MemberServiceOperations
 
@@ -21,9 +21,20 @@ def test_demo_service_catalog_request_completion_and_quota_are_human_operated():
         mdt, entitlement = next(row for row in rows if row[0].code == "mdt")
         request = operations.request(session, member.id, mdt.id, "需要人工审核安排")
         assert request.status == "REQUESTED" and entitlement.used_quota == 0
+        assert request.sla_due_at is not None
         operations.approve(session, request.id, "manager")
-        operations.complete(session, request.id, "已完成服务，后续人工跟进。", "manager")
+        operations.schedule(session, request.id, datetime.now(timezone.utc), "manager", "synthetic provider")
+        operations.start(session, request.id, "manager")
+        assert request.status == "IN_SERVICE"
+        operations.complete(
+            session, request.id, "已完成服务，后续人工跟进。", "manager",
+            completion_evidence="synthetic completion record", next_action="复核阶段结果",
+        )
         assert request.status == "COMPLETED" and entitlement.used_quota == 1 and plan.status == "DEMO"
+        assert request.service_provider == "synthetic provider"
+        assert request.completion_evidence == "synthetic completion record"
+        assert session.scalar(select(Task).where(Task.source == f"service_result:{request.id}")) is not None
+        assert session.scalar(select(AuditLog).where(AuditLog.entity_id == str(request.id))) is not None
         assert any(event.event_type == "service" for event in HealthTimelineService().get_timeline(session, member.id))
 
 

@@ -64,24 +64,12 @@ def test_search_button_calls_provider_and_renders_normalized_results_in_same_pag
     assert not app.exception
 
 
-def test_provider_card_safely_sets_search_provider_and_same_page_detail_persists(monkeypatch) -> None:
-    def fake_query(self, session, source_code, query, *, limit=5):
-        return [_result()]
-
-    monkeypatch.setattr(KnowledgeService, "query_source", fake_query)
+def test_governance_mode_keeps_registered_source_metadata_out_of_default_view() -> None:
     app = _knowledge_library()
-    next(item for item in app.button if item.key == "knowledge-source-card-RXNORM").click()
+    next(item for item in app.radio if item.label == "知识功能").set_value("知识治理")
     app.run(timeout=30)
-    assert next(item for item in app.selectbox if item.label == "来源").value == "RXNORM"
-
-    next(item for item in app.text_input if item.label == "关键词").set_value("metformin")
-    next(item for item in app.button if item.key == "knowledge-source-search").click()
-    app.run(timeout=30)
-    next(item for item in app.button if item.label == "查看").click()
-    app.run(timeout=30)
-
-    assert len(app.session_state["knowledge_search_results"]) == 1
-    assert any("资料预览" in str(item.value) for item in app.markdown)
+    assert any(item.key == "knowledge-source-card-RXNORM" for item in app.button)
+    assert any("知识来源" in str(item.value) for item in app.markdown)
     assert not app.exception
 
 
@@ -96,10 +84,11 @@ def test_who_without_credentials_recovers_with_plain_language_state() -> None:
     assert not app.exception
 
 
-def test_knowledge_center_first_screen_has_exactly_the_four_governance_sections() -> None:
+def test_knowledge_center_first_screen_prioritizes_product_search_and_connection_state() -> None:
     app = _knowledge_library()
     visible = "\n".join(str(item.value) for item in app.markdown)
-    for heading in ("搜索知识", "知识来源", "已保存知识", "待审核"):
+    for heading in ("搜索知识", "外部专业知识服务", "内部操作规范"):
         assert heading in visible
-    assert "医学知识中心" in "\n".join(str(item.value) for item in app.title)
+    assert "专业知识中心" in "\n".join(str(item.value) for item in app.title)
+    assert "知识来源" not in visible and "待审核" not in visible
     assert not app.exception

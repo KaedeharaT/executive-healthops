@@ -26,7 +26,7 @@ def test_streamlit_status_copy_describes_data_not_medical_conclusions() -> None:
     assert "long-range-" in app_source
     assert "render_knowledge_library_entry" in app_source
     assert "待处理" in app_source
-    assert "数据接入与设备" in app_source
+    assert "设备数据接入" in app_source
     assert "<span class=\"badge\"" not in app_source
     assert "NINETY_DAY" not in app_source.split("def render_programs", 1)[1].split("def render_outcomes", 1)[0]
     assert 'st.subheader("医生复核")' in app_source

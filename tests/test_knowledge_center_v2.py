@@ -146,10 +146,11 @@ def test_internal_sop_and_authorized_textbook_follow_the_same_review_then_chunk_
         assert KnowledgeRetrievalService().search(session, "高血压")
 
 
-def test_ui_keeps_four_main_frames_and_inline_details_without_a_third_route() -> None:
+def test_ui_keeps_knowledge_functions_in_one_depth_two_workspace() -> None:
     source = Path("streamlit_app.py").read_text(encoding="utf-8")
     renderer = source.split("def render_knowledge_library_entry", 1)[1].split("def render_more_workspace", 1)[0]
-    assert "医学知识中心" in renderer
+    assert "专业知识中心" in renderer
+    assert '["知识查询", "内部操作规范", "知识治理"]' in renderer
     for call in ("_render_knowledge_search(sources)", "_render_knowledge_source_cards(sources)", "_render_saved_knowledge(sources)", "_render_pending_knowledge(sources)"):
         assert call in renderer
     assert "_render_knowledge_detail(selected" in source

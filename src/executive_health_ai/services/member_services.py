@@ -35,6 +35,17 @@ DEMO_CATALOG = (
 )
 
 
+def bp_service_category(item: ServiceCatalogItem) -> str:
+    """Present the existing catalogue through the four BP delivery families."""
+    if item.code in {"health_archive", "health_check_design", "lifestyle_survey", "stress_assessment"}:
+        return "评估与建档"
+    if item.category == "就医协助":
+        return "就医协调"
+    if item.category in {"精准诊疗", "远程问诊"}:
+        return "专业协作"
+    return "连续管理"
+
+
 class MemberServiceOperations:
     def ensure_demo_plan(self, session: Session, member_id: UUID) -> ServicePlan:
         plan = session.scalar(select(ServicePlan).where(ServicePlan.name == "金卡会员（演示）"))
@@ -66,27 +77,40 @@ class MemberServiceOperations:
         return list(session.execute(select(ServiceCatalogItem, MemberEntitlement).join(MemberEntitlement, MemberEntitlement.service_item_id == ServiceCatalogItem.id).where(MemberEntitlement.patient_id == member_id, MemberEntitlement.status == "ACTIVE").order_by(ServiceCatalogItem.category, ServiceCatalogItem.name)))
 
     def request(self, session: Session, member_id: UUID, item_id: UUID, reason: str, requested_by: str = "member") -> ServiceRequest:
-        existing = session.scalar(select(ServiceRequest).where(ServiceRequest.patient_id == member_id, ServiceRequest.service_item_id == item_id, ServiceRequest.status.in_(("REQUESTED", "REVIEWING", "APPROVED", "SCHEDULED", "IN_PROGRESS"))))
+        existing = session.scalar(select(ServiceRequest).where(ServiceRequest.patient_id == member_id, ServiceRequest.service_item_id == item_id, ServiceRequest.status.in_(("REQUESTED", "REVIEWING", "APPROVED", "SCHEDULED", "IN_PROGRESS", "IN_SERVICE"))))
         if existing: return existing
-        request = ServiceRequest(patient_id=member_id, service_item_id=item_id, requested_by=requested_by, reason=reason.strip() or "成员申请服务", status="REQUESTED")
+        request = ServiceRequest(
+            patient_id=member_id, service_item_id=item_id, requested_by=requested_by,
+            reason=reason.strip() or "成员申请服务", status="REQUESTED",
+            sla_due_at=datetime.now(timezone.utc) + timedelta(days=3),
+            next_action="健康管理师审核服务需求与权益",
+        )
         session.add(request); session.flush(); return request
 
     def approve(self, session: Session, request_id: UUID, manager: str) -> ServiceRequest:
         request = session.get(ServiceRequest, request_id)
         if request is None: raise ValueError("服务申请不存在")
         if request.status not in {"REQUESTED", "REVIEWING"}: return request
-        request.status="APPROVED"; request.assigned_manager=manager; session.flush(); return request
+        request.status = "APPROVED"
+        request.assigned_manager = manager
+        request.next_action = "确认服务执行方与预约时间"
+        session.flush(); return request
 
-    def schedule(self, session: Session, request_id: UUID, at: datetime, manager: str) -> ServiceRequest:
-        request = self.approve(session, request_id, manager); request.status="SCHEDULED"; request.scheduled_at=at; session.flush(); return request
+    def schedule(self, session: Session, request_id: UUID, at: datetime, manager: str, provider: str | None = None) -> ServiceRequest:
+        request = self.approve(session, request_id, manager)
+        request.status, request.scheduled_at = "SCHEDULED", at
+        request.service_provider = provider.strip() if provider and provider.strip() else request.service_provider
+        request.next_action = "按预约安排开始服务"
+        session.flush(); return request
 
     def start(self, session: Session, request_id: UUID, manager: str) -> ServiceRequest:
         request = session.get(ServiceRequest, request_id)
         if request is None:
             raise ValueError("服务申请不存在")
-        if request.status not in {"SCHEDULED", "IN_PROGRESS"}:
+        if request.status not in {"SCHEDULED", "IN_PROGRESS", "IN_SERVICE"}:
             raise ValueError("请先安排服务后再记录执行")
-        request.status, request.assigned_manager = "IN_PROGRESS", manager
+        request.status, request.assigned_manager = "IN_SERVICE", manager
+        request.next_action = "完成服务并回写结果与依据"
         session.flush(); return request
 
     def cancel(self, session: Session, request_id: UUID, reason: str = "成员取消申请") -> ServiceRequest:
@@ -97,17 +121,46 @@ class MemberServiceOperations:
             raise ValueError("当前服务申请不能取消")
         request.status = "CANCELLED"
         request.result_summary = reason.strip() or "服务申请已取消。"
+        request.next_action = "如仍有需要，可重新申请或由健康管理师协调改期"
         session.flush(); return request
 
-    def complete(self, session: Session, request_id: UUID, result_summary: str, manager: str) -> ServiceRequest:
+    def complete(
+        self, session: Session, request_id: UUID, result_summary: str, manager: str,
+        *, completion_evidence: str | None = None, next_action: str | None = None,
+    ) -> ServiceRequest:
         request = session.get(ServiceRequest, request_id)
         if request is None: raise ValueError("服务申请不存在")
         if request.status == "COMPLETED": return request
-        if request.status not in {"APPROVED", "SCHEDULED", "IN_PROGRESS"}:
+        if request.status not in {"IN_PROGRESS", "IN_SERVICE"}:
             raise ValueError("请先审核服务申请后再记录完成")
-        request.status="COMPLETED"; request.completed_at=datetime.now(timezone.utc); request.result_summary=result_summary.strip() or "服务已完成，后续由健康管理团队跟进。"; request.assigned_manager=manager
+        request.status = "COMPLETED"
+        request.completed_at = datetime.now(timezone.utc)
+        request.result_summary = result_summary.strip() or "服务已完成，后续由健康管理团队跟进。"
+        request.completion_evidence = (completion_evidence or "人工确认的服务完成记录").strip()
+        request.next_action = (next_action or "健康管理师复核服务结果并确认后续安排").strip()
+        request.assigned_manager = manager
         entitlement = session.scalar(select(MemberEntitlement).where(MemberEntitlement.patient_id == request.patient_id, MemberEntitlement.service_item_id == request.service_item_id))
         if entitlement and entitlement.total_quota is not None: entitlement.used_quota = min(entitlement.total_quota, entitlement.used_quota + 1)
+        existing_followup = session.scalar(select(Task).where(
+            Task.patient_id == request.patient_id,
+            Task.source == f"service_result:{request.id}",
+            Task.status.not_in(("COMPLETED", "CANCELLED")),
+        ))
+        if existing_followup is None:
+            session.add(Task(
+                patient_id=request.patient_id, health_problem_id=request.related_problem_id,
+                risk_event_id=request.related_risk_event_id,
+                title="复核服务结果与下一步", instruction=request.next_action,
+                status="PENDING", priority="MEDIUM", assignee=manager,
+                responsible_role="health_manager",
+                due_at=datetime.now(timezone.utc) + timedelta(days=7),
+                source=f"service_result:{request.id}",
+            ))
+        session.add(AuditLog(
+            patient_id=request.patient_id, actor=manager, actor_role="health_manager",
+            action="completed_service_with_result", entity_type="ServiceRequest",
+            entity_id=str(request.id), detail_json={"next_action": request.next_action, "evidence_recorded": True},
+        ))
         session.flush(); return request
 
     def record_choice(self, session: Session, member_id: UUID, choice: str, comment: str = "") -> MemberPlanChoice:

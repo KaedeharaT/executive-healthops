@@ -38,6 +38,16 @@ class Consent(Base):
     source: Mapped[str] = mapped_column(String(128), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utc_now)
 
+    @property
+    def scope(self) -> str:
+        """BP-facing name for the persisted consent type."""
+        return self.consent_type
+
+    @property
+    def revoked_at(self) -> datetime | None:
+        """Compatibility alias: withdrawn_at is the persisted revocation time."""
+        return self.withdrawn_at
+
 
 class Document(Base):
     __tablename__ = "documents"

@@ -87,5 +87,6 @@ def test_ios_bridge_token_is_local_configuration_not_source_and_sync_does_not_ca
     assert "HEALTHOPS_BRIDGE_TOKEN" in config and "BridgeSecrets.xcconfig" in ignored
     assert "local_llm" not in sync.lower() and "llm" not in sync.lower()
     assert "真实设备验证" not in APP
-    assert "真机验证：" in APP and "已收到桥接同步" in APP
+    assert "连接状态、数据授权和最近同步" in APP
+    assert "医学风险由平台规则与人工判断，不由设备决定" in APP
 

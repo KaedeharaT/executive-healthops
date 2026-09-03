@@ -37,12 +37,14 @@ def test_worklist_is_sorted_by_operational_priority_without_creating_new_records
         )
         session.add_all((member, rule, management_rule)); session.flush()
         observation = Observation(patient_id=member.id, observed_at=now, metric_code="steps", value_numeric=Decimal("1"), unit="count", source="synthetic_demo", quality_flag="valid")
-        session.add(observation); session.flush()
+        glucose_observation = Observation(patient_id=member.id, observed_at=now, metric_code="glucose", value_numeric=Decimal("1"), unit="mmol/L", source="synthetic_demo", quality_flag="valid")
+        session.add_all((observation, glucose_observation)); session.flush()
         session.add_all((
             RiskEvent(patient_id=member.id, risk_rule_id=rule.id, risk_level="RED", status="NEW", device_class="MEDICAL_MONITOR", canonical_code="glucose", summary="合成紧急工作项", requires_manager_review=True, requires_doctor_review=False, requires_emergency_action=True),
             RiskEvent(patient_id=member.id, risk_rule_id=rule.id, risk_level="YELLOW", status="ESCALATED_TO_DOCTOR", device_class="MEDICAL_MONITOR", canonical_code="glucose", summary="合成医生等待项", requires_manager_review=True, requires_doctor_review=True, requires_emergency_action=False),
             Task(patient_id=member.id, title="合成逾期跟进", instruction="完成合成人工跟进", status="PENDING", priority="MEDIUM", due_at=now - timedelta(days=1), source="synthetic"),
             ManagementSignal(patient_id=member.id, management_rule_id=management_rule.id, observation_id=observation.id, metric_code="steps", severity="ACTION_NEEDED", status="OPEN", recommended_route="HEALTH_MANAGER", summary="合成活动下降", evidence_json={}),
+            ManagementSignal(patient_id=member.id, management_rule_id=management_rule.id, observation_id=glucose_observation.id, metric_code="glucose", severity="ACTION_NEEDED", status="OPEN", recommended_route="HEALTH_MANAGER", summary="不应重复显示的同指标管理信号", evidence_json={}),
         ))
         session.flush()
         before = session.query(RiskEvent).count() + session.query(Task).count() + session.query(ManagementSignal).count()
@@ -52,3 +54,5 @@ def test_worklist_is_sorted_by_operational_priority_without_creating_new_records
     assert [item.status for item in items] == ["高风险", "逾期", "等待医生", "建议健康管理"]
     assert after == before
     assert all(item.member_id == member.id for item in items)
+    assert all("不应重复显示" not in item.title for item in items)
+    assert all(item.source_label and item.owner and item.next_action for item in items)

@@ -26,7 +26,7 @@ def test_ops_today_has_one_priority_frame_and_compact_work_items() -> None:
     assert "_status_strip(" in today
     assert 'with section_frame("优先处理"' in today
     assert "work_item_card(" in today
-    assert "work_items[:5]" in today
+    assert "visible_items[:5]" in today
 
 
 def test_member_overview_keeps_the_two_column_focus_then_next_step_structure() -> None:
@@ -41,7 +41,8 @@ def test_member_home_is_personal_and_limits_today_to_six_health_tiles() -> None:
     home = _source("_render_client_home", "def _render_client_plan")
     for item in ("我的健康", "我现在怎么样", "今天", "最近变化", "我的下一步"):
         assert item in home
-    assert 'cards = st.columns(3)' in home
+    assert 'cards = st.columns(min(3, len(available_cards)))' in home
+    assert "if available_cards" in home
     assert home.count('("睡眠"') == 1
     for label in ("深度睡眠", "步数", "活动消耗", "血压", "血糖"):
         assert label in home

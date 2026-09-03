@@ -808,7 +808,7 @@ class HealthTimelineService:
         referral_query = select(ExternalReferral).where(ExternalReferral.patient_id == member_id)
         outcome_query = select(OutcomeEvaluation).where(OutcomeEvaluation.patient_id == member_id)
         plan_choice_query = select(MemberPlanChoice).where(MemberPlanChoice.patient_id == member_id)
-        service_query = select(ServiceRequest).where(ServiceRequest.patient_id == member_id, ServiceRequest.status.in_(("SCHEDULED", "IN_PROGRESS", "COMPLETED")))
+        service_query = select(ServiceRequest).where(ServiceRequest.patient_id == member_id, ServiceRequest.status.in_(("SCHEDULED", "IN_PROGRESS", "IN_SERVICE", "COMPLETED")))
         adjustment_query = select(WeeklyReview).join(HealthProgram, WeeklyReview.program_id == HealthProgram.id).where(HealthProgram.patient_id == member_id, WeeklyReview.adjustment.is_not(None))
         report_query = select(ReportExtractionRun).where(ReportExtractionRun.patient_id == member_id, ReportExtractionRun.status.in_(("COMPLETED", "PARTIAL_SUCCESS")))
         if start is not None:
