@@ -56,6 +56,7 @@ def test_search_button_calls_provider_and_renders_normalized_results_in_same_pag
     app = _knowledge_library()
     next(item for item in app.text_input if item.label == "关键词").set_value("metformin")
     next(item for item in app.selectbox if item.label == "来源").set_value("RXNORM")
+    app.run(timeout=30)
     next(item for item in app.button if item.key == "knowledge-source-search").click()
     app.run(timeout=30)
 
@@ -77,6 +78,7 @@ def test_who_without_credentials_recovers_with_plain_language_state() -> None:
     app = _knowledge_library()
     next(item for item in app.text_input if item.label == "关键词").set_value("hypertension")
     next(item for item in app.selectbox if item.label == "来源").set_value("WHO_ICD11")
+    app.run(timeout=30)
     next(item for item in app.button if item.key == "knowledge-source-search").click()
     app.run(timeout=30)
 

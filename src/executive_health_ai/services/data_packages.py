@@ -287,7 +287,16 @@ class DataPackageAdapter:
                 raise DataPackageError("CSV 编码无法识别，请使用 UTF-8。") from exc
             try:
                 frame = pd.read_csv(io.StringIO(text), sep=None, engine="python", dtype=object)
-            except (pd.errors.ParserError, csv.Error) as exc:
+            except csv.Error:
+                # ``csv.Sniffer`` cannot infer a delimiter for a valid
+                # single-column CSV.  Parse it with the standard comma
+                # delimiter so normal business-field validation can report
+                # the missing columns in plain language.
+                try:
+                    frame = pd.read_csv(io.StringIO(text), dtype=object)
+                except pd.errors.ParserError as exc:
+                    raise DataPackageError("CSV 文件结构无法识别。") from exc
+            except pd.errors.ParserError as exc:
                 raise DataPackageError("CSV 文件结构无法识别。") from exc
             rows = _records_from_frame(frame)
             return {data_type or _infer_data_type(filename, rows): rows}
