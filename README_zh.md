@@ -1,237 +1,208 @@
 # Executive HealthOps
 
-**面向企业高管、健康管理师与持证医生的持续健康运营平台**
-
-将体检报告、连续健康数据、确定性风险分流、健康管理师与医生协同、健康计划和长期健康追踪，收敛为一套可追溯、有人负责下一步的 HealthOps 闭环。
+**企业家主动式持续健康管理平台**
 
 [English](README.md) | 简体中文
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
-![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Product_UI-Streamlit-2563EB?logo=streamlit&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
-![LLM](https://img.shields.io/badge/AI-LLM%20assisted-5E5CE6)
-![RAG](https://img.shields.io/badge/Knowledge-Governed%20RAG-167B78)
 ![Human in the loop](https://img.shields.io/badge/Workflow-Human--in--the--loop-205C9E)
-![Risk engine](https://img.shields.io/badge/Risk-Deterministic%20engine-A76513)
+![Risk engine](https://img.shields.io/badge/Risk-Deterministic-A76513)
 [![CI](https://github.com/KaedeharaT/executive-healthops/actions/workflows/ci.yml/badge.svg)](https://github.com/KaedeharaT/executive-healthops/actions/workflows/ci.yml)
 
-![Executive HealthOps 健康运营工作台](docs/images/healthops-dashboard.png)
+Executive HealthOps 把**体检、连续健康数据、确定性风险分级、健管跟进、医生协作、健康计划、线下服务和长期健康时间轴**串成一条以责任为核心的全年健康管理闭环。产品始终回答三个问题：**下一步是什么？由谁负责？什么时候完成？**
 
-*Portfolio Demo 健康运营工作台：集中展示运营优先级、成员上下文与后续跟进事项。*
+![Executive HealthOps 健康管理师工作台](docs/images/healthops-dashboard.png)
 
-> **Research / Portfolio Prototype（研究与作品集原型）**：本项目用于展示可追责的健康运营工作流，不是医疗器械、诊断系统或生产级临床决策支持系统。
+*匿名 Portfolio Demo 展示统一优先队列、明确责任人、到期事项和医生协作。*
 
-## 从健康数据到行动
+> **Research / Portfolio Prototype（研究与作品集原型）**：本仓库用于展示产品与工程架构，不是医疗器械、自动诊断系统或生产级临床决策支持系统。
+
+## 七步责任闭环
 
 ```mermaid
 flowchart LR
-    A[采集] --> B[判断]
-    B --> C[分级]
+    A[采集<br/>数据与报告] --> B[判断<br/>规则与辅助草稿]
+    B --> C[分级<br/>绿 / 黄 / 红 / 灰]
     C --> D[人工确认]
-    D --> E[行动]
+    D --> E[行动<br/>计划 / 任务 / 服务 / 转诊]
     E --> F[结果回写]
-    F --> G[月度 / 季度 / 年度复盘]
-    G --> A
+    F --> G[周期复盘<br/>月度 / 季度 / 年度]
+    G --> H[下一轮]
+    H --> A
 ```
 
-成员能看到当前情况、下一步、负责人和执行进度；健康管理师从统一优先队列推进事项；持证医生获得精炼、带依据的问题上下文，并保留诊断、处方、检查、治疗与转诊判断。重要结果回流成员档案和长期健康时间轴，进入下一轮管理。
+系统负责发现变化、组织上下文、形成优先级和生成低风险草稿；健康管理师负责核对、跟进和协调；持证医生保留诊断、处方、检查、治疗与转诊判断；客户负责授权、执行和反馈。所有重要结果都会回到健康档案，并进入下一轮管理。
 
-## 核心产品逻辑
+## 三类产品视角
 
-HealthOps 的目标不是“发现异常就结束”，而是把有证据支持且经过人工确认的健康数据转化为确定性 `RiskEvent`、运营优先级、明确责任人、计划与任务、必要时的医生复核、持续跟进和最终结果，并回到长期健康时间线。
+### 客户 / Member
 
-```mermaid
-flowchart LR
-    A[健康数据 / 体检报告] --> B[依据与已确认观测]
-    B --> C[确定性风险]
-    C --> D[运营工作台]
-    D --> E[健管 / 医生行动]
-    E --> F[计划 / 任务 / 服务]
-    F --> G[阶段结果]
-    G --> H[长期健康时间线]
-```
+看到当前状态、今天要做什么、计划进度、下一次服务、负责人和长期变化，不接触内部运营或技术字段。
 
-Dashboard 与 Timeline 都是底层业务记录的只读投影，不是另一套事实来源。LLM 可以辅助理解资料，但不能生成风险决策，也不能绕过人工确认。
+### 健康管理师 / Health Manager
 
-## 运营效率
+从统一的 `Operational Worklist` 处理风险跟进、报告审核、到期任务、医生依赖、服务交付和结果复盘。每个事项都明确优先级、负责人、SLA 或截止时间、处理原因与下一步。
 
-HealthOps 不只是为了把健康管理流程做完整，也用于减少健康管理师在资料整理、优先级判断、历史信息查找、任务追踪和跨角色沟通上的重复劳动。报告结构化、确定性风险分流、运营工作台、证据追溯、任务跟踪、医生复核上下文和长期健康时间线，让健康管理师把更多时间投入异常处理、成员沟通和服务协调。
+### 持证医生 / Doctor
 
-产品目标是提升单个健康管理师可稳定管理的成员规模，并降低单位成员的健康运营成本，同时不把医学判断交给 AI。项目不使用未经验证的效率百分比或 ROI 数字。
+只接收需要医学判断的问题，并查看相关成员事实、当前用药、报告依据、风险上下文和健管已完成动作。医生结论返回健管工作流继续执行和随访。
 
-## 解决什么问题？
+## 全年管理周期
 
-高端健康管理中，体检报告、设备数据、人工跟进、服务安排、健康计划和医生判断往往分散在不同位置。结果是健康故事不连续，责任人、依据和下一步难以追踪。
-
-Executive HealthOps 将这些输入组织为一条长期工作流：**报告 / 设备 / 人工数据 → 依据 → 已确认健康事实 → 确定性风险 → 运营工作台 → 健管 / 医生 → 计划 / 任务 / 服务 / 转诊 → 随访 → 结果 → 时间轴 → 下一轮**。
-
-管理节奏清楚可见：首月建立基线、每月持续执行、每季度阶段校准、每年年度复盘。线下服务同时保留负责人、SLA、完成依据、结果回写与下一步，避免服务完成后失去后续责任。
-
-它关注的不是把医疗数据简单堆在一起，而是让每个需要处理的问题都有清晰的来源、负责人、状态和后续动作。
+| 周期 | 产品责任 |
+|---|---|
+| **首月** | 整合报告、既往史、用药、健康数据、生活方式和客户目标，建立基线与年度计划。 |
+| **每月** | 监测趋势、执行任务、协调服务并回写结果。 |
+| **每季度** | 对比关键指标、重新评估风险、复盘阶段结果并校准计划。 |
+| **每年** | 对比年度体检、汇总重大事件与服务、记录年度结果并制定下一年度计划。 |
 
 ## 核心能力
 
-- **体检报告结构化**：将报告整理为主要发现、观测指标、复查事项和人工审核队列。
-- **Evidence Traceability（依据追溯）**：从展示结论回到来源文件、页码、表格行或保留的原始片段。
-- **Canonical Health Data（统一健康数据）**：规范化设备与手工记录；底层保留来源追溯，日常界面保持产品语言。
-- **LLM 语义辅助**：用于信息整理、文档理解、语义辅助和知识检索，不替代医学判断。
-- **Deterministic Risk Engine（确定性风险引擎）**：由受治理的代码规则执行分流，并将事项路由给合适的人。
-- **Human-in-the-loop（人工在环）**：明确健康管理师动作、医生复核、负责人、期限与下一步。
-- **长期健康时间轴**：串联发生了什么、团队如何处理、后续结果如何变化。
-- **受治理的医学知识库 / RAG**：支持来源、审核状态、知识分块、APPROVED-only 检索，以及 AI 回答实际使用 Chunk 的审计记录。
-- **有依据的 AI 解释**：所有用户可见生成式解释必须引用真实事实依据和/或已批准知识 Chunk；依据不足时明确拒答，不用模型记忆补全。
-- **受治理的人工反馈**：人工纠错只有在审核和去标识化后，才能形成不可变的离线评测或 Prompt 优化数据集；不进行在线学习或自动部署。
-- **外部知识适配器**：合作方知识库提供来源完整的 Chunk，HealthOps 负责引用校验、使用审计、本地 SOP 回退与无来源拒答；平台不再自行扩建大型外部医学知识库。
-- **轻量集成与数据中心**：管理员可用业务语言检查、预览并确认 ZIP、CSV、XLSX 或 JSON 健康数据包；AI、合作方知识和设备连接保持轻量状态与测试入口。
-- **可重复的 Portfolio Demo**：使用隔离的 synthetic 数据库，围绕匿名成员 **Demo Executive A** 展示完整故事。
+1. **体检报告结构化**：将报告整理成可审核的发现、健康观测和复查候选；未经人工确认的 AI 结果不会成为正式健康事实。
+2. **依据追溯**：在可用时把展示事实连接回原始文件、页码、表格行、原始片段、设备记录或人工记录。
+3. **统一健康数据**：规范报告、设备与人工录入的观测数据，同时保留原始来源和明确单位。
+4. **确定性风险引擎**：由受治理的代码规则创建 `RiskEvent`，并支持数据不足或灰色状态；LLM 不决定风险等级。
+5. **统一运营工作台**：用同一套业务契约呈现负责人、SLA、下一步、医生依赖和服务跟进。
+6. **健管与医生协同**：运营责任归健康管理师，医学判断归持证医生。
+7. **计划 / 任务 / 服务 / 结果**：把问题转成有人负责的行动，追踪交付，保留完成依据和结果，并启动下一步随访。
+8. **长期健康时间轴**：将报告、基线变化、风险、用药、重要医疗事件、医生判断、计划、服务和 Outcome 投影为长期健康记录。
+9. **轻量集成与数据中心**：管理员可以用业务语言检查、预览并确认 CSV、XLSX、ZIP 或 JSON 数据包，不接触数据库细节。
+10. **有依据的 AI 与反馈治理**：用户可见 AI 解释必须有真实来源；人工纠错只进入离线、受审核、需人工批准的改进流程。
 
 ## 产品体验
 
-Portfolio Demo 围绕可重复的匿名成员故事展开，而不是一组互不相干的功能页面。
+### 健康管理师工作台
 
-### 健康运营工作台
+![健康管理师工作台](docs/images/healthops-dashboard.png)
 
-![健康运营工作台](docs/images/healthops-dashboard.png)
-
-工作台将运营优先级、轻量 KPI、成员上下文与下一步跟进动作集中在同一视图，帮助健康管理师判断当天先处理什么。
+工作台直接回答今天先处理谁、为什么处理、下一步由谁负责，以及什么时候到期。
 
 ### 成员健康总览
 
 ![成员健康总览](docs/images/healthops-member-overview.png)
 
-成员总览把当前问题、健康观测、计划任务、负责人和后续跟进收敛为简洁的长期健康管理记录。
+成员上下文汇总已确认健康事实、当前问题、计划、任务和下一项责任动作。
 
-### 医生复核与证据追溯
+### 医生复核与依据
 
-![医生复核与证据追溯](docs/images/healthops-doctor-review.png)
+![医生复核与依据](docs/images/healthops-doctor-review.png)
 
-医生在带有来源依据的上下文中完成医学判断。AI 负责整理信息，不会自主做出医学决策。
+医生围绕明确问题查看相关依据，并把人工医学判断返回运营闭环。
 
-### 长期健康时间线
+### 长期健康档案
 
-![长期健康时间线](docs/images/healthops-timeline.png)
+![长期健康档案](docs/images/healthops-timeline.png)
 
-时间线串联体检、风险、健管跟进、医生复核、任务、计划与阶段结果，呈现持续演进的健康记录。
+时间轴说明什么时候发生了什么、依据是什么、谁处理、交付了什么，以及后来发生了什么。
 
-### 医学知识中心
+## 集成与数据中心
 
-![医学知识中心](docs/images/healthops-knowledge-center.png)
+管理员入口为：**运营后台 → 更多 → 系统 → 集成与数据**。合作方和设备提供的结构化文件统一经过受控流程：
 
-知识中心以来源归属和审核状态治理 RAG 参考资料，并为有依据的回答提供真实引用；它是解释与检索依据，不是可自动执行的医疗逻辑。更广泛的 AI 助手界面仍属于渐进式能力。
+```text
+上传 → 检查 → 预览 → 确认 → 标准化 → 写入
+```
 
-## 系统架构（Architecture）
+- 数据包支持 **CSV、XLSX、ZIP 和 JSON**，具备重复保护、成员匹配、单位/日期检查和导入审计。
+- 设备批量文件与未来合作方 API 最终进入同一套标准化导入与验证层，不重复建设业务逻辑。
+- 设备接口边界覆盖 Apple Health、血压、CGM、体重、心率、睡眠和活动；真实厂商 API 属于后续集成。
+- 外部医学知识通过 Partner Knowledge Adapter 消费。HealthOps 负责来源校验、引用展示、使用审计、本地 SOP 回退和无来源拒答，不复制完整外部医学知识库。
+
+## 线下服务闭环
+
+专业服务使用明确的责任交付流程：
+
+```text
+触发 → 核对 → 决策 → 安排 → 交付 → 结果 → 回写
+```
+
+服务事项保留客户、负责人、可用时的服务方、预约时间、SLA、完成依据、结果和下一步。服务完成后回到成员档案、计划和时间轴，必要时创建后续任务。
+
+## 系统架构
 
 ```mermaid
 flowchart TB
-    M[成员健康中心] --> P[HealthOps 应用服务]
-    O[健康管理师与内部医生] --> P
-    D[设备与连续健康数据] --> C[Canonical Health Data]
-    R[体检报告与医疗资料] --> X[解析、候选与依据]
-    L[可配置 LLM Provider] -.可选语义辅助.-> X
-    C --> P
-    X --> P
-    P --> K[确定性风险分流]
-    K --> W[人工健康运营与医疗协同]
-    W --> T[计划、服务、结果与健康时间轴]
-    N[合作方知识 + 已批准内部SOP] -.带归属的检索引用.-> P
+    M[客户界面] --> A[HealthOps 应用层]
+    H[健康管理师界面] --> A
+    D[医生界面] --> A
+
+    A --> C[Observation 与 Evidence]
+    A --> R[RiskEvent 与 Worklist]
+    A --> W[Plan / Task / Service / Outcome]
+    A --> T[长期健康 Timeline]
+
+    C --> DB[(SQLAlchemy 持久化)]
+    R --> DB
+    W --> DB
+
+    AI[本地或兼容 LLM 接口] -.语义辅助.-> A
+    K[合作方知识 + 已批准本地 SOP] -.有依据检索.-> A
+    V[设备与数据包接口] --> C
 ```
 
-更详细的源码层架构请见 [架构文档](docs/architecture/README.md)。
+业务实体是真实来源。Dashboard 和 Timeline 是投影；UI 状态与 AI 输出都不是临床事实。详见[架构文档](docs/architecture/README.md)与 [BP 产品对齐说明](docs/BP_PRODUCT_ALIGNMENT.md)。
 
-## AI 与确定性逻辑边界
+## 有依据的 AI 与安全边界
 
-AI 用于**信息整理、语义辅助、文档理解和医学知识检索**。它不自主诊断、不处方、不停药、不调整剂量，也不决定风险等级。
+可配置 LLM 接口支持本地模型和 OpenAI-compatible API。AI 可以辅助语义提取、摘要、草稿和知识解释，但不能诊断、处方、停药或改药、决定转诊，也不能给出 GREEN / YELLOW / RED / GRAY 风险等级。
 
-确定性应用代码负责**风险规则、工作流状态流转、状态管理、来源追溯和审计行为**。健康管理师负责协调信息与后续动作，医生保留医学判断权。
+- 涉及成员事实的内容必须有 **Fact Evidence（事实依据）**。
+- 涉及医学、健康或流程解释的内容必须有已批准的 **Knowledge Evidence（知识依据）**。
+- 没有足够的已批准知识时执行 **No-source refusal（无来源拒答）**，不使用模型记忆补全。
+- 临床风险规则采用独立版本和审核治理；AI 反馈不能创建或启用规则。
+- 人工确认的纠错可在审核和去标识化后进入不可变的离线评测或 Prompt 优化数据集；系统不在线学习，也不自动部署模型。
 
-LLM 接口是可配置、模型无关的：完成相应验证后可使用本地或兼容 API Provider。Qwen 是本地验证过的一个选项，但风险引擎与工作流层不依赖某个特定模型。
+## 工程实现
 
-## 工程实现（Engineering）
-
-| 层级 | 技术与实现方式 |
+| 领域 | 实现 |
 |---|---|
-| 产品界面 | Streamlit 成员健康中心与 HealthOps 运营工作台 |
+| 产品界面 | Streamlit 成员健康中心与运营工作台 |
 | API | FastAPI |
-| 持久化 | SQLAlchemy、Alembic、隔离 SQLite 演示数据库 |
-| 健康数据 | Canonical Observations、原始摄取追溯、报告候选项 |
-| AI | 可配置 LLM 接口，用于可选语义辅助 |
-| 知识库 | 来源治理、已批准 Chunk、关键词检索、AI 回答引用与实际使用 Chunk 审计 |
-| 质量保障 | pytest 自动化回归测试与 Streamlit 交互覆盖 |
+| 持久化 | SQLAlchemy、Alembic；隔离 SQLite 演示库与 PostgreSQL-ready 连接层 |
+| AI | 可配置本地 / 兼容 LLM 接口与有依据回答契约 |
+| 集成 | 文件、设备和合作方知识共用清晰 Adapter 边界 |
+| 质量 | pytest 回归套件与 Streamlit 交互测试 |
 
-## 安全边界（Safety Boundaries）
-
-- 系统不会自动诊断、开药、停药、调整剂量或替代医生决定。
-- LLM 不负责风险决策；正式临床规则需要独立的医学审核与版本治理。
-- 作品集风险会明确标记为 **TEST / 演示工作流规则**，不是 Clinical RiskRule。
-- 合作方知识与已批准的内部 SOP 仅作为参考依据，不会自动变成风险规则或治疗建议。
-- Apple Health 后端和 iOS HealthKit Bridge 源码已包含，但真实设备验证仍待完成。
-
-## 当前限制（Current Limitations）
-
-这是作品集原型，不是生产临床软件。生产级 Auth/RBAC、TLS 部署、PostgreSQL 多用户部署、正式临床规则治理、真实医院接口和 Apple Health 真机验证均不在当前范围内。
-
-## 快速开始（Quick Start）
-
-### Windows 环境准备
+## 快速开始
 
 ```powershell
+git clone https://github.com/KaedeharaT/executive-healthops.git
+cd executive-healthops
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-```
-
-### 启动隔离的 Portfolio Demo
-
-启动脚本包含 UTF-8 中文产品文案，建议使用 PowerShell 7（`pwsh`）：
-
-```powershell
 pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 ```
 
-启动脚本会构建隔离的 `data/portfolio_demo.db`，设置 `PORTFOLIO_DEMO=true`，并启动：
+启动脚本只创建隔离的 `data/portfolio_demo.db`，并启动 Streamlit（`http://127.0.0.1:8501`）和 FastAPI 文档（`http://127.0.0.1:8000/docs`）。演示成员、报告、观测、知识和工作流全部是可重复生成的匿名合成数据。
 
-- Streamlit：`http://127.0.0.1:8501`
-- 本地 FastAPI 文档：`http://127.0.0.1:8000/docs`
-
-它不会修改正常开发数据库。演示范围和安全说明见 [Portfolio 发布说明](portfolio/PORTFOLIO_RELEASE_NOTES.md)。
-
-Portfolio 重建会加入 12 份已批准的原创 Synthetic 内部 SOP、沟通、服务与 AI 安全资料。如需将同一批明确标注的演示知识安全加入普通开发数据库，可运行 `.\.venv\Scripts\python.exe scripts\seed_healthops_internal_knowledge.py`；现有知识不会被替换。这些资料用于有依据的流程问答，不代表医院正式制度。
-
-### 可选的 LLM 语义辅助
-
-LLM 语义辅助是可选能力。默认本地路径使用 Ollama；完成相应隐私评估后，也可在 `.env` 中配置兼容 API Provider：
-
-```dotenv
-LOCAL_LLM_ENABLED=true
-LOCAL_LLM_PROVIDER=local
-LOCAL_LLM_MODEL=<your-model>
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-```
-
-如使用兼容 API Provider，设置 `LOCAL_LLM_PROVIDER=openai_compatible`、`LLM_API_BASE=<provider-base-url>`、`LOCAL_LLM_MODEL=<your-model>`，并在需要时设置 `LLM_API_KEY`。除非完成隐私审查后显式设置 `ALLOW_EXTERNAL_PHI_LLM=true`，否则健康数据不会发送到外部端点。
-
-## 测试（Testing）
+## 测试
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-当前 v0.9.0 Portfolio 回归套件：**405 passed / 0 failed**。
+当前 v0.9.0 回归套件：**405 passed / 0 failed**。
 
-## 作品集资料（Portfolio Materials）
+## 当前限制
 
-- [简历项目描述（中文）](portfolio/RESUME_PROJECT_ENTRY_ZH.md)
-- [Demo 视频脚本（中文）](portfolio/DEMO_VIDEO_SCRIPT_ZH.md)
-- [Demo 数据说明](portfolio/DEMO_DATA_DESCRIPTION.md)
-- [Portfolio 发布说明](portfolio/PORTFOLIO_RELEASE_NOTES.md)
-- [使用逻辑审计](docs/USAGE_LOGIC_AUDIT.md)
+- 正式临床规则治理与临床验证尚未完成。
+- 真实设备厂商 API 与 Apple Health 真机验证仍待接入。
+- Portfolio Demo 尚未连接真实合作方知识服务。
+- 生产级 Auth/RBAC、TLS、密钥管理和 PostgreSQL 多用户部署尚未完成。
+- 医院系统、支付和生产服务商连接不在当前原型范围内。
+
+## 文档
+
+- [架构文档](docs/architecture/README.md)
+- [BP 产品对齐](docs/BP_PRODUCT_ALIGNMENT.md)
 - [AI 依据与引用策略](docs/AI_GROUNDING_AND_CITATION_POLICY.md)
 - [AI 反馈与离线改进](docs/AI_FEEDBACK_AND_IMPROVEMENT.md)
 - [知识适配器契约](docs/KNOWLEDGE_ADAPTER_CONTRACT.md)
+- [中文简历项目描述](portfolio/RESUME_PROJECT_ENTRY_ZH.md)
+- [Portfolio 发布说明](portfolio/PORTFOLIO_RELEASE_NOTES.md)
 
-`scripts/capture_portfolio.ps1` 是用于复现本地作品集截图的可选开发工具；它只把 Playwright 安装到 `.venv`，不属于应用运行时依赖。
+## 许可证与数据
 
-## 许可证与数据（License and Data）
-
-仓库不得提交真实成员资料、原始检查报告、数据库、上传文件、`.env` 或 token。作品集数据库和健康资料均由可重复构建的 synthetic fixture 生成。
-
-代码依据 [MIT License](LICENSE) 发布。MedlinePlus、RxNorm、openFDA、WHO ICD-11 及其他第三方医学知识来源仍适用各自的许可、归属和使用条款。
+仓库不包含真实成员资料、原始健康报告、数据库、上传文件或密钥。Portfolio 数据全部由可重复构建的 synthetic fixture 生成。代码依据 [MIT License](LICENSE) 发布；第三方医学来源仍适用各自的许可与归属要求。

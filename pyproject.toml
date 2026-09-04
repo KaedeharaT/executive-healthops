@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "executive-healthops"
 version = "0.9.0"
-description = "AI-assisted HealthOps platform for longitudinal health data, report intelligence, deterministic risk triage, and care-team workflows"
+description = "Proactive longitudinal HealthOps platform for reports, continuous health data, deterministic risk triage, care-team workflows, services, and long-term records"
 requires-python = ">=3.11"
 dependencies = [
     "SQLAlchemy>=2.0,<3.0",
