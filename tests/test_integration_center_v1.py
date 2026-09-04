@@ -9,7 +9,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import pandas as pd
 import pytest
 from sqlalchemy import create_engine, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from streamlit.testing.v1 import AppTest
 
 from executive_health_ai.models import Base, IngestionJob, KnowledgeDocument, Observation, Patient, RiskEvent
@@ -187,7 +187,7 @@ def test_integration_center_uses_business_copy_and_hides_connection_secrets() ->
     source = Path("streamlit_app.py").read_text(encoding="utf-8")
     shell = Path("src/executive_health_ai/ui/pages/shell.py").read_text(encoding="utf-8")
     center = source.split("def render_integration_center", 1)[1].split("def render_more_workspace", 1)[0]
-    for label in ("集成与数据", "数据导入", "AI服务", "专业知识", "设备接入", "上传数据包"):
+    for label in ("集成与数据", "数据导入", "AI服务", "专业知识服务", "设备接入", "上传数据包"):
         assert label in source
     assert 'type="password"' in source and "DATABASE_URL" not in center
     assert 'options = ["风险规则", "操作记录", "系统"]' in shell
@@ -207,3 +207,72 @@ def test_all_four_integration_modes_render_in_the_same_system_page() -> None:
         next(item for item in app.button if item.key == key).click()
         app.run(timeout=30)
         assert not app.exception
+
+
+def test_portfolio_admin_can_reach_and_use_integration_controls(monkeypatch, tmp_path) -> None:
+    database_path = (tmp_path / "ui-integration.db").as_posix()
+    monkeypatch.setenv("DATABASE_URL", f"sqlite+pysqlite:///{database_path}")
+    monkeypatch.setenv("PORTFOLIO_DEMO", "true")
+    from executive_health_ai import database
+
+    engine = create_engine(f"sqlite+pysqlite:///{database_path}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, class_=Session, expire_on_commit=False)
+    with session_factory() as session:
+        session.add(Patient(
+            external_id="portfolio-demo-executive-a",
+            display_name="匿名演示成员",
+            timezone="Asia/Tokyo",
+        ))
+        session.commit()
+    monkeypatch.setattr(database, "SessionLocal", session_factory)
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "streamlit_app.py")
+    app.run(timeout=30)
+    next(item for item in app.button if item.key == "portfolio-enter-ops").click()
+    app.run(timeout=30)
+    next(item for item in app.radio if item.label == "工作区").set_value("更多")
+    app.run(timeout=30)
+    next(item for item in app.button if item.key == "more-open-系统").click()
+    app.run(timeout=30)
+
+    assert "集成与数据" in "\n".join(str(item.value) for item in app.title)
+    assert {"integration-open-data", "integration-open-ai", "integration-open-knowledge", "integration-open-device"} <= {
+        item.key for item in app.button
+    }
+    next(item for item in app.button if item.key == "integration-open-data").click()
+    app.run(timeout=30)
+    uploader = next(item for item in app.get("file_uploader") if item.label == "拖拽文件到这里，或点击选择")
+    uploader.upload("synthetic_health_package.zip", build_synthetic_package(), "application/zip")
+    app.run(timeout=30)
+    next(item for item in app.button if item.key == "integration-data-inspect").click()
+    app.run(timeout=30)
+    assert any(item.key == "integration-data-confirm" for item in app.button)
+    next(item for item in app.button if item.key == "integration-data-confirm").click()
+    app.run(timeout=30)
+    assert not app.exception
+    with session_factory() as session:
+        observation_count = session.scalar(select(func.count()).select_from(Observation))
+        assert observation_count == 1, [str(item.value) for item in app.error]
+
+    next(item for item in app.button if item.key == "integration-open-ai").click()
+    app.run(timeout=30)
+    assert {"服务类型", "服务地址", "模型名称", "API Key"} <= {
+        item.label for item in [*app.radio, *app.text_input]
+    }
+    next(item for item in app.button if item.label == "测试连接").click()
+    app.run(timeout=30)
+    assert not app.exception
+
+    next(item for item in app.button if item.key == "integration-open-knowledge").click()
+    app.run(timeout=30)
+    assert "专业知识服务" in "\n".join(str(item.value) for item in app.markdown)
+    assert any(item.label == "测试连接" for item in app.button)
+    next(item for item in app.button if item.label == "测试连接").click()
+    app.run(timeout=30)
+    assert not app.exception
+
+    next(item for item in app.button if item.key == "integration-open-device").click()
+    app.run(timeout=30)
+    assert "设备接入" in "\n".join(str(item.value) for item in app.markdown)
+    assert any(item.label == "拖拽文件到这里，或点击选择" for item in app.get("file_uploader"))
+    assert not app.exception

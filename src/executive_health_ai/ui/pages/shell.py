@@ -52,7 +52,7 @@ def render_more_workspace_shell(
         entries = [
             ("风险规则", "查看已审核的风险与健康管理规则"),
             ("操作记录", "查看最近的人工处理记录"),
-            ("系统", "查看集成状态、导入数据和高级治理信息"),
+            ("系统", "进入“集成与数据”，上传数据包并查看各项连接状态"),
         ]
         for start in range(0, len(entries), 2):
             columns = st.columns(2)

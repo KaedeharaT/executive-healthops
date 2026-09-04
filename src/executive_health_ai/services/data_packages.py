@@ -17,7 +17,7 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from executive_health_ai.integrations.codes import canonical_code
+from executive_health_ai.integrations.codes import ObservationCode, canonical_code
 from executive_health_ai.integrations.normalization import normalize_unit
 from executive_health_ai.integrations.service import ingest
 from executive_health_ai.models import ExternalIdentity, IngestionJob, KnowledgeChunk, KnowledgeDocument, Patient
@@ -50,6 +50,20 @@ TYPE_FIELD_HINTS = {
     "members": {"姓名或显示名", "姓名", "display_name", "name"},
 }
 
+METRIC_IMPORT_ALIASES = {
+    "步数": "steps", "运动步数": "steps", "step count": "steps",
+    "睡眠时长": "sleep_duration", "总睡眠时间": "sleep_duration",
+    "心率": "heart_rate", "静息心率": "resting_heart_rate",
+    "血氧": "spo2", "血氧饱和度": "spo2",
+}
+
+METRIC_BUSINESS_NAMES = {
+    "systolic_bp": "收缩压", "diastolic_bp": "舒张压", "glucose": "血糖",
+    "hba1c": "糖化血红蛋白", "weight": "体重", "steps": "步数",
+    "sleep_duration": "睡眠时长", "heart_rate": "心率",
+    "resting_heart_rate": "静息心率", "spo2": "血氧饱和度",
+}
+
 SHEET_TYPES = {
     "成员": "members", "members": "members",
     "健康数据": "observations", "observations": "observations", "health_data": "observations",
@@ -80,6 +94,7 @@ class ImportPreviewRow:
     unit: str
     observed_at: str
     source: str
+    recognized_metric: str = "待确认"
     matched_member_id: str | None = None
 
 
@@ -173,6 +188,11 @@ def _canonical_fields(row: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def _observation_code(metric: Any) -> ObservationCode | None:
+    value = str(metric).strip()
+    return canonical_code(METRIC_IMPORT_ALIASES.get(value.lower(), value))
+
+
 def _infer_data_type(filename: str, rows: list[dict[str, Any]]) -> str:
     by_name = SHEET_TYPES.get(PurePosixPath(filename).stem.strip().lower())
     if by_name:
@@ -235,17 +255,19 @@ class DataPackageAdapter:
                 dates.append(observed)
             except ValueError:
                 inspection.issues.append(ImportIssue("采集时间格式无法识别或缺少时区", row_number=index))
-            if canonical_code(str(fields["metric"])) is None:
+            code = _observation_code(fields["metric"])
+            if code is None:
                 inspection.issues.append(ImportIssue(f"无法识别指标“{fields['metric']}”", row_number=index))
             else:
                 try:
-                    normalize_unit(canonical_code(str(fields["metric"])), fields["value"], str(fields.get("unit") or "") or None)  # type: ignore[arg-type]
+                    normalize_unit(code, fields["value"], str(fields.get("unit") or "") or None)
                 except ValueError:
                     inspection.issues.append(ImportIssue(f"数值或单位需要确认：{fields.get('value')} {fields.get('unit') or ''}".strip(), row_number=index))
             inspection.preview_rows.append(ImportPreviewRow(
                 member=str(fields.get("external_member_id") or "待确认"), metric=str(fields.get("metric") or "待确认"),
                 value=str(fields.get("value") or "未记录"), unit=str(fields.get("unit") or "待确认"),
                 observed_at=str(fields.get("observed_at") or "待确认"), source=str(fields.get("source") or inspection.source),
+                recognized_metric=METRIC_BUSINESS_NAMES.get(code.canonical_code, str(fields.get("metric"))) if code else "待确认",
             ))
         inspection.member_count = len(members)
         if dates:
@@ -474,6 +496,10 @@ class HealthDataImportService:
                     pending += 1
                     continue
                 external_id = str(fields["external_member_id"])
+                code = _observation_code(fields["metric"])
+                if code is None:
+                    pending += 1
+                    continue
                 override = (member_overrides or {}).get(external_id)
                 member = session.get(Patient, UUID(override)) if override and override != "CREATE_DRAFT" else None
                 if override == "CREATE_DRAFT":
@@ -488,7 +514,7 @@ class HealthDataImportService:
                     continue
                 payload = {"records": [{
                     "id": hashlib.sha256((inspection.package_hash + json.dumps(row, sort_keys=True, ensure_ascii=False)).encode("utf-8")).hexdigest()[:32],
-                    "metric": fields["metric"], "value": fields["value"], "unit": fields.get("unit") or None,
+                    "metric": code.canonical_code, "value": fields["value"], "unit": fields.get("unit") or None,
                     "observed_at": fields["observed_at"],
                 }]}
                 summary = ingest(session, "json", payload, member_id=member.id, created_by=imported_by)

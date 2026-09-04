@@ -215,7 +215,7 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-当前 v0.9.0 Portfolio 回归套件：**404 passed / 0 failed**。
+当前 v0.9.0 Portfolio 回归套件：**405 passed / 0 failed**。
 
 ## 作品集资料（Portfolio Materials）
 

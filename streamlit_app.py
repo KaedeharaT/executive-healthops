@@ -3416,7 +3416,7 @@ def _integration_card(title: str, status: str, description: str, mode: str, key:
         st.caption(description)
         action_label = {
             "数据导入": "上传数据包", "AI服务": "配置",
-            "专业知识": "查看服务", "设备接入": "查看接入",
+            "专业知识服务": "配置", "设备接入": "导入设备数据",
         }.get(mode, "打开")
         if st.button(action_label, key=key, type="primary" if mode == "数据导入" else "secondary", width="stretch"):
             st.session_state["integration-center-mode"] = mode
@@ -3496,7 +3496,7 @@ def _render_data_package_import(*, key_prefix: str, title: str = "上传数据�
     if preview:
         with st.expander("查看前20条"):
             st.dataframe(pd.DataFrame([{
-                "成员": row.member, "指标": row.metric, "数值": row.value,
+                "成员": row.member, "原始名称": row.metric, "平台识别": row.recognized_metric, "数值": row.value,
                 "单位": row.unit, "采集时间": row.observed_at, "来源": row.source,
             } for row in preview]), hide_index=True, width="stretch")
     with SessionLocal() as session:
@@ -3536,7 +3536,12 @@ def _render_data_package_import(*, key_prefix: str, title: str = "上传数据�
             st.error("数据包未能导入，所有变更已撤回；现有健康数据没有受到影响。")
     result = st.session_state.get(f"{key_prefix}-import-result")
     if result:
-        st.success("导入完成。健康数据已进入标准化、质量检查和现有健康运营流程。")
+        if result.status == "FAILED":
+            st.warning("本次没有写入健康数据。请处理待确认项目后重新导入；现有数据未受影响。")
+        elif result.status == "PARTIAL_SUCCESS":
+            st.warning("数据包已部分导入；其余记录保留为待人工确认，不会被当作正式健康事实。")
+        else:
+            st.success("导入完成。健康数据已进入标准化、质量检查和现有健康运营流程。")
         columns = st.columns(4)
         columns[0].metric("成员", result.members)
         columns[1].metric("新增健康数据", result.created)
@@ -3681,7 +3686,7 @@ def render_integration_center() -> None:
     with cards[1]:
         _integration_card("AI服务", "已连接" if llm.enabled and llm.model else "未配置", "用于报告整理、摘要与有依据的解释。", "AI服务", "integration-open-ai")
     with cards[2]:
-        _integration_card("专业知识", "已连接" if partner_ready else "本地规范可用", "连接外部专业知识并保留真实出处。", "专业知识", "integration-open-knowledge")
+        _integration_card("专业知识服务", "已连接" if partner_ready else "本地规范可用", "连接外部专业知识并保留真实出处。", "专业知识服务", "integration-open-knowledge")
     with cards[3]:
         _integration_card("设备接入", "接口已准备", "查看连接状态或批量导入设备数据。", "设备接入", "integration-open-device")
     mode = st.session_state.get("integration-center-mode", "数据导入")
@@ -3693,7 +3698,7 @@ def render_integration_center() -> None:
         _render_data_package_import(key_prefix="integration-data")
     elif mode == "AI服务":
         _render_ai_service_integration()
-    elif mode == "专业知识":
+    elif mode == "专业知识服务":
         _render_knowledge_service_integration()
     else:
         _render_device_integration()

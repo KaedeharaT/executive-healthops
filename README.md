@@ -214,7 +214,7 @@ For a compatible API provider, set `LOCAL_LLM_PROVIDER=openai_compatible`, `LLM_
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current v0.9.0 portfolio regression suite: **404 passed / 0 failed**.
+Current v0.9.0 portfolio regression suite: **405 passed / 0 failed**.
 
 ## Portfolio Materials
 
