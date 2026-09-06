@@ -9,7 +9,7 @@
 - 设计“采集 → 判断 → 分级 → 人工确认 → 行动 → 结果回写 → 周期复盘 → 下一轮”的责任闭环，面向客户、健康管理师和持证医生提供职责清晰的差异化产品视图。
 - 构建报告与设备数据链路：保留原始 Evidence，将人工确认后的内容规范为 Canonical Health Data，再由确定性规则生成 `RiskEvent` 并进入统一 `Operational Worklist`；LLM 不参与风险决策。
 - 实现 Plan / Task / Doctor Review / Service / Outcome / Timeline 协同，明确 Owner、SLA、下一动作、完成依据与结果回写，使零散健康事件形成可追踪的长期健康记录。
-- 基于 Python、Streamlit、FastAPI、SQLAlchemy 和 Alembic 实现可运行原型，并加入 CSV / XLSX / ZIP / JSON 数据包导入、设备与合作方知识 Adapter、有依据的 AI 引用契约和人工反馈离线治理；当前回归套件为 **405 passed / 0 failed**。
+- 基于 Python、Streamlit、FastAPI、SQLAlchemy 和 Alembic 实现可运行原型，并加入 CSV / XLSX / ZIP / JSON 数据包导入、设备与合作方知识 Adapter、有依据的 AI 引用契约、人工反馈离线治理和有边界的长期健康运营编排；当前回归套件为 **412 passed / 0 failed**。
 
 ## 详细项目亮点
 

@@ -21,6 +21,7 @@ from executive_health_ai.ai.doctor_brief_agent import build_doctor_brief
 from executive_health_ai.blood_pressure import TOKYO_TIMEZONE, build_blood_pressure_records
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.models import (
+    AgentApprovalRequest, AgentEvent, AgentGoal, AgentPlan, AgentPlanStep, AgentRunTrace,
     Alert, AnnualHealthAccount, AuditLog, Document, DoctorReview, ExecutionBarrier, FollowUp,
     HealthEvent, HealthJourney, HealthProblem, HealthProgram, ManagementPlan, MedicationEvent,
     ExternalIdentity, IngestionJob, KnowledgeChunk, KnowledgeDocument, KnowledgeReviewAudit, KnowledgeSourceRegistry, KnowledgeUseRecord, RiskEvent, RiskRule, EmergencyContact, MedicationPlan, Observation, OutcomeEvaluation, Patient, RawIngestionRecord, ProgramPhase, ReportExtractionCandidate, ReportExtractionRun, Task, WeeklyReview, SleepSession,
@@ -65,6 +66,8 @@ from executive_health_ai.services.data_packages import (
 from executive_health_ai.services.knowledge_adapters import ExternalPartnerKnowledgeAdapter, KnowledgeAdapterError
 from executive_health_ai.llm.local_llm_client import LocalLLMClient, LocalLLMSettings
 from executive_health_ai.services.chronic_care import apply_outcome_decision, complete_outcome_doctor_review
+from executive_health_ai.agent.supervisor import GOAL_LABELS, HealthOpsAgentSupervisor
+from executive_health_ai.services.event_service import EventService
 from executive_health_ai.services.workflow import (
     close_alert_as_false_positive, complete_follow_up, confirm_alert_as_manager,
     create_operational_task, record_doctor_review,
@@ -79,6 +82,7 @@ TECHNICAL_DETAILS_ENABLED = (
     not PORTFOLIO_DEMO_ENABLED
     and os.getenv("HEALTHOPS_TECHNICAL_DETAILS", "").lower() in {"1", "true", "yes"}
 )
+AGENT_SUPERVISOR_ENABLED = PORTFOLIO_DEMO_ENABLED or os.getenv("AGENT_SUPERVISOR_ENABLED", "false").lower() in {"1", "true", "yes"}
 
 DATA_STATUS_LABELS = {
     "normal": "数据完整，可进行趋势分析",
@@ -361,6 +365,90 @@ def _member_display(member: Patient | None) -> str:
     if member is None:
         return "未匹配成员"
     return member.display_name or "未命名成员"
+
+
+def _active_agent_goal(session, member_id: UUID) -> AgentGoal | None:
+    return session.scalar(select(AgentGoal).where(
+        AgentGoal.member_id == member_id,
+        AgentGoal.status.in_(("ACTIVE", "WAITING", "BLOCKED")),
+    ).order_by(AgentGoal.started_at.desc()))
+
+
+def _publish_agent_event(session, *, event_type: str, member_id: UUID, source_type: str, source_id: object, summary: str, actor: str) -> None:
+    """Wake the optional worker path without exposing orchestration to UI code."""
+    if not AGENT_SUPERVISOR_ENABLED:
+        return
+    event, _ = EventService().publish(
+        session, event_type=event_type, member_id=member_id, source_type=source_type,
+        source_id=str(source_id), payload_summary=summary, metadata={"actor": actor},
+    )
+    HealthOpsAgentSupervisor().receive_event(session, event)
+
+
+def _render_member_automation_status(member_id: UUID, *, audience: str) -> None:
+    with SessionLocal() as session:
+        goal = _active_agent_goal(session, member_id)
+    if goal is None:
+        return
+    title = "持续管理状态" if audience == "member" else "自动跟进状态"
+    with section_frame(title, "系统按既定流程检查进度；医学判断仍由医生完成。"):
+        st.markdown(f"**{goal.title.replace('闭环', '')}** · {GOAL_LABELS.get(goal.status, '进行中')}")
+        st.write(f"当前阶段：{goal.current_stage}")
+        st.caption(f"下一步：{goal.next_action or '健康管理团队继续跟进'} · 负责人：{goal.owner or '健康管理团队'}")
+        if goal.next_check_at:
+            st.caption("下一检查：" + _fmt_dt(goal.next_check_at))
+
+
+def _render_admin_automation() -> None:
+    with SessionLocal() as session:
+        goals = list(session.scalars(select(AgentGoal).where(AgentGoal.status.in_(("ACTIVE", "WAITING", "BLOCKED"))).order_by(AgentGoal.started_at.desc()).limit(100)))
+        members = {item.id: item for item in session.scalars(select(Patient).where(Patient.id.in_({goal.member_id for goal in goals})))} if goals else {}
+        pending_approvals = list(session.scalars(select(AgentApprovalRequest).where(AgentApprovalRequest.status == "PENDING").order_by(AgentApprovalRequest.requested_at)))
+    with section_frame("自动化运营", "查看长期目标的当前等待状态；待办仍统一进入今日工作台。"):
+        _status_strip(
+            ("进行中", sum(goal.status == "ACTIVE" for goal in goals), "action"),
+            ("等待成员", sum("成员" in goal.current_stage for goal in goals), "neutral"),
+            ("等待健管", sum("健康管理师" in goal.current_stage for goal in goals), "attention"),
+            ("等待医生", sum("医生" in goal.current_stage for goal in goals), "attention"),
+            ("等待时间", sum("下一次复核" in goal.current_stage for goal in goals), "neutral"),
+            ("需要处理", sum(goal.status == "BLOCKED" for goal in goals), "urgent"),
+        )
+        if not goals:
+            _empty_state("暂无进行中的长期目标", "新体检报告进入人工确认后，自动跟进状态会显示在这里。")
+        else:
+            st.dataframe(pd.DataFrame([{
+                "成员": _member_display(members.get(goal.member_id)), "目标": goal.title,
+                "当前阶段": goal.current_stage, "状态": GOAL_LABELS.get(goal.status, "进行中"),
+                "负责人": goal.owner or "待分配", "下一检查": _fmt_dt(goal.next_check_at) if goal.next_check_at else "待事件触发",
+                "开始时间": _fmt_dt(goal.started_at),
+            } for goal in goals]), hide_index=True, width="stretch")
+            selected = st.selectbox("查看目标", goals, format_func=lambda item: f"{_member_display(members.get(item.member_id))} · {item.title}", key="agent-admin-goal")
+            st.write(f"**当前等待：** {selected.current_stage}")
+            st.caption("下一步：" + (selected.next_action or "等待人工确认"))
+            actions = st.columns(3)
+            if actions[0].button("人工接手", key=f"agent-pause-{selected.id}"):
+                with SessionLocal() as session:
+                    HealthOpsAgentSupervisor().pause_goal(session, selected.id, actor="管理员", reason="管理员在系统页面人工接手")
+                    session.commit()
+                st.success("自动跟进已暂停，当前事项保留供人工处理。"); st.rerun()
+            if actions[1].button("恢复自动跟进", key=f"agent-resume-{selected.id}"):
+                with SessionLocal() as session:
+                    HealthOpsAgentSupervisor().resume_goal(session, selected.id, actor="管理员")
+                    session.commit()
+                st.success("已恢复自动跟进。"); st.rerun()
+            if actions[2].button("取消目标", key=f"agent-cancel-{selected.id}"):
+                with SessionLocal() as session:
+                    HealthOpsAgentSupervisor().cancel_goal(session, selected.id, actor="管理员", reason="管理员取消本次自动跟进")
+                    session.commit()
+                st.success("目标已取消并保留审计记录。"); st.rerun()
+        if pending_approvals:
+            st.caption(f"当前有 {len(pending_approvals)} 项等待人工确认。")
+        with st.expander("高级信息"):
+            st.caption("仅管理员排障使用；普通成员、健管与医生页面不会显示技术执行明细。")
+            if goals:
+                with SessionLocal() as session:
+                    traces = list(session.scalars(select(AgentRunTrace).where(AgentRunTrace.goal_id == goals[0].id).order_by(AgentRunTrace.started_at.desc()).limit(20)))
+                st.dataframe(pd.DataFrame([{"动作": row.action, "状态": row.status, "时间": _fmt_dt(row.started_at), "结果": row.result_summary or row.error_summary or "已记录"} for row in traces]), hide_index=True, width="stretch")
 
 
 def _render_timed(page_name: str, renderer) -> None:
@@ -1535,6 +1623,16 @@ def render_manager_dashboard() -> None:
         ("等待医生", sum(item.status == "等待医生" for item in work_items), "action"),
         ("服务待完成", sum(item.source_type == "service_request" for item in work_items), "action"),
     )
+    with SessionLocal() as session:
+        active_automation = list(session.scalars(select(AgentGoal).where(
+            AgentGoal.status.in_(("ACTIVE", "WAITING", "BLOCKED")),
+        ).order_by(AgentGoal.started_at.desc()).limit(5)))
+    if active_automation:
+        with st.expander(f"自动跟进状态 · {len(active_automation)} 项", expanded=False):
+            for goal in active_automation:
+                member = patients.get(goal.member_id)
+                st.markdown(f"**{_member_display(member)} · {goal.title}**")
+                st.caption(f"{goal.current_stage} · 下一步：{goal.next_action or '等待人工确认'} · 负责人：{goal.owner or '待分配'}")
 
     filters = {
         "全部事项": lambda item: True,
@@ -1835,6 +1933,10 @@ def _format_observation_value(observation: Observation) -> str:
 
 def render_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]) -> None:
     st.subheader("医生复核")
+    with SessionLocal() as session:
+        automation_goal = _active_agent_goal(session, patient.id)
+    if automation_goal and "医生" in automation_goal.current_stage:
+        st.info(f"来源：{automation_goal.title} · 当前需要：医学复核。完成后由健康管理师继续执行。")
     yellow_pending = [item for item in ctx["reviews"] if item.status == "PENDING" and item.risk_event_id]
     if yellow_pending:
         st.markdown("#### 来自健康数据自动监测的待复核")
@@ -1863,7 +1965,8 @@ def render_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]) -> Non
             if submit:
                 try:
                     with SessionLocal() as session:
-                        RiskOperationsService().complete_doctor_review(session, review.id, doctor, department, opinion, instruction, datetime.combine(due, time(9, 0), tzinfo=TOKYO_TIMEZONE))
+                        completed_review, _ = RiskOperationsService().complete_doctor_review(session, review.id, doctor, department, opinion, instruction, datetime.combine(due, time(9, 0), tzinfo=TOKYO_TIMEZONE))
+                        _publish_agent_event(session, event_type="DOCTOR_REVIEW_COMPLETED", member_id=completed_review.patient_id, source_type="doctor_review", source_id=completed_review.id, summary="医生已完成人工医学复核", actor=doctor)
                         session.commit()
                     st.success("已保存医生人工复核，并创建关联跟进任务。")
                     st.rerun()
@@ -3706,6 +3809,7 @@ def render_integration_center() -> None:
         st.write("SQLite（当前）")
         st.caption(f"连接状态：正常 · 数据版本：{'最新' if revision else '待检查'} · 备份：{'可用' if (Path('data/backups').exists()) else '未配置'}")
         st.caption("数据库连接信息由部署环境管理，不在业务页面中修改或显示。")
+    _render_admin_automation()
 
 
 def render_more_workspace() -> None:
@@ -4210,7 +4314,15 @@ def _render_report_observation_actions(candidate: ReportExtractionCandidate, *, 
             return
         if st.button("确认入档", key=f"{key_scope}-confirm-{candidate.id}", type="primary"):
             with SessionLocal() as session:
-                ReportParsingService().confirm_candidate(session, session.get(ReportExtractionCandidate, candidate.id), "health_manager"); session.commit()
+                stored = session.get(ReportExtractionCandidate, candidate.id)
+                ReportParsingService().confirm_candidate(session, stored, "health_manager")
+                pending = session.scalar(select(func.count(ReportExtractionCandidate.id)).where(
+                    ReportExtractionCandidate.document_id == stored.document_id,
+                    ReportExtractionCandidate.status == "PENDING_REVIEW",
+                ))
+                if not pending:
+                    _publish_agent_event(session, event_type="REPORT_CONFIRMED", member_id=stored.patient_id, source_type="document", source_id=stored.document_id, summary="体检报告候选资料已完成人工确认", actor="健康管理师")
+                session.commit()
             st.rerun()
         with st.expander("其他处理"):
             if st.button("忽略", key=f"{key_scope}-reject-{candidate.id}"):
@@ -4299,6 +4411,7 @@ def render_report_upload(patient: Patient, *, key_prefix: str) -> None:
             def parse(progress_callback):
                 with SessionLocal() as session:
                     document, run, duplicate = ReportParsingService().upload_and_parse(session, patient.id, uploaded.name, uploaded.getvalue(), "health_manager", progress_callback=progress_callback)
+                    _publish_agent_event(session, event_type="REPORT_UPLOADED", member_id=patient.id, source_type="document", source_id=document.id, summary="健康管理师上传体检报告", actor="健康管理师")
                     session.commit()
                     return document, run, duplicate
             document, run, duplicate = _run_report_parse_with_progress(parse)
@@ -4372,6 +4485,7 @@ def render_member_detail(patient: Patient) -> None:
         st.rerun()
     summary_ctx = _member_summary_context(patient.id)
     _render_member_header(patient, summary_ctx)
+    _render_member_automation_status(patient.id, audience="manager")
     section = st.radio(
         "成员页面", ["概览", "管理", "健康", "医疗", "历程"],
         horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",
@@ -5328,6 +5442,7 @@ def render_member_report_upload(patient: Patient) -> None:
                         session, patient.id, uploaded.name, uploaded.getvalue(), "member_surface", progress_callback=progress_callback,
                     )
                     HealthAssessmentService().ensure_report_review_task(session, patient.id, document)
+                    _publish_agent_event(session, event_type="REPORT_UPLOADED", member_id=patient.id, source_type="document", source_id=document.id, summary="成员上传体检报告", actor="成员本人")
                     session.commit()
                     return document, run, duplicate
             document, _, duplicate = _run_report_parse_with_progress(parse)
@@ -5577,6 +5692,7 @@ def _render_client_home(patient: Patient, ctx: dict[str, list[object]]) -> None:
         f"{html.escape(reason or '当前没有正式风险评估；其他主要指标会随确认资料持续更新。')}</div></div>",
         unsafe_allow_html=True,
     )
+    _render_member_automation_status(patient.id, audience="member")
     active_tasks = sorted(
         (item for item in ctx["tasks"] if item.status not in {"COMPLETED", "CANCELLED"}),
         key=lambda item: (item.due_at is None, item.due_at or datetime.max.replace(tzinfo=TOKYO_TIMEZONE)),

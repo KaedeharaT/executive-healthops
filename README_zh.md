@@ -120,6 +120,10 @@ flowchart LR
 
 服务事项保留客户、负责人、可用时的服务方、预约时间、SLA、完成依据、结果和下一步。服务完成后回到成员档案、计划和时间轴，必要时创建后续任务。
 
+## 有边界的长期自主编排
+
+V1 Agent Supervisor 只演示一条需要人工审批、由事件驱动的长期流程：体检后管理。它可以保存长期目标，调用有权限边界的 HealthOps 工具，等待成员、健康管理师、医生、外部事件或约定时间，再通过有限重试和可审计的重新规划继续执行。Planner 使用确定性安全模板；它不能诊断、处方、决定临床风险、修改 `RiskRule`，也不能绕过人工审批。
+
 ## 系统架构
 
 ```mermaid
@@ -183,7 +187,7 @@ pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-当前 v0.9.0 回归套件：**405 passed / 0 failed**。
+当前 v0.9.0 回归套件：**412 passed / 0 failed**。
 
 ## 当前限制
 

@@ -287,6 +287,8 @@ def _customize_portfolio_data() -> dict[str, int]:
     from executive_health_ai.services.member_services import MemberServiceOperations
     from executive_health_ai.services.bp_product import CONSENT_SCOPES, ConsentService
     from executive_health_ai.services.risk_operations import RiskOperationsService
+    from executive_health_ai.agent.supervisor import HealthOpsAgentSupervisor
+    from executive_health_ai.services.event_service import EventService
 
     with SessionLocal() as session:
         patient = session.scalar(select(Patient).where(Patient.external_id == "demo-executive-001"))
@@ -365,6 +367,16 @@ def _customize_portfolio_data() -> dict[str, int]:
             ))
         _add_knowledge_demo(session)
         _add_ai_feedback_demo(session, patient.id)
+        # Demonstrate the durable orchestration at a real human boundary: the
+        # report is confirmed, the deterministic risk already exists, and the
+        # goal now waits for a health manager to take ownership.
+        report = session.scalar(select(Document).where(Document.patient_id == patient.id).order_by(Document.created_at.desc()))
+        if report is not None:
+            supervisor = HealthOpsAgentSupervisor()
+            uploaded, _ = EventService().publish(session, event_type="REPORT_UPLOADED", member_id=patient.id, source_type="document", source_id=report.id, payload_summary="Synthetic portfolio report uploaded", metadata={"actor": "Demo Executive A"})
+            supervisor.receive_event(session, uploaded)
+            confirmed, _ = EventService().publish(session, event_type="REPORT_CONFIRMED", member_id=patient.id, source_type="document", source_id=report.id, payload_summary="Synthetic report human-confirmed", metadata={"actor": "演示健康管理师"})
+            supervisor.receive_event(session, confirmed)
         session.commit()
 
         return {

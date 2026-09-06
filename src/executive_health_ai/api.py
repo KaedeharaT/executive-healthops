@@ -14,7 +14,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from executive_health_ai.database import SessionLocal
-from executive_health_ai.models import Alert, Document, DoctorReview, ExecutionBarrier, FollowUp, HealthJourney, HealthProblem, HealthProgram, IngestionJob, Observation, OutcomeEvaluation, Patient, ProgramPhase, RawIngestionRecord, ReportExtractionCandidate, ReportExtractionRun, RiskEvent, Task, WeeklyReview
+from executive_health_ai.models import AgentApprovalRequest, AgentEvent, AgentGoal, AgentPlan, AgentPlanStep, AgentRunTrace, Alert, Document, DoctorReview, ExecutionBarrier, FollowUp, HealthJourney, HealthProblem, HealthProgram, IngestionJob, Observation, OutcomeEvaluation, Patient, ProgramPhase, RawIngestionRecord, ReportExtractionCandidate, ReportExtractionRun, RiskEvent, Task, WeeklyReview
+from executive_health_ai.agent.contracts import AgentApprovalDecision, AgentControlRequest, AgentEventCreate, AgentGoalCreate, AgentGoalView
+from executive_health_ai.agent.supervisor import HealthOpsAgentSupervisor
+from executive_health_ai.services.event_service import EventService
 from executive_health_ai.schemas import (
     AlertOut, DashboardOut, DoctorReviewCreate, DoctorReviewOut, DocumentCreate, DocumentOut,
     FollowUpCreate, FollowUpOut, HealthProblemOut, ManagerConfirmation, MemberOut,
@@ -65,9 +68,93 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
         if authorization != f"Bearer {expected}":
             raise HTTPException(status_code=401, detail="Invalid bridge authorization.")
 
+    def publish_agent_event(session: Session, *, event_type: str, member_id: UUID, source_type: str, source_id: object, summary: str, actor: str) -> None:
+        enabled = os.getenv("AGENT_SUPERVISOR_ENABLED", "false").lower() in {"1", "true", "yes"} or os.getenv("PORTFOLIO_DEMO", "false").lower() in {"1", "true", "yes"}
+        if not enabled:
+            return
+        event, _ = EventService().publish(session, event_type=event_type, member_id=member_id, source_type=source_type, source_id=str(source_id), payload_summary=summary, metadata={"actor": actor})
+        HealthOpsAgentSupervisor().receive_event(session, event)
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "medical_safety": "human_review_required"}
+
+    @app.post("/agent/events", status_code=status.HTTP_201_CREATED, tags=["自动化运营"])
+    def receive_agent_event(payload: AgentEventCreate, session: Session = Depends(get_session)) -> dict[str, object]:
+        member_or_404(session, payload.member_id)
+        try:
+            event, created = EventService().publish(
+                session, event_type=payload.event_type, member_id=payload.member_id,
+                source_type=payload.source_type, source_id=payload.source_id,
+                payload_summary=payload.payload_summary, metadata={"actor": payload.actor},
+            )
+            goal = HealthOpsAgentSupervisor().receive_event(session, event)
+            session.commit()
+        except ValueError as error:
+            session.rollback(); raise HTTPException(status_code=422, detail=str(error)) from error
+        return {"event_id": str(event.id), "created": created, "status": event.status, "goal_id": str(goal.id) if goal else None}
+
+    @app.post("/agent/goals", response_model=AgentGoalView, status_code=status.HTTP_201_CREATED, tags=["自动化运营"])
+    def create_agent_goal(payload: AgentGoalCreate, session: Session = Depends(get_session)) -> AgentGoal:
+        member_or_404(session, payload.member_id)
+        if payload.actor_role not in {"HEALTH_MANAGER", "ADMIN"}:
+            raise HTTPException(status_code=403, detail="Only a health manager or administrator may start this workflow.")
+        try:
+            goal = HealthOpsAgentSupervisor().start_goal(session, member_id=payload.member_id, goal_type=payload.goal_type, source_type=payload.source_type, source_id=payload.source_id, title=payload.title, created_by=payload.actor)
+            session.commit()
+        except ValueError as error:
+            session.rollback(); raise HTTPException(status_code=422, detail=str(error)) from error
+        return goal
+
+    @app.get("/agent/goals/{goal_id}", response_model=AgentGoalView, tags=["自动化运营"])
+    def get_agent_goal(goal_id: UUID, session: Session = Depends(get_session)) -> AgentGoal:
+        goal = session.get(AgentGoal, goal_id)
+        if goal is None: raise HTTPException(status_code=404, detail="Agent goal not found")
+        return goal
+
+    @app.get("/agent/goals/{goal_id}/plan", tags=["自动化运营"])
+    def get_agent_plan(goal_id: UUID, session: Session = Depends(get_session)) -> dict[str, object]:
+        goal = session.get(AgentGoal, goal_id)
+        if goal is None: raise HTTPException(status_code=404, detail="Agent goal not found")
+        plans = list(session.scalars(select(AgentPlan).where(AgentPlan.goal_id == goal.id).order_by(AgentPlan.version)))
+        return {"goal_id": str(goal.id), "plans": [{"version": plan.version, "status": plan.status, "reason": plan.reason, "steps": [{"order": step.step_order, "type": step.step_type, "status": step.status, "requires_approval": step.requires_approval, "scheduled_for": step.scheduled_for} for step in session.scalars(select(AgentPlanStep).where(AgentPlanStep.plan_id == plan.id).order_by(AgentPlanStep.step_order))]} for plan in plans]}
+
+    @app.get("/agent/goals/{goal_id}/trace", tags=["自动化运营"])
+    def get_agent_trace(goal_id: UUID, session: Session = Depends(get_session)) -> list[dict[str, object]]:
+        if session.get(AgentGoal, goal_id) is None: raise HTTPException(status_code=404, detail="Agent goal not found")
+        rows = list(session.scalars(select(AgentRunTrace).where(AgentRunTrace.goal_id == goal_id).order_by(AgentRunTrace.started_at)))
+        return [{"action": row.action, "status": row.status, "started_at": row.started_at, "completed_at": row.completed_at, "result": row.result_summary, "error": row.error_summary} for row in rows]
+
+    @app.post("/agent/goals/{goal_id}/resume", response_model=AgentGoalView, tags=["自动化运营"])
+    def control_agent_goal(goal_id: UUID, payload: AgentControlRequest, session: Session = Depends(get_session)) -> AgentGoal:
+        if payload.actor_role not in {"HEALTH_MANAGER", "ADMIN"}: raise HTTPException(status_code=403, detail="This role cannot control automation.")
+        supervisor = HealthOpsAgentSupervisor()
+        try:
+            if payload.action == "PAUSE": goal = supervisor.pause_goal(session, goal_id, actor=payload.actor, reason=payload.reason)
+            elif payload.action == "CANCEL": goal = supervisor.cancel_goal(session, goal_id, actor=payload.actor, reason=payload.reason)
+            elif payload.action == "RESUME": goal = supervisor.resume_goal(session, goal_id, actor=payload.actor, reason=payload.reason)
+            else: raise ValueError("Unsupported goal action.")
+            session.commit()
+        except ValueError as error:
+            session.rollback(); raise HTTPException(status_code=422, detail=str(error)) from error
+        return goal
+
+    @app.get("/agent/approvals", tags=["自动化运营"])
+    def list_agent_approvals(required_role: str | None = None, session: Session = Depends(get_session)) -> list[dict[str, object]]:
+        statement = select(AgentApprovalRequest).where(AgentApprovalRequest.status == "PENDING").order_by(AgentApprovalRequest.requested_at)
+        if required_role: statement = statement.where(AgentApprovalRequest.required_role == required_role)
+        return [{"id": str(row.id), "goal_id": str(row.goal_id), "required_role": row.required_role, "approval_type": row.approval_type, "status": row.status, "requested_at": row.requested_at} for row in session.scalars(statement)]
+
+    @app.post("/agent/approvals/{approval_id}/decision", tags=["自动化运营"])
+    def decide_agent_approval(approval_id: UUID, payload: AgentApprovalDecision, session: Session = Depends(get_session)) -> dict[str, object]:
+        try:
+            row = HealthOpsAgentSupervisor().decide_approval(session, approval_id, decision=payload.decision, actor=payload.actor, actor_role=payload.actor_role, comment=payload.comment)
+            session.commit()
+        except PermissionError as error:
+            session.rollback(); raise HTTPException(status_code=403, detail=str(error)) from error
+        except ValueError as error:
+            session.rollback(); raise HTTPException(status_code=422, detail=str(error)) from error
+        return {"id": str(row.id), "status": row.status, "decision": row.decision, "decided_by": row.decided_by}
 
     @app.get("/members", response_model=list[MemberOut])
     def list_members(session: Session = Depends(get_session)) -> list[Patient]:
@@ -179,6 +266,7 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
             raise HTTPException(status_code=404, detail="Health program not found")
         try:
             outcome = record_outcome_evaluation(session, program, **payload.model_dump())
+            publish_agent_event(session, event_type="OUTCOME_RECORDED", member_id=program.patient_id, source_type="outcome", source_id=outcome.id, summary="阶段结果已人工回写", actor=payload.evaluator)
             session.commit()
         except ValueError as error:
             session.rollback()
@@ -207,7 +295,11 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
             observation = Observation(patient_id=payload.member_id, device_id=payload.source_device_id, observed_at=payload.observed_at, metric_code=payload.metric_code, value_numeric=payload.value, unit=payload.unit, source=payload.source, quality_flag=payload.quality_flag, raw_record_id=raw.id)
             session.add(observation)
         session.flush()
-        risk_summary = RiskEvaluationService().evaluate_observation_safely(session, observation.id).summary()
+        risk_evaluation = RiskEvaluationService().evaluate_observation_safely(session, observation.id)
+        risk_summary = risk_evaluation.summary()
+        publish_agent_event(session, event_type="NEW_OBSERVATION", member_id=payload.member_id, source_type="observation", source_id=observation.id, summary="新的健康观测已保存", actor="system")
+        for risk_event in risk_evaluation.events:
+            publish_agent_event(session, event_type="RISK_CREATED", member_id=payload.member_id, source_type="risk_event", source_id=risk_event.id, summary="确定性风险规则产生新的运营事项", actor="risk_engine")
         ManagementRoutingService().evaluate_observation(session, observation.id)
         session.commit()
         return {"id": str(observation.id), "raw_record_id": str(raw.id), "raw_created": raw_created, "risk_evaluation_summary": risk_summary}
@@ -346,6 +438,7 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
         try:
             content = base64.b64decode(payload.content_base64, validate=True)
             document, run, duplicate = ReportParsingService().upload_and_parse(session, payload.member_id, payload.filename, content, payload.actor)
+            publish_agent_event(session, event_type="REPORT_UPLOADED", member_id=payload.member_id, source_type="document", source_id=document.id, summary="体检报告已上传", actor=payload.actor)
             session.commit()
         except (ValueError, UnicodeDecodeError) as error:
             session.rollback()
@@ -391,7 +484,11 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
         candidate = session.get(ReportExtractionCandidate, candidate_id)
         if candidate is None: raise HTTPException(status_code=404, detail="未找到报告候选资料")
         try:
-            observation = ReportParsingService().confirm_candidate(session, candidate, payload.actor); session.commit()
+            observation = ReportParsingService().confirm_candidate(session, candidate, payload.actor)
+            pending = session.scalar(select(func.count(ReportExtractionCandidate.id)).where(ReportExtractionCandidate.document_id == candidate.document_id, ReportExtractionCandidate.status == "PENDING_REVIEW"))
+            if not pending:
+                publish_agent_event(session, event_type="REPORT_CONFIRMED", member_id=candidate.patient_id, source_type="document", source_id=candidate.document_id, summary="体检报告已完成人工确认", actor=payload.actor)
+            session.commit()
         except ValueError as error:
             session.rollback(); raise HTTPException(status_code=422, detail=str(error)) from error
         return {"status": candidate.status, "observation_id": str(observation.id) if observation else None}
@@ -501,7 +598,9 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
     @app.post("/yellow-doctor-reviews/{review_id}/complete")
     def complete_yellow_doctor_review(review_id: UUID, payload: YellowDoctorCompletion, session: Session = Depends(get_session)) -> dict[str, str]:
         try:
-            review, task = RiskOperationsService().complete_doctor_review(session, review_id, payload.doctor, payload.department, payload.opinion, payload.follow_up_instruction, payload.due_at); session.commit()
+            review, task = RiskOperationsService().complete_doctor_review(session, review_id, payload.doctor, payload.department, payload.opinion, payload.follow_up_instruction, payload.due_at)
+            publish_agent_event(session, event_type="DOCTOR_REVIEW_COMPLETED", member_id=review.patient_id, source_type="doctor_review", source_id=review.id, summary="医生已完成人工医学复核", actor=payload.doctor)
+            session.commit()
         except ValueError as error:
             session.rollback(); raise HTTPException(status_code=409, detail=str(error)) from error
         return {"doctor_review_id": str(review.id), "task_id": str(task.id), "status": review.status}
@@ -552,6 +651,7 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
             task = TaskTransitionService().complete(
                 session, task_id, actor=completion.actor, outcome=completion.outcome,
             )
+            publish_agent_event(session, event_type="TASK_COMPLETED", member_id=task.patient_id, source_type="task", source_id=task.id, summary="任务已完成", actor=completion.actor)
             session.commit()
         except ValueError as error:
             session.rollback()

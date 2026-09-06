@@ -120,6 +120,10 @@ Trigger → Review → Decision → Schedule → Delivery → Result → Writeba
 
 Service work retains the member, owner, provider when available, appointment, SLA, completion evidence, result, and next step. A completed service returns to the member record, plan, timeline, and follow-up queue when needed.
 
+## Bounded Long-Running Orchestration
+
+The V1 Agent Supervisor demonstrates one approval-aware, event-driven workflow: post-checkup management. It can maintain a durable goal, use permissioned HealthOps tools, wait for a member, health manager, doctor, external event, or scheduled time, then resume with bounded retry and an auditable replan. The planner is deterministic and template-guided; it cannot diagnose, prescribe, assign clinical risk, modify a `RiskRule`, or bypass human approval.
+
 ## Architecture
 
 ```mermaid
@@ -185,7 +189,7 @@ The launcher creates only the isolated `data/portfolio_demo.db` and starts Strea
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current v0.9.0 regression suite: **405 passed / 0 failed**.
+Current v0.9.0 regression suite: **412 passed / 0 failed**.
 
 ## Current Limitations
 
