@@ -6,10 +6,13 @@ It never calls an LLM and does not create a medical diagnosis.
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from collections import defaultdict
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+import hashlib
+import json
 from typing import Any
 from uuid import UUID
 
@@ -18,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from executive_health_ai.blood_pressure import TOKYO_TIMEZONE
 from executive_health_ai.models import (
-    AuditLog, DoctorReview, Document, ExternalReferral, FollowUp, HealthAssessment,
+    AnnualHealthAccount, AuditLog, DoctorReview, Document, ExternalReferral, FollowUp, HealthAssessment,
     HealthEvent, HealthProblem, HealthProgram, ManagementRule,
     ManagementSignal, MedicationPlan, Observation, Patient, ReportExtractionCandidate,
     ReportExtractionRun, RiskEvent, Task, OutcomeEvaluation, WeeklyReview, ServiceCatalogItem, ServiceRequest, MemberPlanChoice,
@@ -119,34 +122,120 @@ class HealthDataCategoryRegistry:
 
 
 class HealthAssessmentService:
-    def create_assessment(self, session: Session, patient_id: UUID, *, title: str, summary: str, baseline: dict[str, Any], created_by: str, assessment_type: str = "BASELINE", source_references: dict[str, Any] | None = None, confirmed: bool = False) -> HealthAssessment:
-        version = int(session.scalar(select(func.count(HealthAssessment.id)).where(HealthAssessment.patient_id == patient_id)) or 0) + 1
+    """Own annual baseline snapshots; current observations never mutate them."""
+
+    CONFIRMED_STATES = ("CONFIRMED", "AMENDED")
+    DRAFT_STATES = ("DRAFT", "NEEDS_REVIEW", "WAITING_MEDICAL_REVIEW")
+
+    def create_assessment(
+        self, session: Session, patient_id: UUID, *, title: str, summary: str,
+        baseline: dict[str, Any], created_by: str, assessment_type: str = "BASELINE",
+        source_references: dict[str, Any] | None = None, confirmed: bool = False,
+        cycle_year: int | None = None, management_cycle_id: UUID | None = None,
+        cycle_start: date | None = None, cycle_end: date | None = None,
+        medical_review_required: bool = False,
+    ) -> HealthAssessment:
+        if confirmed and created_by.strip().lower() in {"ai", "llm", "model", "agent", "system"}:
+            raise PermissionError("AI或系统只能整理健康基线初稿，不能确认健康基线。")
+        if cycle_year is None:
+            version = int(session.scalar(select(func.count(HealthAssessment.id)).where(HealthAssessment.patient_id == patient_id)) or 0) + 1
+        else:
+            version = int(session.scalar(select(func.max(HealthAssessment.version)).where(
+                HealthAssessment.patient_id == patient_id,
+                HealthAssessment.assessment_type == assessment_type,
+                HealthAssessment.cycle_year == cycle_year,
+            )) or 0) + 1
         now = datetime.now(timezone.utc)
-        item = HealthAssessment(patient_id=patient_id, assessment_type=assessment_type, version=version, title=title.strip(), summary=summary.strip(), baseline_json=baseline, created_by=created_by.strip(), status="CONFIRMED" if confirmed else "DRAFT", reviewed_by=created_by.strip() if confirmed else None, confirmed_at=now if confirmed else None, source_references_json=source_references or {})
+        item = HealthAssessment(
+            patient_id=patient_id, assessment_type=assessment_type, version=version,
+            title=title.strip(), summary=summary.strip(), baseline_json=deepcopy(baseline),
+            created_by=created_by.strip(), status="CONFIRMED" if confirmed else "DRAFT",
+            reviewed_by=created_by.strip() if confirmed else None,
+            confirmed_at=now if confirmed else None,
+            collection_started_at=now if assessment_type == "BASELINE" else None,
+            collection_due_at=now + timedelta(days=30) if assessment_type == "BASELINE" and not confirmed else None,
+            collection_closed_at=now if assessment_type == "BASELINE" and confirmed else None,
+            management_cycle_id=management_cycle_id, cycle_year=cycle_year,
+            cycle_start=cycle_start, cycle_end=cycle_end,
+            medical_review_required=medical_review_required,
+            snapshot_hash=self._snapshot_hash(baseline) if confirmed else None,
+            source_references_json=deepcopy(source_references or {}),
+        )
         session.add(item); session.flush()
         return item
 
     def create_initial_baseline(self, session: Session, patient_id: UUID, *, summary: str, baseline: dict[str, Any], created_by: str) -> HealthAssessment:
-        return self.create_assessment(session, patient_id, title="初始健康评估", summary=summary, baseline=baseline, created_by=created_by, assessment_type="BASELINE", confirmed=True)
+        # Compatibility entry point for historical fixtures. Product flows use
+        # create_manual_draft/create_draft_from_report with an explicit cycle.
+        return self.create_assessment(
+            session, patient_id, title="初始健康评估", summary=summary,
+            baseline=baseline, created_by=created_by, assessment_type="BASELINE",
+            source_references={"manual_intake": {"recorded_by": created_by}}, confirmed=True,
+        )
 
     def create_reassessment(self, session: Session, patient_id: UUID, *, summary: str, baseline: dict[str, Any], created_by: str) -> HealthAssessment:
         return self.create_assessment(session, patient_id, title="阶段健康复评", summary=summary, baseline=baseline, created_by=created_by, assessment_type="REASSESSMENT", confirmed=True)
 
-    def confirm(self, session: Session, assessment_id: UUID, reviewed_by: str) -> HealthAssessment:
+    def confirm(self, session: Session, assessment_id: UUID, reviewed_by: str, *, reviewer_role: str = "HEALTH_MANAGER") -> HealthAssessment:
         item = session.get(HealthAssessment, assessment_id)
         if item is None: raise ValueError("健康评估不存在。")
-        if item.status != "DRAFT":
+        if item.status not in self.DRAFT_STATES:
             raise ValueError("只有待确认的健康基线初稿可以确认。")
+        if reviewer_role not in {"HEALTH_MANAGER", "ADMIN"}:
+            raise PermissionError("健康基线资料确认必须由健康管理师完成。")
+        if item.medical_review_required and not item.medical_reviewed_at:
+            item.status = "WAITING_MEDICAL_REVIEW"
+            raise ValueError("基线包含需要医学判断的内容，请先完成医生复核。")
         if item.assessment_type == "BASELINE":
             existing = session.scalar(select(HealthAssessment.id).where(
                 HealthAssessment.patient_id == item.patient_id,
                 HealthAssessment.assessment_type == "BASELINE",
-                HealthAssessment.status == "CONFIRMED",
+                HealthAssessment.cycle_year == item.cycle_year,
+                HealthAssessment.status.in_(self.CONFIRMED_STATES),
             ))
             if existing is not None:
-                raise ValueError("该成员已有正式健康基线；请建立阶段复评，不会覆盖历史基线。")
-        item.status, item.reviewed_by, item.confirmed_at = "CONFIRMED", reviewed_by, datetime.now(timezone.utc)
+                raise ValueError("当前年度已有正式健康基线；只能创建修订版本，不能覆盖原记录。")
+        if not self._has_traceable_source(item):
+            raise ValueError("健康基线缺少可追溯资料，不能确认。")
+        now = datetime.now(timezone.utc)
+        item.status, item.reviewed_by, item.confirmed_at = "CONFIRMED", reviewed_by, now
+        item.collection_closed_at = now
+        item.snapshot_hash = self._snapshot_hash(item.baseline_json)
+        session.add(AuditLog(
+            patient_id=item.patient_id, actor=reviewed_by, actor_role="health_manager",
+            action="health_baseline_confirmed", entity_type="HealthAssessment", entity_id=str(item.id),
+            detail_json={"cycle_year": item.cycle_year, "version": item.version, "source_count": self._source_count(item)},
+        ))
         session.flush(); return item
+
+    def mark_medical_reviewed(self, session: Session, assessment_id: UUID, *, doctor: str, note: str = "") -> HealthAssessment:
+        item = session.get(HealthAssessment, assessment_id)
+        if item is None or item.status not in self.DRAFT_STATES:
+            raise ValueError("只可复核待确认的健康基线初稿。")
+        now = datetime.now(timezone.utc)
+        item.medical_reviewed_by, item.medical_reviewed_at = doctor.strip(), now
+        item.status = "NEEDS_REVIEW"
+        session.add(AuditLog(
+            patient_id=item.patient_id, actor=doctor, actor_role="doctor",
+            action="health_baseline_medical_reviewed", entity_type="HealthAssessment", entity_id=str(item.id),
+            detail_json={"note": note[:500]},
+        ))
+        session.flush(); return item
+
+    def request_medical_review(self, session: Session, assessment_id: UUID, *, requested_by: str) -> HealthAssessment:
+        item = session.get(HealthAssessment, assessment_id)
+        if item is None or item.status not in self.DRAFT_STATES:
+            raise ValueError("只可提交待确认的健康基线初稿。")
+        if not item.medical_review_required:
+            raise ValueError("当前基线没有需要医生判断的内容。")
+        item.status = "WAITING_MEDICAL_REVIEW"
+        session.add(AuditLog(
+            patient_id=item.patient_id, actor=requested_by, actor_role="health_manager",
+            action="health_baseline_medical_review_requested", entity_type="HealthAssessment", entity_id=str(item.id),
+            detail_json={"cycle_year": item.cycle_year},
+        ))
+        session.flush()
+        return item
 
     def history(self, session: Session, patient_id: UUID) -> list[HealthAssessment]:
         return list(session.scalars(select(HealthAssessment).where(HealthAssessment.patient_id == patient_id).order_by(HealthAssessment.assessed_at.desc())))
@@ -155,15 +244,280 @@ class HealthAssessmentService:
         keys = set(previous.baseline_json) | set(current.baseline_json)
         return {key: {"previous": previous.baseline_json.get(key), "current": current.baseline_json.get(key)} for key in keys if previous.baseline_json.get(key) != current.baseline_json.get(key)}
 
-    def latest_baseline(self, session: Session, patient_id: UUID, *, include_draft: bool = True) -> HealthAssessment | None:
-        statuses = ("CONFIRMED", "DRAFT") if include_draft else ("CONFIRMED",)
-        return session.scalar(select(HealthAssessment).where(
+    def latest_baseline(self, session: Session, patient_id: UUID, *, include_draft: bool = True, cycle_year: int | None = None) -> HealthAssessment | None:
+        statuses = self.CONFIRMED_STATES + self.DRAFT_STATES if include_draft else self.CONFIRMED_STATES
+        query = select(HealthAssessment).where(
             HealthAssessment.patient_id == patient_id,
             HealthAssessment.assessment_type == "BASELINE",
             HealthAssessment.status.in_(statuses),
-        ).order_by(HealthAssessment.version.desc()))
+        )
+        if cycle_year is not None:
+            query = query.where(HealthAssessment.cycle_year == cycle_year)
+        return session.scalar(query.order_by(HealthAssessment.cycle_year.desc(), HealthAssessment.version.desc()))
 
-    def create_draft_from_report(self, session: Session, patient_id: UUID, document_id: UUID, *, created_by: str) -> HealthAssessment:
+    @staticmethod
+    def _snapshot_hash(snapshot: dict[str, Any]) -> str:
+        return hashlib.sha256(json.dumps(snapshot, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _source_count(item: HealthAssessment) -> int:
+        refs = item.source_references_json or {}
+        return sum(len(value) for value in refs.values() if isinstance(value, list))
+
+    @classmethod
+    def _has_traceable_source(cls, item: HealthAssessment) -> bool:
+        return cls._source_count(item) > 0 or bool((item.source_references_json or {}).get("manual_intake"))
+
+    @staticmethod
+    def _cycle_context(session: Session, patient_id: UUID, requested_year: int | None = None) -> tuple[int, UUID | None, date, date]:
+        today = datetime.now(timezone.utc).date()
+        account = session.scalar(select(AnnualHealthAccount).where(
+            AnnualHealthAccount.patient_id == patient_id,
+            AnnualHealthAccount.status == "ACTIVE",
+            *([AnnualHealthAccount.year == requested_year] if requested_year else []),
+        ).order_by(AnnualHealthAccount.year.desc()))
+        year = requested_year or (account.year if account else today.year)
+        return year, account.id if account and account.year == year else None, date(year, 1, 1), date(year, 12, 31)
+
+    @staticmethod
+    def _continuous_data_snapshot(observations: list[Observation], allowed_codes: set[str]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """Summarize a bounded 30-day window; never store raw continuous streams."""
+        now = datetime.now(timezone.utc)
+        window_start = now - timedelta(days=30)
+        grouped: dict[str, list[Observation]] = defaultdict(list)
+        for item in observations:
+            if item.metric_code in allowed_codes:
+                grouped[item.metric_code].append(item)
+        rows: list[dict[str, Any]] = []
+        for code, items in sorted(grouped.items()):
+            latest = max(items, key=lambda row: row.observed_at)
+            in_window = [row for row in items if row.observed_at >= window_start]
+            values = [float(row.value_numeric) for row in in_window]
+            stale = latest.observed_at < window_start
+            row: dict[str, Any] = {
+                "metric": code,
+                "status": "STALE" if stale else "AVAILABLE",
+                "window_start": window_start.isoformat(),
+                "window_end": now.isoformat(),
+                "sample_count": len(in_window),
+                "unit": latest.unit,
+                "latest_observed_at": latest.observed_at.isoformat(),
+                "source_observation_ids": [str(item.id) for item in in_window[:20]],
+            }
+            if values:
+                row.update({
+                    "average": round(sum(values) / len(values), 2),
+                    "minimum": min(values), "maximum": max(values),
+                })
+            rows.append(row)
+        groups = {
+            "血压": {"systolic_bp", "diastolic_bp"}, "睡眠": {"sleep_duration", "deep_sleep_duration"},
+            "运动": {"steps", "exercise_minutes", "active_calories"}, "体重": {"weight"},
+            "血糖": {"glucose"},
+        }
+        coverage = {}
+        for label, codes in groups.items():
+            matched = [row for row in rows if row["metric"] in codes]
+            coverage[label] = (
+                "暂无数据" if not matched else
+                "数据时间较早" if all(row["status"] == "STALE" for row in matched) else
+                "数据不足" if sum(row["sample_count"] for row in matched) < 3 else "有数据"
+            )
+        return rows, coverage
+
+    @staticmethod
+    def _merge_report_into_draft(
+        draft: HealthAssessment, incoming: dict[str, Any], refs: dict[str, Any], document: Document,
+    ) -> None:
+        snapshot = deepcopy(draft.baseline_json or {})
+        reports = list(snapshot.get("source_reports") or [])
+        if not any(row.get("document_id") == str(document.id) for row in reports if isinstance(row, dict)):
+            reports.append({"document_id": str(document.id), "title": _member_facing_report_title(document)})
+        snapshot["source_reports"] = reports
+        for key in ("key_metrics", "important_findings", "follow_up_recommendations"):
+            existing = list(snapshot.get(key) or [])
+            seen = {str(row.get("source_candidate_id")) for row in existing if isinstance(row, dict)}
+            existing.extend(
+                deepcopy(row) for row in incoming.get(key, [])
+                if isinstance(row, dict) and str(row.get("source_candidate_id")) not in seen
+            )
+            snapshot[key] = existing
+        basic = dict(snapshot.get("basic_information") or {})
+        for key, value in (incoming.get("basic_information") or {}).items():
+            if basic.get(key) in {None, "待补充"} and value != "待补充":
+                basic[key] = value
+        snapshot["basic_information"] = basic
+        completeness = dict(snapshot.get("completeness") or {})
+        organized = list(dict.fromkeys([*(completeness.get("organized") or []), "补充体检资料"]))
+        completeness["organized"] = organized
+        snapshot["completeness"] = completeness
+        draft.baseline_json = snapshot
+        merged_refs = dict(draft.source_references_json or {})
+        for key, value in refs.items():
+            if isinstance(value, list):
+                merged_refs[key] = list(dict.fromkeys([*(merged_refs.get(key) or []), *value]))
+        draft.source_references_json = merged_refs
+        draft.summary = f"已汇总{len(reports)}份本周期初始资料，等待健康管理师完成收集并确认。"
+
+    def create_manual_draft(
+        self, session: Session, patient_id: UUID, *, created_by: str,
+        summary: str, intake: dict[str, Any] | None = None, cycle_year: int | None = None,
+        medical_review_required: bool = False,
+    ) -> HealthAssessment:
+        """Allow a traceable no-report baseline draft without declaring missing data normal."""
+        year, cycle_id, cycle_start, cycle_end = self._cycle_context(session, patient_id, cycle_year)
+        existing = self.latest_baseline(session, patient_id, include_draft=True, cycle_year=year)
+        if existing is not None:
+            return existing
+        patient = session.get(Patient, patient_id)
+        problems = list(session.scalars(select(HealthProblem).where(
+            HealthProblem.patient_id == patient_id, HealthProblem.status != "CLOSED",
+        ).order_by(HealthProblem.priority_rank, HealthProblem.opened_at.desc()).limit(12)))
+        medications = list(session.scalars(select(MedicationPlan).where(
+            MedicationPlan.patient_id == patient_id,
+            MedicationPlan.status.not_in(("STOPPED", "CANCELLED")),
+        ).order_by(MedicationPlan.created_at.desc()).limit(12)))
+        procedures = list(session.scalars(select(HealthEvent).where(
+            HealthEvent.patient_id == patient_id,
+            HealthEvent.event_type.in_(("surgery", "hospitalization", "procedure")),
+        ).order_by(HealthEvent.start_at.desc()).limit(12)))
+        observations = list(session.scalars(select(Observation).where(
+            Observation.patient_id == patient_id,
+            Observation.quality_flag.in_(USABLE_QUALITY),
+            Observation.excluded_from_analysis.is_(False), Observation.source_deleted.is_(False),
+        ).order_by(Observation.observed_at.desc()).limit(2000)))
+        recent_rows, data_coverage = self._continuous_data_snapshot(
+            observations,
+            {"sleep_duration", "deep_sleep_duration", "steps", "active_calories", "exercise_minutes", "weight", "systolic_bp", "diastolic_bp", "glucose"},
+        )
+        program = session.scalar(select(HealthProgram).where(
+            HealthProgram.patient_id == patient_id,
+            HealthProgram.status.not_in(("COMPLETED", "CANCELLED")),
+        ).order_by(HealthProgram.start_date.desc()))
+        pending = ["年度体检"]
+        if not problems: pending.append("既往健康史")
+        if not medications: pending.append("当前用药")
+        if not procedures: pending.append("手术 / 住院史")
+        if not recent_rows: pending.append("近期日常健康数据")
+        if not (intake or {}).get("生活方式资料"): pending.append("生活方式资料")
+        snapshot = {
+            "definition": "本管理周期开始时经人工确认的健康参考起点；不会随当前数据自动变化。",
+            "cycle": {"year": year, "start": cycle_start.isoformat(), "end": cycle_end.isoformat()},
+            "source_reports": [],
+            "basic_information": {
+                "age": "待补充", "sex": patient.sex if patient and patient.sex else "待补充",
+                "height": "待补充", "weight": "待补充", "bmi": "待补充",
+            },
+            "key_metrics": [], "important_findings": [], "follow_up_recommendations": [],
+            "health_problems": [{"title": item.title, "status": item.status, "source": item.source, "source_entity_id": str(item.id)} for item in problems],
+            "current_medications": [{"name": item.drug_name, "dose": f"{item.dose} {item.dose_unit}", "status": item.status, "source_entity_id": str(item.id)} for item in medications] or {"status": "PENDING_SUPPLEMENT", "label": "待补充"},
+            "procedures_or_hospitalizations": [{"type": item.event_type, "description": item.description, "occurred_at": item.start_at.isoformat(), "source_entity_id": str(item.id)} for item in procedures] or {"status": "PENDING_SUPPLEMENT", "label": "待补充"},
+            "recent_health_data": recent_rows or {"status": "PENDING_SUPPLEMENT", "label": "待补充"},
+            "data_coverage": {"年度体检": "缺少年度体检", **data_coverage},
+            "member_reported": {"source": "MANUAL_INTAKE", "fields": deepcopy(intake or {})},
+            "management_focus": [program.main_goal] if program else [],
+            "completeness": {"organized": ["人工建档资料"], "pending": pending},
+        }
+        return self.create_assessment(
+            session, patient_id, title=f"{year}年度健康基线 · 待确认", summary=summary,
+            baseline=snapshot, created_by=created_by, assessment_type="BASELINE",
+            source_references={
+                "manual_intake": {"recorded_by": created_by, "fields": sorted((intake or {}).keys())},
+                "source_problem_ids": [str(item.id) for item in problems],
+                "source_medication_ids": [str(item.id) for item in medications],
+                "source_procedure_ids": [str(item.id) for item in procedures],
+                "source_device_observation_ids": list(dict.fromkeys(
+                    observation_id for row in recent_rows for observation_id in row.get("source_observation_ids", [])
+                )),
+                "source_program_ids": [str(program.id)] if program else [],
+            },
+            cycle_year=year, management_cycle_id=cycle_id, cycle_start=cycle_start, cycle_end=cycle_end,
+            medical_review_required=medical_review_required,
+        )
+
+    def amend_baseline(
+        self, session: Session, assessment_id: UUID, *, changes: dict[str, Any],
+        reason: str, amended_by: str, evidence_references: dict[str, Any],
+    ) -> HealthAssessment:
+        """Create a correction version; never edit the confirmed snapshot in place."""
+        previous = session.get(HealthAssessment, assessment_id)
+        if previous is None or previous.status not in self.CONFIRMED_STATES:
+            raise ValueError("只能修订已确认的健康基线。")
+        if not reason.strip() or not evidence_references:
+            raise ValueError("修订必须填写原因并关联依据。")
+        updated = deepcopy(previous.baseline_json or {})
+        for key, value in changes.items():
+            updated[key] = deepcopy(value)
+        refs = deepcopy(previous.source_references_json or {})
+        refs["amendment_evidence"] = deepcopy(evidence_references)
+        amended = self.create_assessment(
+            session, previous.patient_id, title=f"{previous.cycle_year or ''}年度健康基线 · 资料修订",
+            summary=f"对已确认健康基线进行资料纠正：{reason.strip()}", baseline=updated,
+            created_by=amended_by, assessment_type="BASELINE", source_references=refs,
+            cycle_year=previous.cycle_year, management_cycle_id=previous.management_cycle_id,
+            cycle_start=previous.cycle_start, cycle_end=previous.cycle_end,
+            medical_review_required=previous.medical_review_required,
+        )
+        amended.status = "AMENDED"
+        amended.confirmed_at = datetime.now(timezone.utc)
+        amended.reviewed_by = amended_by
+        amended.collection_closed_at = amended.confirmed_at
+        amended.parent_assessment_id = previous.id
+        amended.amendment_type = "CORRECTION"
+        amended.amendment_reason = reason.strip()
+        amended.amended_by = amended_by
+        amended.snapshot_hash = self._snapshot_hash(updated)
+        previous.status = "SUPERSEDED"
+        previous.superseded_by_id = amended.id
+        session.add(AuditLog(
+            patient_id=previous.patient_id, actor=amended_by, actor_role="health_manager",
+            action="health_baseline_amended", entity_type="HealthAssessment", entity_id=str(amended.id),
+            detail_json={"previous_id": str(previous.id), "reason": reason[:500], "version": amended.version},
+        ))
+        session.flush()
+        return amended
+
+    def create_next_cycle_draft(
+        self, session: Session, patient_id: UUID, *, next_year: int, created_by: str,
+    ) -> HealthAssessment:
+        """Carry stable context into a reviewable draft, never an auto-confirmed baseline."""
+        previous = self.latest_baseline(session, patient_id, include_draft=False)
+        draft = self.create_manual_draft(
+            session, patient_id, created_by=created_by,
+            summary=f"{next_year}年度健康基线初稿；继承的长期资料仍需重新核对。", cycle_year=next_year,
+        )
+        if previous:
+            snapshot = deepcopy(draft.baseline_json or {})
+            old = previous.baseline_json or {}
+            for key in ("health_problems", "procedures_or_hospitalizations"):
+                snapshot[key] = deepcopy(old.get(key, snapshot.get(key)))
+            snapshot["inherited_context"] = {"from_cycle": previous.cycle_year, "status": "PENDING_RECONFIRMATION"}
+            draft.baseline_json = snapshot
+            refs = dict(draft.source_references_json or {})
+            refs["inherited_from_baseline_id"] = str(previous.id)
+            draft.source_references_json = refs
+        return draft
+
+    def current_profile(self, session: Session, patient_id: UUID) -> dict[str, Any]:
+        """Read current facts independently from the frozen annual baseline."""
+        observations = list(session.scalars(select(Observation).where(
+            Observation.patient_id == patient_id,
+            Observation.quality_flag.in_(USABLE_QUALITY),
+            Observation.excluded_from_analysis.is_(False),
+            Observation.source_deleted.is_(False),
+        ).order_by(Observation.observed_at.desc()).limit(500)))
+        latest: dict[str, dict[str, Any]] = {}
+        for item in observations:
+            latest.setdefault(item.metric_code, {
+                "value": str(item.value_numeric), "unit": item.unit,
+                "observed_at": item.observed_at.isoformat(), "observation_id": str(item.id),
+            })
+        return {"as_of": datetime.now(timezone.utc).isoformat(), "latest_metrics": latest}
+
+    def create_draft_from_report(
+        self, session: Session, patient_id: UUID, document_id: UUID, *, created_by: str,
+        cycle_year: int | None = None,
+    ) -> HealthAssessment:
         """Build a reviewable baseline draft from confirmed facts only.
 
         This service deliberately reads neither LLM output nor unconfirmed
@@ -174,16 +528,23 @@ class HealthAssessmentService:
         if document is None or document.patient_id != patient_id:
             raise ValueError("体检报告不存在或不属于当前成员。")
         patient = session.get(Patient, patient_id)
-        confirmed_baseline = self.latest_baseline(session, patient_id, include_draft=False)
+        year, cycle_id, cycle_start, cycle_end = self._cycle_context(session, patient_id, cycle_year)
+        confirmed_baseline = self.latest_baseline(session, patient_id, include_draft=False, cycle_year=year)
         if confirmed_baseline is not None:
-            raise ValueError("该成员已有正式健康基线；新报告应进入长期比较，不会覆盖初始基线。")
+            raise ValueError("当前年度已有正式健康基线；新报告应进入当前状态和比较，不会覆盖年度起点。")
         existing_draft = session.scalar(select(HealthAssessment).where(
             HealthAssessment.patient_id == patient_id,
             HealthAssessment.assessment_type == "BASELINE",
-            HealthAssessment.status == "DRAFT",
+            HealthAssessment.cycle_year == year,
+            HealthAssessment.status.in_(self.DRAFT_STATES),
         ).order_by(HealthAssessment.version.desc()))
-        if existing_draft is not None:
+        existing_report_ids = (existing_draft.source_references_json or {}).get("source_report_ids", []) if existing_draft else []
+        if existing_draft is not None and str(document_id) in existing_report_ids:
             return existing_draft
+        if existing_draft is not None and existing_draft.collection_closed_at is not None:
+            raise ValueError("本周期资料收集已结束，新报告应进入当前状态和比较。")
+        if existing_draft is not None and existing_draft.collection_due_at and existing_draft.collection_due_at < datetime.now(timezone.utc):
+            raise ValueError("本周期资料收集期已结束，请先确认基线；新资料随后进入当前状态和比较。")
 
         run = session.scalar(select(ReportExtractionRun).where(
             ReportExtractionRun.document_id == document_id,
@@ -223,14 +584,9 @@ class HealthAssessmentService:
             Observation.quality_flag.in_(USABLE_QUALITY),
             Observation.excluded_from_analysis.is_(False),
             Observation.source_deleted.is_(False),
-        ).order_by(Observation.observed_at.desc()).limit(80)))
-        latest_by_metric: dict[str, Observation] = {}
-        for item in recent:
-            latest_by_metric.setdefault(item.metric_code, item)
-        risk = ReportRiskSummaryService().summarize(session, patient_id, document_id)
-
+        ).order_by(Observation.observed_at.desc()).limit(2000)))
         metric_rows = [
-            {"metric": item.metric_code, "value": str(item.value_numeric), "unit": item.unit, "observed_at": item.observed_at.isoformat(), "source_candidate_id": item.source_record_id}
+            {"metric": item.metric_code, "value": str(item.value_numeric), "unit": item.unit, "observed_at": item.observed_at.isoformat(), "source_candidate_id": item.source_record_id, "evidence_type": "REPORT"}
             for item in observations
         ]
         metric_values = {item.metric_code: f"{item.value_numeric} {item.unit}" for item in observations}
@@ -239,18 +595,15 @@ class HealthAssessmentService:
         if patient and patient.birth_date:
             age = today.year - patient.birth_date.year - ((today.month, today.day) < (patient.birth_date.month, patient.birth_date.day))
         finding_rows = [
-            {"summary": item.summary or item.raw_name or "已确认检查结果", "source_page": item.source_page, "source_candidate_id": str(item.id)}
+            {"summary": item.summary or item.raw_name or "已确认检查结果", "source_page": item.source_page, "source_candidate_id": str(item.id), "evidence_type": "REPORT"}
             for item in candidates if item.candidate_type == "FINDING"
         ]
         followup_rows = [
             {"summary": item.summary or "已确认复查建议", "source_page": item.source_page, "source_candidate_id": str(item.id)}
             for item in candidates if item.candidate_type == "FOLLOWUP"
         ]
-        lifestyle_codes = {"sleep_duration", "deep_sleep_duration", "steps", "active_calories", "exercise_minutes", "weight", "systolic_bp", "glucose"}
-        recent_rows = [
-            {"metric": item.metric_code, "value": str(item.value_numeric), "unit": item.unit, "observed_at": item.observed_at.isoformat(), "source": item.source}
-            for code, item in latest_by_metric.items() if code in lifestyle_codes
-        ]
+        lifestyle_codes = {"sleep_duration", "deep_sleep_duration", "steps", "active_calories", "exercise_minutes", "weight", "systolic_bp", "diastolic_bp", "glucose"}
+        recent_rows, data_coverage = self._continuous_data_snapshot(recent, lifestyle_codes)
         pending: list[str] = []
         if not problems: pending.append("既往健康史")
         if not medications: pending.append("当前用药")
@@ -258,6 +611,9 @@ class HealthAssessmentService:
         if not recent_rows: pending.append("近期日常健康数据")
         pending.append("家族史")
         baseline = {
+            "definition": "本管理周期开始时经人工确认的健康参考起点；不会随当前数据自动变化。",
+            "cycle": {"year": year, "start": cycle_start.isoformat(), "end": cycle_end.isoformat()},
+            "source_reports": [{"document_id": str(document.id), "title": _member_facing_report_title(document)}],
             "source_report": {"document_id": str(document.id), "title": _member_facing_report_title(document)},
             "basic_information": {
                 "age": age if age is not None else "待补充",
@@ -269,11 +625,11 @@ class HealthAssessmentService:
             "key_metrics": metric_rows,
             "important_findings": finding_rows,
             "follow_up_recommendations": followup_rows,
-            "health_problems": [{"title": item.title, "status": item.status, "source": item.source} for item in problems],
-            "current_medications": [{"name": item.drug_name, "status": item.status} for item in medications] or {"status": "PENDING_SUPPLEMENT", "label": "待补充"},
-            "procedures_or_hospitalizations": [{"type": item.event_type, "description": item.description, "occurred_at": item.start_at.isoformat()} for item in procedures] or {"status": "PENDING_SUPPLEMENT", "label": "待补充"},
+            "health_problems": [{"title": item.title, "status": item.status, "source": item.source, "source_entity_id": str(item.id)} for item in problems],
+            "current_medications": [{"name": item.drug_name, "dose": f"{item.dose} {item.dose_unit}", "status": item.status, "source_entity_id": str(item.id)} for item in medications] or {"status": "PENDING_SUPPLEMENT", "label": "待补充"},
+            "procedures_or_hospitalizations": [{"type": item.event_type, "description": item.description, "occurred_at": item.start_at.isoformat(), "source_entity_id": str(item.id)} for item in procedures] or {"status": "PENDING_SUPPLEMENT", "label": "待补充"},
             "recent_health_data": recent_rows or {"status": "PENDING_SUPPLEMENT", "label": "待补充"},
-            "risk_summary": {"level": risk["level"], "reason": risk["reason"], "source": "formal_risk_events_and_approved_rules"},
+            "data_coverage": data_coverage,
             "management_focus": [row["summary"] for row in finding_rows[:3]] or ["待健康管理师结合已确认资料确认"],
             "member_reported": {"source": "MEMBER_REPORTED", "status": "PENDING_SUPPLEMENT"},
             "completeness": {"organized": ["最近体检", "主要指标", "检查结果"], "pending": pending},
@@ -281,17 +637,27 @@ class HealthAssessmentService:
         source_references = {
             "source_report_ids": [str(document.id)],
             "source_observation_ids": [str(item.id) for item in observations],
+            "source_device_observation_ids": list(dict.fromkeys(
+                observation_id
+                for row in recent_rows
+                for observation_id in row.get("source_observation_ids", [])
+            )),
             "source_candidate_ids": [str(item.id) for item in candidates],
             "source_problem_ids": [str(item.id) for item in problems],
             "source_medication_ids": [str(item.id) for item in medications],
             "source_procedure_ids": [str(item.id) for item in procedures],
             "member_reported_fields": [],
         }
+        if existing_draft is not None:
+            self._merge_report_into_draft(existing_draft, baseline, source_references, document)
+            session.flush()
+            return existing_draft
         return self.create_assessment(
-            session, patient_id, title="健康基线 · 待确认",
+            session, patient_id, title=f"{year}年度健康基线 · 待确认",
             summary=f"基于《{_member_facing_report_title(document)}》及已确认健康档案整理的初稿，仍需健康管理师补充与确认。",
             baseline=baseline, created_by=created_by, assessment_type="BASELINE",
-            source_references=source_references, confirmed=False,
+            source_references=source_references, confirmed=False, cycle_year=year,
+            management_cycle_id=cycle_id, cycle_start=cycle_start, cycle_end=cycle_end,
         )
 
     def update_member_reported(self, session: Session, assessment_id: UUID, fields: dict[str, str], *, reported_by: str = "member") -> HealthAssessment:
@@ -531,6 +897,49 @@ class ManagementRoutingService:
 class ReportComparisonService:
     """Compare two already human-confirmed report records without inferring diagnoses."""
 
+    def compare_to_baseline(self, session: Session, member_id: UUID, *, cycle_year: int | None = None) -> dict[str, Any]:
+        """Compare latest confirmed facts with a frozen annual reference point."""
+        baseline = HealthAssessmentService().latest_baseline(
+            session, member_id, include_draft=False, cycle_year=cycle_year,
+        )
+        if baseline is None:
+            raise ValueError("当前管理周期尚无已确认健康基线。")
+        profile = HealthAssessmentService().current_profile(session, member_id)
+        baseline_metrics = {
+            row.get("metric"): row for row in (baseline.baseline_json or {}).get("key_metrics", [])
+            if isinstance(row, dict) and row.get("metric")
+        }
+        current_metrics = profile["latest_metrics"]
+        changes: list[dict[str, Any]] = []
+        for code in sorted(set(baseline_metrics) | set(current_metrics)):
+            before, current = baseline_metrics.get(code), current_metrics.get(code)
+            if before is None:
+                status = "NEW"
+            elif current is None:
+                status = "NOT_RECHECKED"
+            else:
+                try:
+                    unchanged = Decimal(str(before.get("value"))) == Decimal(str(current.get("value")))
+                    status = "PERSISTENT" if unchanged else "CHANGED"
+                except Exception:
+                    status = "NOT_COMPARABLE"
+            changes.append({
+                "metric": code,
+                "baseline": before.get("value") if before else None,
+                "current": current.get("value") if current else None,
+                "unit": (current or before or {}).get("unit"),
+                "status": status,
+                "baseline_candidate_id": before.get("source_candidate_id") if before else None,
+                "current_observation_id": current.get("observation_id") if current else None,
+            })
+        return {
+            "comparison_type": "BASELINE_TO_CURRENT",
+            "cycle_year": baseline.cycle_year,
+            "baseline_id": str(baseline.id),
+            "changes": changes,
+            "interpretation": "仅描述年度起点与当前已确认数据的差异；不自动判断医学改善或恶化。",
+        }
+
     def compare(self, session: Session, member_id: UUID, old_document_id: UUID, new_document_id: UUID) -> dict[str, Any]:
         def latest_run(document_id: UUID) -> ReportExtractionRun | None:
             return session.scalar(select(ReportExtractionRun).where(ReportExtractionRun.document_id == document_id, ReportExtractionRun.patient_id == member_id).order_by(ReportExtractionRun.completed_at.desc(), ReportExtractionRun.created_at.desc()))
@@ -557,7 +966,7 @@ class ReportComparisonService:
         new_finding_items = {item.summary: item for item in new if item.candidate_type == "FINDING" and item.summary}
         old_findings, new_findings = set(old_finding_items), set(new_finding_items)
         followups = [item.summary for item in new if item.candidate_type == "FOLLOWUP" and item.summary]
-        return {"metric_changes": changes, "new_findings": sorted(new_findings - old_findings), "persistent_findings": sorted(new_findings & old_findings), "resolved_findings": [], "not_rechecked_findings": sorted(old_findings - new_findings), "changed_findings": [], "needs_review_findings": [], "followup_changes": followups, "finding_evidence": {"old": {title: str(item.id) for title, item in old_finding_items.items()}, "new": {title: str(item.id) for title, item in new_finding_items.items()}}, "risk_summary": "仅汇总已人工确认资料；风险等级由已审核规则及人工处理决定。"}
+        return {"comparison_type": "REPORT_TO_REPORT", "metric_changes": changes, "new_findings": sorted(new_findings - old_findings), "persistent_findings": sorted(new_findings & old_findings), "resolved_findings": [], "not_rechecked_findings": sorted(old_findings - new_findings), "changed_findings": [], "needs_review_findings": [], "followup_changes": followups, "finding_evidence": {"old": {title: str(item.id) for title, item in old_finding_items.items()}, "new": {title: str(item.id) for title, item in new_finding_items.items()}}, "risk_summary": "仅汇总已人工确认资料；风险等级由已审核规则及人工处理决定。"}
 
 
 @dataclass(frozen=True)
@@ -798,7 +1207,7 @@ class HealthTimelineService:
 
     def get_timeline(self, session: Session, member_id: UUID, *, start: datetime | None = None, end: datetime | None = None, limit: int = 100) -> list[TimelineEvent]:
         events: list[TimelineEvent] = []
-        assessment_query = select(HealthAssessment).where(HealthAssessment.patient_id == member_id, HealthAssessment.status == "CONFIRMED")
+        assessment_query = select(HealthAssessment).where(HealthAssessment.patient_id == member_id, HealthAssessment.status.in_(("CONFIRMED", "AMENDED")))
         risk_query = select(RiskEvent).where(RiskEvent.patient_id == member_id)
         problem_query = select(HealthProblem).where(HealthProblem.patient_id == member_id)
         medication_query = select(MedicationPlan).where(MedicationPlan.patient_id == member_id)
@@ -833,6 +1242,8 @@ class HealthTimelineService:
             service_query = service_query.where(ServiceRequest.requested_at <= end)
         for assessment in session.scalars(assessment_query.order_by(HealthAssessment.assessed_at.desc()).limit(limit)):
             kind = {"BASELINE": "健康基线", "REASSESSMENT": "阶段健康复评", "ANNUAL": "年度健康评估"}.get(assessment.assessment_type, assessment.title)
+            if assessment.assessment_type == "BASELINE" and assessment.cycle_year:
+                kind = f"{assessment.cycle_year}年度健康基线建立" if assessment.status == "CONFIRMED" else f"{assessment.cycle_year}年度健康基线资料修订"
             details = {**(assessment.baseline_json or {}), "status": assessment.status, "reviewed_by": assessment.reviewed_by, "source_references": assessment.source_references_json}
             events.append(TimelineEvent(assessment.confirmed_at or assessment.assessed_at, "assessment", kind, assessment.summary, "BLUE", "health_assessment", details, str(assessment.id), f"ASSESSMENT:{assessment.id}", (str(assessment.id),)))
         for event in session.scalars(risk_query.order_by(RiskEvent.created_at.desc()).limit(limit)):
@@ -1284,7 +1695,7 @@ class OversightRiskSummaryService:
     """Aggregate-only oversight view; intentionally never returns member clinical data."""
     def summarize(self, session: Session) -> dict[str, Any]:
         active = list(session.scalars(select(RiskEvent).where(RiskEvent.status.not_in(("CLOSED", "DISMISSED_DATA_ISSUE"))).limit(500)))
-        return {"member_coverage": int(session.scalar(select(func.count(HealthAssessment.id)).where(HealthAssessment.status == "CONFIRMED")) or 0), "red": sum(item.risk_level == "RED" for item in active), "yellow": sum(item.risk_level == "YELLOW" for item in active), "unhandled": sum(item.status == "OPEN" for item in active), "doctor_pending": sum(item.status == "ESCALATED_TO_DOCTOR" for item in active), "closed_rate": 0, "clinical_details_included": False}
+        return {"member_coverage": int(session.scalar(select(func.count(HealthAssessment.id)).where(HealthAssessment.status.in_(("CONFIRMED", "AMENDED")))) or 0), "red": sum(item.risk_level == "RED" for item in active), "yellow": sum(item.risk_level == "YELLOW" for item in active), "unhandled": sum(item.status == "OPEN" for item in active), "doctor_pending": sum(item.status == "ESCALATED_TO_DOCTOR" for item in active), "closed_rate": 0, "clinical_details_included": False}
 
 
 class InterventionOutcomeService:

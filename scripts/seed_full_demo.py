@@ -34,7 +34,7 @@ from executive_health_ai.services.chronic_care import (
 )
 from executive_health_ai.services.ingestion import import_cgm_rows, import_sleep_rows
 from executive_health_ai.services.insights import DeterministicNarrator, generate_possible_associations
-from executive_health_ai.services.longitudinal import ManagementRoutingService
+from executive_health_ai.services.longitudinal import HealthAssessmentService, ManagementRoutingService
 from executive_health_ai.services.workflow import (
     complete_follow_up, confirm_alert_as_manager, record_doctor_review, screen_member,
 )
@@ -233,8 +233,6 @@ def _generate_sleep_rows() -> list[dict[str, object]]:
 
 def _ensure_longitudinal_demo(session: Session, patient_id: object) -> None:
     """Add only synthetic records that demonstrate longitudinal HealthOps."""
-    if session.scalar(select(HealthAssessment).where(HealthAssessment.patient_id == patient_id)) is None:
-        session.add(HealthAssessment(patient_id=patient_id, assessment_type="INITIAL", version=1, title="初始健康评估", summary="合成演示：基于已确认体检、设备和既有管理记录的人工基线。", baseline_json={"weight": 81, "sleep_duration_minutes": 405, "activity": "synthetic"}, created_by="合成健康管理师", assessed_at=local_datetime(DEMO_START_DATE, 9)))
     for provider, category, status in (("apple_health", "WELLNESS", "PENDING"), ("mock_cgm", "MEDICAL_MONITOR", "MOCK"), ("mock_yuwell", "MEDICAL_MONITOR", "MOCK")):
         if session.scalar(select(MemberDeviceAssignment).where(MemberDeviceAssignment.patient_id == patient_id, MemberDeviceAssignment.provider == provider)) is None:
             session.add(MemberDeviceAssignment(patient_id=patient_id, provider=provider, device_category=category, assignment_status="ASSIGNED", connection_status=status, assigned_by="合成健康管理师", notes="合成演示设备分配"))
@@ -263,6 +261,17 @@ def _ensure_longitudinal_demo(session: Session, patient_id: object) -> None:
             session.add(run); session.flush()
             session.add(ReportExtractionCandidate(extraction_run_id=run.id, document_id=document.id, patient_id=patient_id, candidate_type="OBSERVATION", canonical_code="ldl", raw_name="LDL", normalized_value=ldl, unit="mmol/L", confidence="HIGH", extraction_method="RULE", evidence_text=f"合成 LDL {ldl}", status="CONFIRMED"))
             session.add(ReportExtractionCandidate(extraction_run_id=run.id, document_id=document.id, patient_id=patient_id, candidate_type="FINDING", summary="合成影像检查结论", confidence="MEDIUM", extraction_method="LLM", evidence_text="合成影像检查结论", status="CONFIRMED"))
+    session.flush()
+    baseline_service = HealthAssessmentService()
+    baseline = baseline_service.latest_baseline(session, patient_id, include_draft=True, cycle_year=2026)
+    if baseline is None:
+        baseline = baseline_service.create_draft_from_report(
+            session, patient_id, documents[0].id,
+            created_by="合成健康管理师", cycle_year=2026,
+        )
+        baseline_service.confirm(
+            session, baseline.id, "合成健康管理师", reviewer_role="HEALTH_MANAGER",
+        )
     if session.scalar(select(ExternalReferral).where(ExternalReferral.patient_id == patient_id)) is None:
         session.add(ExternalReferral(patient_id=patient_id, specialty="合成外部专科", reason="合成演示：由内部医生人工建议外部协同。", question="请人工确认后续线下协同安排。", organization="合成外部机构", status="WAITING_FEEDBACK"))
 

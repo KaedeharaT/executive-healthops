@@ -835,7 +835,7 @@ def _baseline_evidence_payload(session, patient_id: UUID, assessment: HealthAsse
         "evidence_type": "MANAGER_CONFIRMED",
         "raw_evidence": None,
         "structured_interpretation": assessment.summary,
-        "confirmation_status": "已由健康管理团队确认" if assessment.status == "CONFIRMED" else "等待健康管理团队确认",
+        "confirmation_status": "已由健康管理团队确认" if assessment.status in {"CONFIRMED", "AMENDED"} else "等待健康管理团队确认",
         "evidence_status": "COMPLETE" if source_types else "PARTIAL",
         "show_no_knowledge": True,
     }
@@ -845,7 +845,11 @@ def _render_snapshot_item_evidence(patient_id: UUID, value: object, *, key_scope
     """Keep Baseline's report-derived metrics/findings linked to their Candidate."""
     if not isinstance(value, list):
         return
-    rows = [item for item in value if isinstance(item, dict) and item.get("source_candidate_id")]
+    rows = [
+        item for item in value if isinstance(item, dict) and (
+            item.get("source_candidate_id") or item.get("source_entity_id") or item.get("source_observation_ids")
+        )
+    ]
     if not rows:
         return
     with st.expander("逐项查看依据"):
@@ -853,10 +857,18 @@ def _render_snapshot_item_evidence(patient_id: UUID, value: object, *, key_scope
             for index, item in enumerate(rows):
                 label = str(item.get("metric") or item.get("summary") or "健康资料")
                 st.markdown(f"**{_metric_display_name(label) if item.get('metric') else label}**")
-                _render_candidate_evidence_by_id(
-                    session, patient_id, item.get("source_candidate_id"),
-                    key_scope=f"{key_scope}-{index}", client_view=client_view,
-                )
+                if item.get("source_candidate_id"):
+                    _render_candidate_evidence_by_id(
+                        session, patient_id, item.get("source_candidate_id"),
+                        key_scope=f"{key_scope}-{index}", client_view=client_view,
+                    )
+                elif item.get("source_observation_ids"):
+                    st.caption(
+                        f"依据：建立基线前30天的有效健康数据汇总 · {item.get('sample_count', 0)}条 · "
+                        f"最近数据：{str(item.get('latest_observed_at') or '未记录')[:10]}"
+                    )
+                else:
+                    st.caption("依据：已确认的健康档案记录；详细原始记录保留在对应健康史或用药记录中。")
 
 
 def _timeline_evidence_payload(session, patient: Patient, event) -> dict[str, object]:
@@ -1702,7 +1714,7 @@ def _render_member_header(patient: Patient, ctx: dict[str, list[object]]) -> Non
         baseline = HealthAssessmentService().latest_baseline(session, patient.id)
     if baseline is None:
         st.caption("健康基线：尚未建立")
-    elif baseline.status == "DRAFT":
+    elif baseline.status in {"DRAFT", "NEEDS_REVIEW", "WAITING_MEDICAL_REVIEW"}:
         left, right = st.columns([5, 1])
         left.caption("健康基线初稿等待确认")
         right.button("处理", key=f"member-baseline-draft-{patient.id}", on_click=_open_baseline, args=(patient.id,))
@@ -1935,6 +1947,30 @@ def render_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]) -> Non
     st.subheader("医生复核")
     with SessionLocal() as session:
         automation_goal = _active_agent_goal(session, patient.id)
+        baseline_medical_review = session.scalar(select(HealthAssessment).where(
+            HealthAssessment.patient_id == patient.id,
+            HealthAssessment.assessment_type == "BASELINE",
+            HealthAssessment.status == "WAITING_MEDICAL_REVIEW",
+        ).order_by(HealthAssessment.cycle_year.desc(), HealthAssessment.version.desc()))
+    if baseline_medical_review is not None:
+        with section_frame("年度健康基线医学资料复核", "仅确认需要医学判断的内容；资料完整性仍由健康管理师确认。"):
+            st.write(baseline_medical_review.summary)
+            snapshot = baseline_medical_review.baseline_json or {}
+            st.write("主要健康问题：" + ("；".join(str(row.get("title")) for row in snapshot.get("health_problems", []) if isinstance(row, dict)) or "暂无已记录问题"))
+            medications = snapshot.get("current_medications")
+            st.write("当前用药：" + ("；".join(str(row.get("name")) for row in medications if isinstance(row, dict)) if isinstance(medications, list) else "待补充"))
+            with st.form(f"baseline-medical-review-{baseline_medical_review.id}"):
+                doctor_name = st.text_input("医生姓名", value="演示医生")
+                review_note = st.text_area("医学资料复核说明", placeholder="只记录人工医学判断和需要健管继续核对的事项")
+                reviewed = st.form_submit_button("完成医学资料复核")
+            if reviewed:
+                with SessionLocal() as session:
+                    HealthAssessmentService().mark_medical_reviewed(
+                        session, baseline_medical_review.id, doctor=doctor_name, note=review_note,
+                    )
+                    session.commit()
+                st.success("医学相关资料已复核，已返回健康管理师完成基线确认。")
+                st.rerun()
     if automation_goal and "医生" in automation_goal.current_stage:
         st.info(f"来源：{automation_goal.title} · 当前需要：医学复核。完成后由健康管理师继续执行。")
     yellow_pending = [item for item in ctx["reviews"] if item.status == "PENDING" and item.risk_event_id]
@@ -4220,11 +4256,24 @@ def _render_baseline_draft_action(document: Document, candidates: list[ReportExt
     """Manager-only bridge: confirmed report facts may create a draft, never a baseline."""
     with SessionLocal() as session:
         baseline = HealthAssessmentService().latest_baseline(session, document.patient_id)
-    if baseline is not None and baseline.status == "CONFIRMED":
+    if baseline is not None and baseline.status in {"CONFIRMED", "AMENDED"}:
         st.caption("该成员已有正式健康基线。本报告会用于长期体检比较，不会覆盖初始基线。")
         return
-    if baseline is not None and baseline.status == "DRAFT":
-        st.info("健康基线初稿已生成，等待补充资料与健康管理师确认。")
+    if baseline is not None and baseline.status in {"DRAFT", "NEEDS_REVIEW", "WAITING_MEDICAL_REVIEW"}:
+        source_report_ids = (baseline.source_references_json or {}).get("source_report_ids", [])
+        if str(document.id) in source_report_ids:
+            st.info("本报告已纳入当前年度健康基线初稿，正在等待资料收集完成与人工确认。")
+            return
+        st.info("当前年度仍在资料收集期，可将这份初始报告合并进同一份健康基线初稿。")
+        if st.button("纳入当前年度基线初稿", key=f"baseline-merge-{document.id}", type="primary"):
+            try:
+                with SessionLocal() as session:
+                    HealthAssessmentService().create_draft_from_report(session, document.patient_id, document.id, created_by="健康管理师")
+                    session.commit()
+                st.success("已纳入当前年度健康基线初稿。")
+                st.rerun()
+            except ValueError as error:
+                st.error(str(error))
         return
     confirmed = [item for item in candidates if item.status == "CONFIRMED"]
     if not confirmed:
@@ -4321,6 +4370,13 @@ def _render_report_observation_actions(candidate: ReportExtractionCandidate, *, 
                     ReportExtractionCandidate.status == "PENDING_REVIEW",
                 ))
                 if not pending:
+                    try:
+                        HealthAssessmentService().create_draft_from_report(
+                            session, stored.patient_id, stored.document_id, created_by="health_manager",
+                        )
+                    except ValueError as error:
+                        if "正式健康基线" not in str(error):
+                            raise
                     _publish_agent_event(session, event_type="REPORT_CONFIRMED", member_id=stored.patient_id, source_type="document", source_id=stored.document_id, summary="体检报告候选资料已完成人工确认", actor="健康管理师")
                 session.commit()
             st.rerun()
@@ -4562,7 +4618,12 @@ def render_health_assessments(patient: Patient) -> None:
         assessments = HealthAssessmentService().history(session, patient.id)
         baseline = HealthAssessmentService().latest_baseline(session, patient.id)
     if baseline is not None:
-        label = "健康基线 · 待确认" if baseline.status == "DRAFT" else "健康基线 · 已建立"
+        status_label = {
+            "DRAFT": "资料收集中", "NEEDS_REVIEW": "待健康管理师确认",
+            "WAITING_MEDICAL_REVIEW": "等待医生复核", "CONFIRMED": "已建立",
+            "AMENDED": "已完成资料修订", "SUPERSEDED": "历史版本",
+        }.get(baseline.status, "待确认")
+        label = f"{baseline.cycle_year or baseline.assessed_at.year}年度健康基线 · {status_label}"
         st.markdown(f"### {label}")
         st.caption(baseline.summary)
         snapshot = baseline.baseline_json or {}
@@ -4585,57 +4646,136 @@ def render_health_assessments(patient: Patient) -> None:
                 else:
                     st.caption("待补充")
                 _render_snapshot_item_evidence(patient.id, value, key_scope=f"baseline-snapshot-{baseline.id}-{key}")
-        risk = snapshot.get("risk_summary") or {}
-        st.caption("当前风险摘要：" + _risk_text(str(risk.get("level") or "UNKNOWN")))
+        st.caption("健康基线只记录周期起点事实；当前风险由确定性规则另行评估。没有风险记录不代表低风险。")
         with SessionLocal() as session:
             _render_evidence_action(
                 _baseline_evidence_payload(session, patient.id, baseline),
                 key_scope=f"baseline-{patient.id}-{baseline.id}",
             )
-        if baseline.status == "DRAFT":
+        if baseline.status in {"CONFIRMED", "AMENDED"}:
+            with st.expander("查看年度起点与当前状态比较"):
+                with SessionLocal() as session:
+                    comparison = ReportComparisonService().compare_to_baseline(
+                        session, patient.id, cycle_year=baseline.cycle_year,
+                    )
+                comparison_labels = {"NEW": "新增", "PERSISTENT": "持续", "CHANGED": "发生变化", "NOT_RECHECKED": "未复查", "NOT_COMPARABLE": "无法比较"}
+                rows = comparison["changes"]
+                if rows:
+                    st.dataframe(pd.DataFrame([{
+                        "指标": _metric_display_name(row["metric"]),
+                        "年度起点": f"{row['baseline'] or '暂无'} {row['unit'] or ''}".strip(),
+                        "当前": f"{row['current'] or '暂无'} {row['unit'] or ''}".strip(),
+                        "状态": comparison_labels.get(row["status"], "待确认"),
+                    } for row in rows]), hide_index=True, width="stretch")
+                else:
+                    st.caption("当前还没有可与年度起点比较的新数据。")
+                st.caption(comparison["interpretation"])
+        if baseline.status in {"DRAFT", "NEEDS_REVIEW", "WAITING_MEDICAL_REVIEW"}:
             st.warning("该初稿仅由已确认报告资料和现有健康档案整理，仍需健康管理师审核后才能成为正式健康基线。")
-            if st.button("确认健康基线", key=f"confirm-baseline-{baseline.id}", type="primary"):
+            if baseline.medical_review_required and not baseline.medical_reviewed_at:
+                st.info("其中包含需要医学判断的内容，正在等待医生复核；健管不能代替医生确认。")
+                if baseline.status != "WAITING_MEDICAL_REVIEW" and st.button("提交医生复核", key=f"baseline-doctor-review-{baseline.id}", type="primary"):
+                    with SessionLocal() as session:
+                        HealthAssessmentService().request_medical_review(session, baseline.id, requested_by="健康管理师")
+                        session.commit()
+                    st.success("已提交医生复核。")
+                    st.rerun()
+            elif st.button("确认健康基线", key=f"confirm-baseline-{baseline.id}", type="primary"):
                 try:
                     with SessionLocal() as session:
                         item = HealthAssessmentService().confirm(session, baseline.id, "health_manager")
                         report_ids = (item.source_references_json or {}).get("source_report_ids", [])
                         for report_id in report_ids:
                             HealthAssessmentService().complete_report_review_task(session, patient.id, UUID(report_id))
+                        _publish_agent_event(session, event_type="BASELINE_CONFIRMED", member_id=patient.id, source_type="health_assessment", source_id=item.id, summary="年度健康基线已由健康管理师确认", actor="健康管理师")
                         session.commit()
                     st.success("健康基线已确认，并已进入重大健康时间轴。")
                     st.rerun()
                 except ValueError as error:
                     st.error(str(error))
         else:
-            st.success(f"已建立 · {_fmt_dt(baseline.confirmed_at or baseline.assessed_at)}")
+            st.success(f"已建立 · {_fmt_dt(baseline.confirmed_at or baseline.assessed_at)}；确认后已冻结，新健康数据不会覆盖该起点。")
+            with st.expander("修订已确认资料"):
+                st.caption("仅用于纠正原基线事实。后续健康变化应进入当前状态、比较和阶段结果。")
+                with st.form(f"amend-baseline-{baseline.id}"):
+                    amendment_reason = st.text_area("修订原因")
+                    correction_note = st.text_area("纠正内容")
+                    evidence_note = st.text_input("支持依据", placeholder="例如：年度体检报告第6页或医生复核记录")
+                    amend = st.form_submit_button("创建修订版本")
+                if amend:
+                    try:
+                        with SessionLocal() as session:
+                            HealthAssessmentService().amend_baseline(
+                                session, baseline.id,
+                                changes={"confirmed_correction": {"content": correction_note, "evidence": evidence_note}},
+                                reason=amendment_reason, amended_by="健康管理师",
+                                evidence_references={"display_reference": evidence_note} if evidence_note.strip() else {},
+                            )
+                            session.commit()
+                        st.success("已创建新的基线修订版本，原版本仍保留。")
+                        st.rerun()
+                    except ValueError as error:
+                        st.error(str(error))
         if assessments:
             with st.expander("查看健康评估历史"):
-                st.dataframe(pd.DataFrame([{"版本": item.version, "类型": {"BASELINE": "健康基线", "REASSESSMENT": "阶段复评", "ANNUAL": "年度评估"}.get(item.assessment_type, item.assessment_type), "状态": "已确认" if item.status == "CONFIRMED" else "待确认", "时间": _fmt_dt(item.confirmed_at or item.assessed_at), "摘要": item.summary, "创建人": item.created_by} for item in assessments]), hide_index=True, width="stretch")
+                status_labels = {"DRAFT": "资料收集中", "NEEDS_REVIEW": "待确认", "WAITING_MEDICAL_REVIEW": "等待医生", "CONFIRMED": "已确认", "AMENDED": "已修订", "SUPERSEDED": "历史版本"}
+                st.dataframe(pd.DataFrame([{"管理周期": item.cycle_year or item.assessed_at.year, "版本": item.version, "类型": {"BASELINE": "健康基线", "REASSESSMENT": "阶段复评", "ANNUAL": "年度评估"}.get(item.assessment_type, item.assessment_type), "状态": status_labels.get(item.status, "待确认"), "时间": _fmt_dt(item.confirmed_at or item.assessed_at), "摘要": item.summary, "创建人": item.created_by} for item in assessments]), hide_index=True, width="stretch")
     else:
         _empty_state("尚未建立健康基线", "成员上传最近一次体检报告并完成人工确认后，可生成健康基线初稿。")
-    with st.expander("建立新的健康评估"):
+    with st.expander("建立年度健康基线初稿或阶段复评"):
         with st.form(f"assessment-{patient.id}"):
-            kind = st.selectbox("评估类型", ["INITIAL", "REASSESSMENT"], format_func=lambda item: "初始健康评估" if item == "INITIAL" else "阶段健康复评")
+            kind = st.selectbox("评估类型", ["BASELINE", "REASSESSMENT"], format_func=lambda item: "年度健康基线初稿" if item == "BASELINE" else "阶段健康复评")
+            cycle_year = st.number_input("管理周期", min_value=2020, max_value=2100, value=date.today().year, step=1)
             summary = st.text_area("健康管理摘要", placeholder="基于已确认资料的人工摘要")
-            if st.form_submit_button("保存健康评估"):
+            needs_doctor = st.checkbox("包含需要医生确认的医学判断")
+            if st.form_submit_button("保存初稿"):
                 if not summary.strip(): st.error("请填写人工健康管理摘要。")
                 else:
                     with SessionLocal() as session:
-                        HealthAssessmentService().create_assessment(session, patient.id, title="初始健康评估" if kind == "INITIAL" else "阶段健康复评", summary=summary, baseline={}, created_by="健康管理师", assessment_type="BASELINE" if kind == "INITIAL" else "REASSESSMENT", confirmed=True)
+                        if kind == "BASELINE":
+                            HealthAssessmentService().create_manual_draft(
+                                session, patient.id, created_by="健康管理师", summary=summary,
+                                cycle_year=int(cycle_year), medical_review_required=needs_doctor,
+                            )
+                        else:
+                            HealthAssessmentService().create_assessment(
+                                session, patient.id, title="阶段健康复评", summary=summary,
+                                baseline={}, created_by="健康管理师", assessment_type="REASSESSMENT",
+                                confirmed=True, cycle_year=int(cycle_year),
+                            )
                         session.commit()
-                    st.success("已保存新的版本化健康评估。")
+                    st.success("已保存待确认初稿。")
                     st.rerun()
 
 
 def render_report_comparison(patient: Patient) -> None:
     st.subheader("体检变化对比")
-    st.caption("仅比较两份报告中已人工确认的资料；不会由本地AI决定风险或诊断。")
+    st.caption("年度起点比较与报告间比较相互独立；只描述已确认事实，不自动判断医学改善或恶化。")
+    try:
+        with SessionLocal() as session:
+            baseline_comparison = ReportComparisonService().compare_to_baseline(session, patient.id)
+        with section_frame("年度健康起点 → 当前状态", "回答从本年度参考起点到现在发生了哪些已记录变化。"):
+            rows = baseline_comparison["changes"]
+            if rows:
+                status_labels = {"NEW": "新增", "PERSISTENT": "持续", "CHANGED": "发生变化", "NOT_RECHECKED": "未复查", "NOT_COMPARABLE": "无法比较"}
+                st.dataframe(pd.DataFrame([{
+                    "指标": _metric_display_name(row["metric"]),
+                    "年度起点": f"{row['baseline'] or '暂无'} {row['unit'] or ''}".strip(),
+                    "当前": f"{row['current'] or '暂无'} {row['unit'] or ''}".strip(),
+                    "状态": status_labels.get(row["status"], "待确认"),
+                } for row in rows]), hide_index=True, width="stretch")
+            else:
+                _empty_state("暂无可比较指标", "健康基线已建立，但当前还没有新的同类确认数据。")
+            st.caption(baseline_comparison["interpretation"])
+    except ValueError:
+        st.info("年度健康基线确认后，将在这里显示从健康起点到当前状态的变化。")
     with SessionLocal() as session:
         report_document_ids = list(session.scalars(select(ReportExtractionRun.document_id).where(ReportExtractionRun.patient_id == patient.id, ReportExtractionRun.status.in_(("COMPLETED", "PARTIAL_SUCCESS"))).distinct()))
         documents = list(session.scalars(select(Document).where(Document.patient_id == patient.id, Document.id.in_(report_document_ids)).order_by(Document.created_at.desc()))) if report_document_ids else []
     if len(documents) < 2:
         st.caption("至少需要两份已解析并人工确认的体检报告，才能进行变化对比。")
         return
+    _section_header("报告与报告之间")
     old, new = st.columns(2)
     old_document = old.selectbox("较早报告", documents, index=1, format_func=lambda item: f"{_source_display_name(item)} · {_fmt_dt(item.created_at)}", key=f"compare-old-{patient.id}")
     new_document = new.selectbox("较新报告", documents, index=0, format_func=lambda item: f"{_source_display_name(item)} · {_fmt_dt(item.created_at)}", key=f"compare-new-{patient.id}")
@@ -5478,9 +5618,9 @@ def render_member_report_upload(patient: Patient) -> None:
         intake_status, intake_next = "正在整理", "系统正在整理报告；完成后将交由健康管理团队核对。"
     elif pending:
         intake_status, intake_next = "等待审核", "报告已收到并完成初步整理，等待健康管理团队核对后入档。"
-    elif baseline and baseline.status == "DRAFT":
+    elif baseline and baseline.status in {"DRAFT", "NEEDS_REVIEW", "WAITING_MEDICAL_REVIEW"}:
         intake_status, intake_next = "健康档案正在建立", "报告已审核，健康基线初稿正在等待健康管理团队确认。"
-    elif baseline and baseline.status == "CONFIRMED":
+    elif baseline and baseline.status in {"CONFIRMED", "AMENDED"}:
         intake_status, intake_next = "审核完成", "报告已纳入健康档案；后续变化将由健康管理团队持续跟进。"
     else:
         intake_status, intake_next = "已收到", "报告已收到，健康管理团队将继续审核整理结果。"
@@ -5535,8 +5675,9 @@ def _render_member_baseline_center(patient: Patient) -> None:
         render_member_report_upload(patient)
         return
     snapshot = baseline.baseline_json or {}
-    if baseline.status == "DRAFT":
-        st.markdown("### 健康基线 · 待确认")
+    cycle_label = f"{baseline.cycle_year or baseline.assessed_at.year}年度健康基线"
+    if baseline.status in {"DRAFT", "NEEDS_REVIEW", "WAITING_MEDICAL_REVIEW"}:
+        st.markdown(f"### 我的健康起点 · {cycle_label}待确认")
         st.caption("已由健康管理团队开始整理；成员补充资料后仍需健康管理师确认。")
         st.caption("您补充的内容会标记为成员自述资料，不会自动作为医学确认结论。")
         completeness = snapshot.get("completeness") or {}
@@ -5558,17 +5699,29 @@ def _render_member_baseline_center(patient: Patient) -> None:
                     st.success("已提交为成员自述资料，等待健康管理团队审核。")
                     st.rerun()
     else:
-        st.markdown("### 健康基线 · 已建立")
-        st.caption(f"建立日期：{_fmt_dt(baseline.confirmed_at or baseline.assessed_at)}")
+        st.markdown(f"### 我的健康起点 · {cycle_label}")
+        update_note = " · 已完成资料修订" if baseline.status == "AMENDED" else ""
+        st.caption(f"建立日期：{_fmt_dt(baseline.confirmed_at or baseline.assessed_at)}{update_note}")
     st.write(baseline.summary)
     with SessionLocal() as session:
         _render_evidence_action(
             _baseline_evidence_payload(session, patient.id, baseline),
             key_scope=f"client-baseline-{patient.id}-{baseline.id}", client_view=True,
         )
-    for heading, key in (("基本情况", "basic_information"), ("主要健康问题", "health_problems"), ("关键健康指标", "key_metrics"), ("重要检查结果", "important_findings"), ("当前用药", "current_medications"), ("手术 / 住院史", "procedures_or_hospitalizations"), ("近期生活健康数据", "recent_health_data"), ("当前管理重点", "management_focus")):
+    main_health = [*(snapshot.get("health_problems") or []), *(snapshot.get("important_findings") or [])]
+    focus_and_coverage = {
+        "需要持续关注": "；".join(str(item) for item in snapshot.get("management_focus", [])) or "待健康管理团队确认",
+        **(snapshot.get("data_coverage") or {}),
+    }
+    member_sections = (
+        ("主要健康情况", main_health),
+        ("关键指标", snapshot.get("key_metrics")),
+        ("当前用药", snapshot.get("current_medications")),
+        ("重要历史", snapshot.get("procedures_or_hospitalizations")),
+        ("持续关注与资料完整性", focus_and_coverage),
+    )
+    for heading, value in member_sections:
         with st.expander(heading):
-            value = snapshot.get(key)
             if isinstance(value, list) and value:
                 st.dataframe(pd.DataFrame([_business_detail_row(item) for item in value if isinstance(item, dict)]), hide_index=True, width="stretch") if isinstance(value[0], dict) else st.write("；".join(str(item) for item in value))
             elif isinstance(value, dict):
@@ -5578,7 +5731,7 @@ def _render_member_baseline_center(patient: Patient) -> None:
                     st.dataframe(pd.DataFrame([_business_detail_row(value)]), hide_index=True, width="stretch")
             else:
                 st.caption("待补充")
-            _render_snapshot_item_evidence(patient.id, value, key_scope=f"client-baseline-snapshot-{baseline.id}-{key}", client_view=True)
+            _render_snapshot_item_evidence(patient.id, value, key_scope=f"client-baseline-snapshot-{baseline.id}-{heading}", client_view=True)
 
 
 def _render_member_center_baseline_entry(patient: Patient) -> None:
@@ -5589,8 +5742,8 @@ def _render_member_center_baseline_entry(patient: Patient) -> None:
         draft = assessments.latest_baseline(session, patient.id, include_draft=True)
     _section_header("健康基线")
     if baseline is None:
-        if draft is not None and draft.status == "DRAFT":
-            st.markdown("**健康基线 · 待确认**")
+        if draft is not None and draft.status in {"DRAFT", "NEEDS_REVIEW", "WAITING_MEDICAL_REVIEW"}:
+            st.markdown(f"**{draft.cycle_year or draft.assessed_at.year}年度健康基线 · 待确认**")
             st.caption("健康管理团队正在补充与审核初稿；确认后会成为正式健康基线。")
             if st.button("查看健康基线初稿", key=f"member-baseline-open-{patient.id}"):
                 st.session_state[f"client-archive-{patient.id}"] = "健康基线"
@@ -5601,7 +5754,7 @@ def _render_member_center_baseline_entry(patient: Patient) -> None:
             if st.button("上传最近体检报告", key=f"member-baseline-upload-{patient.id}", type="primary"):
                 _open_member_report_upload(patient.id)
     else:
-        st.markdown("**健康基线 · 已建立**")
+        st.markdown(f"**{baseline.cycle_year or baseline.assessed_at.year}年度健康基线 · 已建立**")
         st.caption(f"建立日期：{_fmt_dt(baseline.confirmed_at or baseline.assessed_at)} · 新体检报告可在下方“体检与检查”上传并进行长期比较。")
         if st.button("查看完整健康基线", key=f"member-baseline-open-{patient.id}"):
             st.session_state[f"client-archive-{patient.id}"] = "健康基线"
@@ -6057,7 +6210,7 @@ def _render_client_health_overview(patient: Patient, ctx: dict[str, list[object]
     with section_frame("当前健康状态", "先看已经确认的结论；需要医学判断时由医生处理。"):
         st.markdown(risk_badge(risk), unsafe_allow_html=True)
         st.markdown(f"**{reason or '当前没有正式风险评估。'}**")
-    with section_frame("健康基线", "基线汇总当前主要问题、管理重点和来源；详情在本页展开。"):
+    with section_frame("我的健康起点", "年度健康基线是当前管理周期的参考起点，不会被后续健康数据自动覆盖。"):
         if baseline is None:
             _empty_state("尚未建立健康基线", "上传最近体检报告并经健康管理团队确认后，可在这里形成健康基线。")
         else:

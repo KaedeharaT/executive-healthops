@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from executive_health_ai.blood_pressure import TOKYO_TIMEZONE, build_blood_pressure_records
 from executive_health_ai.models import (
-    AIInsight, Base, CareTask, ClinicalRecommendation, MedicationEvent, Observation, Patient,
+    AIInsight, Base, CareTask, ClinicalRecommendation, HealthAssessment, MedicationEvent, Observation, Patient,
     RawData, SleepSession,
 )
 from executive_health_ai.services.analysis import (
@@ -103,6 +103,15 @@ def test_full_demo_seed_summaries_timeline_and_associations(session_factory: ses
         assert adherence.scheduled_count == 60 and adherence.missed_count == 3
         assert {item.category for item in timeline} >= {"blood_pressure", "cgm", "sleep", "medication", "health_event", "encounter", "care_task"}
         assert associations[0].insight_type == "possible_association"
+        baseline = session.scalar(select(HealthAssessment).where(
+            HealthAssessment.patient_id == patient.id,
+            HealthAssessment.assessment_type == "BASELINE",
+        ))
+        assert baseline is not None
+        assert (baseline.status, baseline.cycle_year, baseline.version) == ("CONFIRMED", 2026, 1)
+        assert baseline.snapshot_hash
+        assert "risk_summary" not in baseline.baseline_json
+        assert (baseline.source_references_json or {}).get("source_report_ids")
 
 
 def test_abstention_ai_clinician_separation_and_care_task_completion(session_factory: sessionmaker[Session]) -> None:

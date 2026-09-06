@@ -22,7 +22,7 @@ class StepTemplate:
 POST_CHECKUP_TEMPLATE = (
     StepTemplate("CHECK_REPORT", "get_report_status"),
     StepTemplate("WAIT_REPORT_CONFIRMATION", approval_role="HEALTH_MANAGER", wait_event_type="REPORT_CONFIRMED"),
-    StepTemplate("CHECK_BASELINE", "get_latest_baseline"),
+    StepTemplate("CHECK_BASELINE", "get_latest_baseline", wait_event_type="BASELINE_CONFIRMED"),
     StepTemplate("EVALUATE_RISK", "evaluate_confirmed_observations"),
     StepTemplate("CHECK_WORKLIST", "get_active_work_items"),
     StepTemplate("ASSIGN_MANAGER", "assign_work_item", approval_role="HEALTH_MANAGER"),

@@ -189,7 +189,7 @@ The launcher creates only the isolated `data/portfolio_demo.db` and starts Strea
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current v0.9.0 regression suite: **412 passed / 0 failed**.
+Current v0.9.0 regression suite: **423 passed / 0 failed**.
 
 ## Current Limitations
 

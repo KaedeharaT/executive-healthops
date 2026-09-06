@@ -97,7 +97,7 @@ def current_care_cycle(session: Session, member_id: UUID, *, today: date | None 
     baseline = session.scalar(select(HealthAssessment).where(
         HealthAssessment.patient_id == member_id,
         HealthAssessment.assessment_type == "BASELINE",
-        HealthAssessment.status == "CONFIRMED",
+        HealthAssessment.status.in_(("CONFIRMED", "AMENDED")),
     ).order_by(HealthAssessment.confirmed_at.desc()))
     program = session.scalar(select(HealthProgram).where(
         HealthProgram.patient_id == member_id,

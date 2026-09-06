@@ -166,7 +166,15 @@ class HealthOpsAgentSupervisor:
                 if not self._run_tool(session, goal, plan, step, event_id=event_id, approved_role=approved_role):
                     return goal
                 if step.step_type == "CHECK_BASELINE":
-                    self._criterion(goal, "baseline_ready", bool((step.result_summary or "").find('"ready": true') >= 0))
+                    baseline_ready = bool((step.result_summary or "").find('"ready": true') >= 0)
+                    self._criterion(goal, "baseline_ready", baseline_ready)
+                    if not baseline_ready:
+                        self._wait_for_event(
+                            session, goal, plan, step, "WAITING_MANAGER",
+                            "等待健康基线确认", "健康管理师确认年度健康基线后继续",
+                            event_id=event_id,
+                        )
+                        return goal
                 elif step.step_type == "EVALUATE_RISK":
                     self._criterion(goal, "risk_evaluated", True)
                 elif step.step_type == "CREATE_FOLLOWUP":
@@ -264,6 +272,8 @@ class HealthOpsAgentSupervisor:
             if approval:
                 approval.status, approval.decision, approval.decided_at = "APPROVED", "APPROVED", utc_now()
                 approval.decided_by = str((event.metadata_json or {}).get("actor") or "健康管理师")
+        elif event.event_type == "BASELINE_CONFIRMED":
+            self._criterion(goal, "baseline_ready", True)
         elif event.event_type == "DOCTOR_REVIEW_COMPLETED":
             self._criterion(goal, "doctor_review_complete", True)
         elif event.event_type == "OUTCOME_RECORDED":

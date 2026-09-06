@@ -6,11 +6,11 @@ automated clinical decisions.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, ForeignKey, JSON, String, Text
+from sqlalchemy import Boolean, Date, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from executive_health_ai.models.base import Base, UTCDateTime, utc_now
@@ -18,11 +18,22 @@ from executive_health_ai.models.base import Base, UTCDateTime, utc_now
 
 class HealthAssessment(Base):
     __tablename__ = "health_assessments"
+    __table_args__ = (
+        UniqueConstraint(
+            "patient_id", "assessment_type", "cycle_year", "version",
+            name="uq_health_assessment_cycle_version",
+        ),
+        Index("ix_health_assessment_cycle_status", "patient_id", "cycle_year", "status"),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     patient_id: Mapped[UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
     assessment_type: Mapped[str] = mapped_column(String(32), nullable=False, default="INITIAL", index=True)
     version: Mapped[int] = mapped_column(nullable=False)
+    management_cycle_id: Mapped[UUID | None] = mapped_column(ForeignKey("annual_health_accounts.id"), nullable=True, index=True)
+    cycle_year: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    cycle_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    cycle_end: Mapped[date | None] = mapped_column(Date, nullable=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     baseline_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
@@ -30,9 +41,22 @@ class HealthAssessment(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT", index=True)
     reviewed_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
     confirmed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    collection_started_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    collection_due_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    collection_closed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    medical_review_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    medical_reviewed_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    medical_reviewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    parent_assessment_id: Mapped[UUID | None] = mapped_column(ForeignKey("health_assessments.id"), nullable=True, index=True)
+    amendment_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    amendment_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    amended_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    superseded_by_id: Mapped[UUID | None] = mapped_column(ForeignKey("health_assessments.id"), nullable=True)
+    snapshot_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     source_references_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     assessed_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utc_now)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utc_now, onupdate=utc_now)
 
 
 class ManagementRule(Base):

@@ -187,7 +187,7 @@ pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-当前 v0.9.0 回归套件：**412 passed / 0 failed**。
+当前 v0.9.0 回归套件：**423 passed / 0 failed**。
 
 ## 当前限制
 

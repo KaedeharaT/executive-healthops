@@ -117,7 +117,7 @@ class AgentToolRegistry:
         return {"report": document.title, "pending": pending, "confirmed": confirmed}
 
     def _baseline(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:
-        row = session.scalar(select(HealthAssessment).where(HealthAssessment.patient_id == goal.member_id, HealthAssessment.status == "CONFIRMED").order_by(HealthAssessment.assessed_at.desc()))
+        row = session.scalar(select(HealthAssessment).where(HealthAssessment.patient_id == goal.member_id, HealthAssessment.status.in_(("CONFIRMED", "AMENDED"))).order_by(HealthAssessment.cycle_year.desc(), HealthAssessment.version.desc()))
         report_count = self._count(session, Document, goal.member_id)
         return {
             "ready": row is not None,
