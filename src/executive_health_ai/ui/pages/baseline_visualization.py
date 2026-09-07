@@ -31,6 +31,14 @@ def render_baseline_visualization(
     with session_factory() as session:
         view = BaselineVisualizationService().build(session, patient.id, cycle_year=baseline.cycle_year)
     client_view = audience == "member"
+
+    def inline_empty(title: str, detail: str) -> None:
+        st.markdown(
+            "<div style='padding:.55rem .75rem;border-left:3px solid #CBD5E1;"
+            "background:#F8FAFC;color:#475569;border-radius:4px'>"
+            f"<strong>{html.escape(title)}</strong><br><span style='font-size:.86rem'>{html.escape(detail)}</span></div>",
+            unsafe_allow_html=True,
+        )
     st.caption("这是本年度健康管理的参考起点，后续变化会与此进行比较。")
     phase_columns = st.columns(3)
     phase_columns[0].caption("首月 · 建立基线")
@@ -49,24 +57,22 @@ def render_baseline_visualization(
 
     section_header("关键指标基线")
     if not view.metrics:
-        empty_state("暂无可展示的关键指标", "已确认的指标会在这里作为年度参考起点显示。")
-    for metric in view.metrics:
-        label, content = st.columns([1, 2.3], gap="medium")
-        with label:
-            st.markdown(f"**{metric.label}**")
-            st.write(f"{metric.value_text} {metric.unit}".strip())
+        inline_empty("暂无已确认指标", "已确认的指标会在这里作为年度参考起点显示。")
+    metric_columns = st.columns(2, gap="medium") if view.metrics else []
+    for index, metric in enumerate(view.metrics[:6]):
+        with metric_columns[index % 2]:
+            st.markdown(f"**{metric.label}　{metric.value_text} {metric.unit}**".strip())
             st.caption(metric.explicit_status)
-        with content:
             chart = reference_range_chart(metric)
             if chart is not None:
                 st.altair_chart(chart, width="stretch", key=f"{key_prefix}-range-{metric.code}")
                 st.caption(f"报告参考范围：{metric.reference.text}")
             else:
                 st.caption("报告未提供可用于绘图的明确参考范围；仅显示已确认数值和来源。")
-        render_metric_evidence(
-            patient.id, metric.source_candidate_id,
-            key_scope=f"{key_prefix}-metric-evidence-{metric.code}", client_view=client_view,
-        )
+            render_metric_evidence(
+                patient.id, metric.source_candidate_id,
+                key_scope=f"{key_prefix}-metric-evidence-{metric.code}", client_view=client_view,
+            )
 
     section_header("从基线到现在")
     trend_options: dict[str, tuple[object, ...]] = {}
@@ -88,12 +94,12 @@ def render_baseline_visualization(
             ) for trend in selected)
         chart = baseline_trend_chart(selected)
         if chart is None:
-            empty_state("暂无足够连续数据形成趋势", "目前只有年度基线，后续同类数据确认后会显示变化。")
+            inline_empty("暂无足够连续数据形成趋势", "目前只有年度基线，后续同类数据确认后会显示变化。")
         else:
             st.altair_chart(chart, width="stretch", key=f"{key_prefix}-trend-chart")
             st.caption("菱形点标示年度基线；折线仅连接同一指标、同一单位的真实记录。")
     else:
-        empty_state("暂无足够连续数据形成趋势", "当前基线尚无可比较的定量指标。")
+        inline_empty("暂无足够连续数据形成趋势", "当前基线尚无可比较的定量指标。")
 
     section_header("基线与当前")
     if view.comparisons:
@@ -103,7 +109,7 @@ def render_baseline_visualization(
         } for item in view.comparisons]), hide_index=True, width="stretch")
         st.caption("这里只描述数值是否变化，不自动判断医学上的改善或恶化。")
     else:
-        empty_state("暂无可比较指标", "后续同类数据确认后会显示基线与当前记录。")
+        inline_empty("暂无可比较指标", "后续同类数据确认后会显示基线与当前记录。")
 
     if audience == "manager":
         section_header("基线资料覆盖")

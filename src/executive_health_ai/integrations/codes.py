@@ -15,11 +15,11 @@ class ObservationCode:
 
 REGISTRY = {
     item.canonical_code: item for item in (
-        ObservationCode("systolic_bp", ("sys", "sbp", "systolic", "收缩压", "高压", "bloodpressurehigh"), "mmHg", "blood_pressure", 50, 300),
-        ObservationCode("diastolic_bp", ("dia", "dbp", "diastolic", "舒张压", "低压", "bloodpressurelow"), "mmHg", "blood_pressure", 30, 200),
+        ObservationCode("systolic_bp", ("sys", "sbp", "systolic", "systolic blood pressure", "收缩压", "高压", "bloodpressurehigh"), "mmHg", "blood_pressure", 50, 300),
+        ObservationCode("diastolic_bp", ("dia", "dbp", "diastolic", "diastolic blood pressure", "舒张压", "低压", "bloodpressurelow"), "mmHg", "blood_pressure", 30, 200),
         ObservationCode("heart_rate", ("pulse", "hr", "心率"), "bpm", "vital", 20, 250),
         ObservationCode("glucose", ("blood_glucose", "cgm_glucose", "血糖"), "mg/dL", "metabolic", 20, 800),
-        ObservationCode("weight", ("body_weight", "体重"), "kg", "body", 20, 400),
+        ObservationCode("weight", ("body_weight", "body weight", "体重"), "kg", "body", 20, 400),
         ObservationCode("height", ("身高",), "cm", "body", 50, 260),
         ObservationCode("sleep_duration", ("total_sleep_duration", "sleep_minutes", "睡眠时长"), "minutes", "sleep", 0, 1440),
         ObservationCode("deep_sleep_duration", ("deep_sleep", "deep_sleep_minutes", "深度睡眠"), "minutes", "sleep", 0, 1440),
@@ -39,10 +39,10 @@ REGISTRY = {
         ObservationCode("body_fat_percentage", ("体脂率",), "%", "body", 1, 100),
         ObservationCode("skeletal_muscle_mass", ("骨骼肌量",), "kg", "body", 1, 200),
         ObservationCode("basal_metabolic_rate", ("基础代谢", "基础代谢率"), "kcal", "body", 100, 10000),
-        ObservationCode("triglycerides", ("甘油三酯", "tg"), "mmol/L", "lipid", 0, 100),
+        ObservationCode("triglycerides", ("triglyceride", "甘油三酯", "tg"), "mmol/L", "lipid", 0, 100),
         ObservationCode("total_cholesterol", ("总胆固醇", "tc"), "mmol/L", "lipid", 0, 100),
-        ObservationCode("ldl_c", ("低密度脂蛋白", "低密度脂蛋白胆固醇", "ldl", "ldl-c"), "mmol/L", "lipid", 0, 100),
-        ObservationCode("hdl_c", ("高密度脂蛋白", "高密度脂蛋白胆固醇", "hdl", "hdl-c"), "mmol/L", "lipid", 0, 100),
+        ObservationCode("ldl_c", ("低密度脂蛋白", "低密度脂蛋白胆固醇", "ldl", "ldl-c", "ldl cholesterol"), "mmol/L", "lipid", 0, 100),
+        ObservationCode("hdl_c", ("高密度脂蛋白", "高密度脂蛋白胆固醇", "hdl", "hdl-c", "hdl cholesterol"), "mmol/L", "lipid", 0, 100),
         ObservationCode("alt", ("谷丙转氨酶",), "U/L", "liver", 0, 2000),
         ObservationCode("ast", ("谷草转氨酶",), "U/L", "liver", 0, 2000),
         ObservationCode("ggt", ("γ-谷氨酰转肽酶", "谷氨酰转肽酶"), "U/L", "liver", 0, 2000),
@@ -63,9 +63,31 @@ REGISTRY = {
 
 
 def canonical_code(value: str) -> ObservationCode | None:
-    normalized = value.strip().lower().replace(" ", "").replace("_", "")
+    def normalize(name: str) -> str:
+        return "".join(character for character in name.strip().lower() if character not in {" ", "_", "-"})
+
+    normalized = normalize(value)
     for item in REGISTRY.values():
         names = (item.canonical_code, *item.aliases)
-        if normalized in {name.lower().replace("_", "") for name in names}:
+        if normalized in {normalize(name) for name in names}:
             return item
     return None
+
+
+def canonical_metric_key(value: str | None) -> str:
+    """Return the semantic metric key used across reports, devices and views.
+
+    Unknown values remain available as a normalized key; this is normalization,
+    not medical interpretation.
+    """
+    raw = (value or "").strip()
+    matched = canonical_code(raw) if raw else None
+    return matched.canonical_code if matched else raw.lower()
+
+
+def storage_aliases(canonical: str) -> tuple[str, ...]:
+    """Return exact, lower-cased storage spellings for one canonical metric."""
+    matched = canonical_code(canonical)
+    if matched is None:
+        return (canonical.lower(),)
+    return tuple(dict.fromkeys(name.lower() for name in (matched.canonical_code, *matched.aliases)))

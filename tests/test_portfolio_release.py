@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.build_portfolio_demo import DEFAULT_DATABASE, _safe_target
+from scripts.build_portfolio_demo import DEFAULT_DATABASE, _safe_target, portfolio_demo_is_current
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +28,11 @@ def test_portfolio_builder_can_only_rebuild_its_isolated_database() -> None:
     assert _safe_target(DEFAULT_DATABASE) == DEFAULT_DATABASE.resolve()
     with pytest.raises(ValueError):
         _safe_target(ROOT / "executive_health_ai.db")
+
+
+def test_portfolio_fixture_version_check_rejects_missing_database(tmp_path) -> None:
+    with pytest.raises(ValueError):
+        portfolio_demo_is_current(tmp_path / "untrusted.db")
 
 
 def test_portfolio_readme_states_non_clinical_and_privacy_boundaries() -> None:

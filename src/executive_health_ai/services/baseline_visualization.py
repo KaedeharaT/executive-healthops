@@ -6,37 +6,35 @@ report candidate captured by the baseline.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 import re
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from executive_health_ai.models import HealthAssessment, Observation, ReportExtractionCandidate
+from executive_health_ai.integrations.codes import canonical_code, canonical_metric_key, storage_aliases
+from executive_health_ai.integrations.normalization import normalize_unit
 from executive_health_ai.services.longitudinal import HealthAssessmentService, USABLE_QUALITY
 
 
 METRIC_LABELS = {
-    "ldl": "LDL-C", "ldl_c": "LDL-C", "hdl": "HDL-C", "hdl_c": "HDL-C",
-    "triglyceride": "甘油三酯", "triglycerides": "甘油三酯", "tg": "甘油三酯", "hba1c": "糖化血红蛋白",
-    "bmi": "BMI", "weight": "体重", "waist": "腰围",
+    "ldl_c": "LDL-C", "hdl_c": "HDL-C", "triglycerides": "甘油三酯", "hba1c": "糖化血红蛋白",
+    "bmi": "BMI", "weight": "体重", "waist_circumference": "腰围",
     "systolic_bp": "收缩压", "diastolic_bp": "舒张压", "alt": "ALT", "ast": "AST",
     "glucose": "血糖", "steps": "步数", "exercise_minutes": "运动时间",
     "sleep_duration": "睡眠时长",
 }
-SUPPORTED_REFERENCE_METRICS = {
-    "ldl", "ldl_c", "hdl", "hdl_c", "triglyceride", "triglycerides", "tg", "hba1c",
-    "bmi", "weight", "waist", "systolic_bp", "diastolic_bp", "alt", "ast",
-}
+SUPPORTED_REFERENCE_METRICS = {"ldl_c", "hdl_c", "triglycerides", "hba1c", "bmi", "weight", "waist_circumference", "systolic_bp", "diastolic_bp", "alt", "ast"}
 DOMAIN_METRICS = {
-    "代谢健康": {"ldl", "ldl_c", "hdl", "hdl_c", "triglyceride", "triglycerides", "tg", "hba1c", "glucose"},
+    "代谢健康": {"ldl_c", "hdl_c", "triglycerides", "hba1c", "glucose"},
     "心血管": {"systolic_bp", "diastolic_bp", "heart_rate"},
     "肝脏": {"alt", "ast"},
-    "体重与体成分": {"weight", "bmi", "waist"},
+    "体重与体成分": {"weight", "bmi", "waist_circumference"},
     "生活方式": {"steps", "exercise_minutes", "sleep_duration", "deep_sleep_duration"},
 }
 DOMAIN_FINDING_TERMS = {
@@ -63,6 +61,28 @@ class BaselineMetricView:
     source_candidate_id: UUID | None
     reference: ReferenceInterval | None
     explicit_status: str
+    current_value: Decimal | None = None
+    current_date: datetime | None = None
+
+    @property
+    def metric_name(self) -> str:
+        return self.label
+
+    @property
+    def canonical_code(self) -> str:
+        return self.code
+
+    @property
+    def baseline_value(self) -> Decimal | None:
+        return self.value
+
+    @property
+    def baseline_date(self) -> datetime | None:
+        return self.observed_at
+
+    @property
+    def evidence(self) -> UUID | None:
+        return self.source_candidate_id
 
 
 @dataclass(frozen=True)
@@ -186,6 +206,22 @@ def _explicit_status(flag: str | None) -> str:
     return "已记录"
 
 
+def _comparable_value(metric: BaselineMetricView, observation: Observation) -> Decimal | None:
+    """Return a safely comparable value, using only explicit unit normalization."""
+    if observation.value_numeric is None:
+        return None
+    if (observation.unit or "").strip().lower() == (metric.unit or "").strip().lower():
+        return observation.value_numeric
+    definition = canonical_code(metric.code)
+    if definition is None or (metric.unit or "").strip().lower() != definition.default_unit.lower():
+        return None
+    try:
+        value, unit = normalize_unit(definition, observation.value_numeric, observation.unit)
+    except ValueError:
+        return None
+    return value if unit.lower() == metric.unit.lower() else None
+
+
 class BaselineVisualizationService:
     """Build one bounded query projection for member/manager/doctor views."""
 
@@ -216,7 +252,7 @@ class BaselineVisualizationService:
         } if candidate_ids else {}
         metrics: list[BaselineMetricView] = []
         for row in raw_metrics:
-            code = str(row.get("metric") or "").lower()
+            code = canonical_metric_key(str(row.get("metric") or ""))
             candidate_id = _uuid(row.get("source_candidate_id"))
             candidate = candidates.get(candidate_id)
             value = _decimal(row.get("value"))
@@ -230,55 +266,73 @@ class BaselineVisualizationService:
             ))
 
         metric_codes = {metric.code for metric in metrics if metric.value is not None}
+        query_codes = {alias for code in metric_codes for alias in storage_aliases(code)}
         observations = list(session.scalars(select(Observation).where(
             Observation.patient_id == member_id,
-            Observation.metric_code.in_(metric_codes),
+            func.lower(Observation.metric_code).in_(query_codes),
             Observation.quality_flag.in_(USABLE_QUALITY),
             Observation.excluded_from_analysis.is_(False),
             Observation.source_deleted.is_(False),
         ).order_by(Observation.observed_at))) if metric_codes else []
         by_code: dict[str, list[Observation]] = {}
         for observation in observations:
-            by_code.setdefault(observation.metric_code.lower(), []).append(observation)
+            by_code.setdefault(canonical_metric_key(observation.metric_code), []).append(observation)
         trends: list[BaselineTrendView] = []
         comparisons: list[BaselineComparisonView] = []
+        finalized_metrics: list[BaselineMetricView] = []
         for metric in metrics:
             if metric.value is None:
+                finalized_metrics.append(metric)
                 continue
             baseline_at = metric.observed_at or baseline.confirmed_at or baseline.assessed_at
             points = [TrendPoint(baseline_at, metric.value, metric.label, "BASELINE")]
-            comparable = [row for row in by_code.get(metric.code, []) if row.unit == metric.unit and row.observed_at > baseline_at]
-            points.extend(TrendPoint(row.observed_at, row.value_numeric, metric.label, "FOLLOW_UP") for row in comparable)
+            comparable = [
+                (row, value) for row in by_code.get(metric.code, [])
+                if row.observed_at > baseline_at and (value := _comparable_value(metric, row)) is not None
+            ]
+            points.extend(TrendPoint(row.observed_at, value, metric.label, "FOLLOW_UP") for row, value in comparable)
             trends.append(BaselineTrendView(metric.code, metric.label, metric.unit, metric.value, tuple(points)))
             current = comparable[-1] if comparable else None
+            finalized_metrics.append(replace(
+                metric,
+                current_value=current[1] if current else None,
+                current_date=current[0].observed_at if current else None,
+            ))
             comparisons.append(BaselineComparisonView(
                 metric.code, metric.label, metric.value_text,
-                str(current.value_numeric) if current else "暂无后续数据", metric.unit,
-                "发生变化" if current and current.value_numeric != metric.value else "已记录" if current else "未复查",
+                str(current[1]) if current else "暂无后续数据", metric.unit,
+                "发生变化" if current and current[1] != metric.value else "已记录" if current else "未复查",
             ))
 
         coverage = self._coverage(snapshot)
         domains = self._domains(snapshot, metrics, coverage)
         amendments = self._amendments(session, baseline)
-        return BaselineVisualization(baseline, tuple(metrics), tuple(trends), coverage, domains, tuple(comparisons), amendments)
+        return BaselineVisualization(baseline, tuple(finalized_metrics), tuple(trends), coverage, domains, tuple(comparisons), amendments)
 
     @staticmethod
     def _coverage(snapshot: dict[str, Any]) -> tuple[CoverageItem, ...]:
         pending = set((snapshot.get("completeness") or {}).get("pending") or [])
         data = snapshot.get("data_coverage") or {}
-        definitions = [
-            ("年度体检", bool(snapshot.get("source_reports")), "缺少年度体检"),
-            ("既往史", bool(snapshot.get("health_problems")), "既往健康史"),
-            ("当前用药", isinstance(snapshot.get("current_medications"), list) and bool(snapshot.get("current_medications")), "当前用药"),
-            ("手术 / 住院史", isinstance(snapshot.get("procedures_or_hospitalizations"), list) and bool(snapshot.get("procedures_or_hospitalizations")), "手术 / 住院史"),
-            ("关键指标", bool(snapshot.get("key_metrics")), "关键指标"),
-        ]
-        rows = [CoverageItem(label, "已覆盖" if covered else "待补充" if pending_name in pending else "暂无数据") for label, covered, pending_name in definitions]
-        rows.extend(CoverageItem(label, str(status)) for label, status in data.items())
+        medications = snapshot.get("current_medications")
+        medication_covered = (isinstance(medications, list) and bool(medications)) or (isinstance(medications, dict) and medications.get("status") == "CONFIRMED_NONE")
+        history_covered = bool(snapshot.get("health_problems")) or isinstance(snapshot.get("procedures_or_hospitalizations"), list)
+        vital_codes = {canonical_metric_key(str(row.get("metric") or "")) for row in snapshot.get("key_metrics", []) if isinstance(row, dict)}
+        vitals_covered = bool(vital_codes & {"weight", "bmi", "systolic_bp", "diastolic_bp"})
+        continuous_statuses = [str(value) for value in data.values()]
+        continuous = "部分" if continuous_statuses else "暂无数据"
+        if continuous_statuses and all(value in {"暂无数据", "待补充"} for value in continuous_statuses):
+            continuous = "暂无数据"
         lifestyle = snapshot.get("member_reported") or {}
         fields = lifestyle.get("fields") if isinstance(lifestyle, dict) else {}
-        rows.append(CoverageItem("生活方式", "已覆盖" if isinstance(fields, dict) and fields.get("生活方式资料") else "待补充"))
-        return tuple(rows)
+        lifestyle_status = "已覆盖" if isinstance(fields, dict) and fields.get("生活方式资料") else "待补充"
+        return (
+            CoverageItem("年度体检", "已覆盖" if snapshot.get("source_reports") else "待补充" if "缺少年度体检" in pending else "暂无数据"),
+            CoverageItem("既往史", "已覆盖" if history_covered else "待补充"),
+            CoverageItem("当前用药", "已覆盖" if medication_covered else "待补充" if "当前用药" in pending else "暂无数据"),
+            CoverageItem("生命体征", "已覆盖" if vitals_covered else "暂无数据"),
+            CoverageItem("连续健康数据", continuous),
+            CoverageItem("生活方式", lifestyle_status),
+        )
 
     @staticmethod
     def _domains(snapshot: dict[str, Any], metrics: list[BaselineMetricView], _coverage: tuple[CoverageItem, ...]) -> tuple[HealthDomainView, ...]:

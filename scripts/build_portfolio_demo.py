@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import os
 import runpy
+import sqlite3
 import subprocess
 import sys
 from datetime import date, datetime, timezone
@@ -20,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE = ROOT / "data" / "portfolio_demo.db"
 DEMO_EXTERNAL_ID = "portfolio-demo-executive-a"
+DEMO_DATA_VERSION = "portfolio-demo-baseline-visualization-v2"
 
 
 def _configure_console_encoding() -> None:
@@ -69,16 +71,20 @@ def _seed_existing_demo() -> None:
 
 def _replace_report_fixture(session, patient_id) -> None:
     """Create a compact, anonymous report story with honest fixture evidence."""
-    from sqlalchemy import delete, select
+    from sqlalchemy import delete, or_, select
 
     from executive_health_ai.models import Document, HealthAssessment, Observation, ReportExtractionCandidate, ReportExtractionRun
     from executive_health_ai.services.longitudinal import HealthAssessmentService
 
     document_ids = list(session.scalars(select(Document.id).where(Document.patient_id == patient_id)))
     session.execute(delete(HealthAssessment).where(HealthAssessment.patient_id == patient_id))
+    baseline_metric_codes = ("weight", "body_weight", "bmi", "ldl", "ldl_c", "hba1c", "systolic_bp", "diastolic_bp")
     session.execute(delete(Observation).where(
         Observation.patient_id == patient_id,
-        Observation.source.in_(("confirmed_health_check_report", "confirmed_synthetic_follow_up")),
+        or_(
+            Observation.source.in_(("confirmed_health_check_report", "confirmed_synthetic_follow_up")),
+            Observation.metric_code.in_(baseline_metric_codes),
+        ),
     ))
     if document_ids:
         session.execute(delete(ReportExtractionCandidate).where(ReportExtractionCandidate.document_id.in_(document_ids)))
@@ -88,8 +94,8 @@ def _replace_report_fixture(session, patient_id) -> None:
     report = Document(
         patient_id=patient_id,
         document_type="health_check_report",
-        title="2024年度综合体检报告（演示）",
-        storage_reference="portfolio-demo://anonymous-report-2024",
+        title="2026年度综合体检报告（演示）",
+        storage_reference="portfolio-demo://anonymous-report-2026",
         source="portfolio_demo_fixture",
         status="AVAILABLE",
     )
@@ -101,30 +107,32 @@ def _replace_report_fixture(session, patient_id) -> None:
         status="COMPLETED",
         parser_version="portfolio-fixture-v1",
         canonical_registry_version="v1",
-        file_hash="portfolio-demo-report-2024-v1",
+        file_hash=DEMO_DATA_VERSION,
         file_type="PDF",
         detected_hospital="演示医疗机构",
         detected_report_type="年度综合体检",
-        detected_report_date=date(2024, 8, 20),
+        detected_report_date=date(2026, 1, 15),
         page_count=17,
         has_text_layer=True,
         llm_used=True,
         llm_provider="local_llm",
         llm_status="COMPLETED",
-        candidate_count=8,
-        high_confidence_count=6,
-        medium_confidence_count=2,
-        completed_at=datetime(2024, 8, 20, 10, tzinfo=timezone.utc),
+        candidate_count=10,
+        high_confidence_count=7,
+        medium_confidence_count=3,
+        completed_at=datetime(2026, 1, 15, 10, tzinfo=timezone.utc),
         metadata_json={"portfolio_fixture": True, "anonymised": True},
     )
     session.add(run)
     session.flush()
 
     rows = [
-        ("OBSERVATION", "ldl", "低密度脂蛋白胆固醇", "4.20", "mmol/L", "< 3.40", "HIGH", "血脂检查", 6, "低密度脂蛋白胆固醇（LDL-C）4.20 mmol/L，参考范围 < 3.40 mmol/L。"),
-        ("OBSERVATION", "triglyceride", "甘油三酯", "2.10", "mmol/L", "< 1.70", "HIGH", "血脂检查", 6, "甘油三酯（TG）2.10 mmol/L，参考范围 < 1.70 mmol/L。"),
-        ("OBSERVATION", "hba1c", "糖化血红蛋白", "6.10", "%", "4.0–6.0", "HIGH", "糖代谢检查", 7, "糖化血红蛋白（HbA1c）6.10%，参考范围 4.0–6.0%。"),
-        ("OBSERVATION", "bmi", "体重指数", "26.90", "kg/m²", "18.5–23.9", "HIGH", "人体成分", 2, "体重指数（BMI）26.90 kg/m²，参考范围 18.5–23.9 kg/m²。"),
+        ("OBSERVATION", "weight", "体重", "90.0", "kg", None, None, "人体成分", 2, "体重 90.0 kg；报告未提供体重参考区间。"),
+        ("OBSERVATION", "bmi", "体重指数", "29.4", "kg/m²", "18.5–23.9", "HIGH", "人体成分", 2, "体重指数（BMI）29.4 kg/m²，报告参考范围 18.5–23.9 kg/m²。"),
+        ("OBSERVATION", "ldl_c", "低密度脂蛋白胆固醇", "4.15", "mmol/L", "< 3.40", "HIGH", "血脂检查", 6, "低密度脂蛋白胆固醇（LDL-C）4.15 mmol/L，报告参考范围 < 3.40 mmol/L。"),
+        ("OBSERVATION", "hba1c", "糖化血红蛋白", "6.3", "%", "4.0–6.0", "HIGH", "糖代谢检查", 7, "糖化血红蛋白（HbA1c）6.3%，报告参考范围 4.0–6.0%。"),
+        ("OBSERVATION", "systolic_bp", "收缩压", "132", "mmHg", "90–139", None, "生命体征", 3, "收缩压 132 mmHg，报告参考范围 90–139 mmHg。"),
+        ("OBSERVATION", "diastolic_bp", "舒张压", "86", "mmHg", "60–89", None, "生命体征", 3, "舒张压 86 mmHg，报告参考范围 60–89 mmHg。"),
         ("FINDING", None, "胸部CT", None, None, None, "ABNORMAL", "胸部CT", 12, "胸部CT：左肺下叶见小结节影，建议结合临床情况随访复查。"),
         ("FINDING", None, "甲状腺超声", None, None, None, "ABNORMAL", "甲状腺超声", 11, "甲状腺超声：甲状腺结节，建议按报告建议随访。"),
         ("FINDING", None, "腹部超声", None, None, None, "ABNORMAL", "腹部超声", 10, "腹部超声：脂肪肝表现，建议结合生活方式管理与人工随访。"),
@@ -154,13 +162,13 @@ def _replace_report_fixture(session, patient_id) -> None:
             evidence_text=evidence,
             status="CONFIRMED",
             reviewed_by="演示健康管理师",
-            reviewed_at=datetime(2024, 8, 20, 11, tzinfo=timezone.utc),
+            reviewed_at=datetime(2026, 1, 15, 11, tzinfo=timezone.utc),
         )
         session.add(candidate)
         session.flush()
         if candidate_type == "OBSERVATION":
             observation = Observation(
-                patient_id=patient_id, observed_at=datetime(2024, 8, 20, 9, tzinfo=timezone.utc),
+                patient_id=patient_id, observed_at=datetime(2026, 1, 15, 9, tzinfo=timezone.utc),
                 metric_code=code, value_numeric=Decimal(value), unit=unit,
                 source="confirmed_health_check_report", quality_flag="valid",
                 source_record_id=str(candidate.id),
@@ -171,18 +179,40 @@ def _replace_report_fixture(session, patient_id) -> None:
     baseline = baseline_service.create_draft_from_report(
         session, patient_id, report.id, created_by="演示健康管理师", cycle_year=2026,
     )
+    snapshot = dict(baseline.baseline_json or {})
+    snapshot["member_reported"] = {
+        "source": "MEMBER_REPORTED", "status": "CONFIRMED",
+        "fields": {"生活方式资料": "已记录运动、睡眠与吸烟饮酒情况（匿名演示资料）"},
+    }
+    baseline.baseline_json = snapshot
     baseline_service.confirm(session, baseline.id, "演示健康管理师", reviewer_role="HEALTH_MANAGER")
+    baseline.assessed_at = datetime(2026, 1, 20, 9, tzinfo=timezone.utc)
+    baseline.confirmed_at = datetime(2026, 1, 20, 10, tzinfo=timezone.utc)
+    baseline.collection_started_at = datetime(2026, 1, 15, 11, tzinfo=timezone.utc)
+    baseline.collection_closed_at = baseline.confirmed_at
     baseline.title = "2026年度健康基线（演示）"
     baseline.summary = "基于匿名化体检结构、连续健康数据和人工管理记录整理的演示健康基线；不构成医学诊断。"
-    for code, value, unit in (
-        ("ldl", "3.90", "mmol/L"), ("triglyceride", "1.80", "mmol/L"),
-        ("hba1c", "5.90", "%"), ("bmi", "25.80", "kg/m²"),
-    ):
+    follow_ups = (
+        ("weight", "88.7", "kg", datetime(2026, 3, 15, 9, tzinfo=timezone.utc)),
+        ("weight", "87.1", "kg", datetime(2026, 6, 15, 9, tzinfo=timezone.utc)),
+        ("weight", "85.8", "kg", datetime(2026, 9, 1, 9, tzinfo=timezone.utc)),
+        ("bmi", "28.0", "kg/m²", datetime(2026, 6, 15, 9, tzinfo=timezone.utc)),
+        ("bmi", "27.9", "kg/m²", datetime(2026, 9, 1, 9, tzinfo=timezone.utc)),
+        ("ldl_c", "3.72", "mmol/L", datetime(2026, 6, 15, 9, tzinfo=timezone.utc)),
+        ("hba1c", "6.0", "%", datetime(2026, 6, 15, 9, tzinfo=timezone.utc)),
+        ("systolic_bp", "130", "mmHg", datetime(2026, 3, 15, 9, tzinfo=timezone.utc)),
+        ("diastolic_bp", "84", "mmHg", datetime(2026, 3, 15, 9, tzinfo=timezone.utc)),
+        ("systolic_bp", "128", "mmHg", datetime(2026, 6, 15, 9, tzinfo=timezone.utc)),
+        ("diastolic_bp", "82", "mmHg", datetime(2026, 6, 15, 9, tzinfo=timezone.utc)),
+        ("systolic_bp", "126", "mmHg", datetime(2026, 9, 1, 9, tzinfo=timezone.utc)),
+        ("diastolic_bp", "80", "mmHg", datetime(2026, 9, 1, 9, tzinfo=timezone.utc)),
+    )
+    for index, (code, value, unit, observed_at) in enumerate(follow_ups):
         session.add(Observation(
-            patient_id=patient_id, observed_at=datetime(2026, 8, 20, 9, tzinfo=timezone.utc),
+            patient_id=patient_id, observed_at=observed_at,
             metric_code=code, value_numeric=Decimal(value), unit=unit,
             source="confirmed_synthetic_follow_up", quality_flag="valid",
-            source_record_id=f"portfolio-follow-up-{code}-20260820",
+            source_record_id=f"portfolio-follow-up-{code}-{index}",
         ))
 
 
@@ -436,14 +466,45 @@ def build_portfolio_demo(target: Path = DEFAULT_DATABASE, *, rebuild: bool = Tru
     return _customize_portfolio_data()
 
 
+def portfolio_demo_is_current(target: Path = DEFAULT_DATABASE) -> bool:
+    """Check the disposable demo fixture version without opening app services."""
+    target = _safe_target(target)
+    if not target.exists():
+        return False
+    try:
+        with sqlite3.connect(target) as connection:
+            version = connection.execute(
+                "SELECT 1 FROM report_extraction_runs WHERE file_hash = ? LIMIT 1",
+                (DEMO_DATA_VERSION,),
+            ).fetchone()
+            metrics = connection.execute(
+                """SELECT COUNT(DISTINCT canonical_code)
+                   FROM report_extraction_candidates
+                   WHERE status = 'CONFIRMED'
+                     AND canonical_code IN ('weight', 'bmi', 'ldl_c', 'hba1c', 'systolic_bp', 'diastolic_bp')""",
+            ).fetchone()
+        return bool(version and metrics and metrics[0] == 6)
+    except sqlite3.Error:
+        return False
+
+
+def ensure_current_portfolio_demo(target: Path = DEFAULT_DATABASE) -> dict[str, int] | None:
+    """Rebuild only the isolated synthetic DB when its fixture contract is stale."""
+    if portfolio_demo_is_current(target):
+        return None
+    return build_portfolio_demo(target, rebuild=True)
+
+
 def main() -> None:
     _configure_console_encoding()
     parser = argparse.ArgumentParser(description="创建隔离的 Executive HealthOps 作品集演示数据库。")
-    parser.add_argument("--rebuild", action="store_true", help="安全地重建 data/portfolio_demo.db")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--rebuild", action="store_true", help="安全地重建 data/portfolio_demo.db")
+    mode.add_argument("--ensure-current", action="store_true", help="仅当匿名演示数据版本过旧时安全重建")
     args = parser.parse_args()
-    counts = build_portfolio_demo(rebuild=args.rebuild)
-    print("Portfolio demo database ready:")
-    for key, value in counts.items():
+    counts = ensure_current_portfolio_demo() if args.ensure_current else build_portfolio_demo(rebuild=args.rebuild)
+    print("Portfolio demo database ready:" if counts is not None else "Portfolio demo data is current.")
+    for key, value in (counts or {}).items():
         print(f"  {key}: {value}")
     print(f"  database: {DEFAULT_DATABASE.relative_to(ROOT)}")
 

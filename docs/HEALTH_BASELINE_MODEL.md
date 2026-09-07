@@ -47,3 +47,11 @@ Both comparisons describe observed differences. They do not infer diagnosis, cau
 - **Amendment:** charts use the current effective amended baseline while the UI retains the correction reason, confirmer, date, and evidence in a collapsed history.
 
 All visualization objects are read-only projections. They cannot update the baseline, current profile, Risk Engine, or source records.
+
+### Visualization data wiring
+
+`ReportExtractionCandidate (CONFIRMED) → Observation (valid) → Baseline draft → human confirmation → frozen key_metrics → BaselineMetricView → chart`
+
+Later valid observations are matched through the shared canonical terminology registry, not UI string matching. A trend requires the same canonical metric and a compatible unit; only explicit, supported conversions are applied. The latest comparable observation becomes the current value while the original baseline value remains frozen. Report reference metadata and evidence continue to point to the confirmed source candidate.
+
+The isolated Portfolio Demo carries a versioned synthetic fixture with six traceable baseline metrics and later observations. Its launcher checks the fixture contract and rebuilds only the disposable demo database when that data version is stale. Empty non-demo members continue to receive honest compact empty states.

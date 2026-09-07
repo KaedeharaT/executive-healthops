@@ -9,7 +9,11 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, func, inspect, select
 from sqlalchemy.orm import Session
-from executive_health_ai.models import KnowledgeChunk, KnowledgeDocument, TrainingSession
+from executive_health_ai.models import (
+    HealthAssessment, KnowledgeChunk, KnowledgeDocument, Observation, Patient,
+    ReportExtractionCandidate, TrainingSession,
+)
+from executive_health_ai.services.baseline_visualization import BaselineVisualizationService
 from executive_health_ai.services.schema_guard import DatabaseSchemaOutdated, require_training_schema
 
 
@@ -62,7 +66,7 @@ def test_old_revision_upgrades_without_data_loss_and_legacy_training_table_remai
 def test_portfolio_builder_rebuild_creates_training_tables():
     subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "build_portfolio_demo.py"), "--rebuild"],
-        cwd=ROOT, check=True, capture_output=True, text=True, timeout=90,
+        cwd=ROOT, check=True, capture_output=True, text=True, timeout=180,
     )
     database = ROOT / "data" / "portfolio_demo.db"
     engine = create_engine(f"sqlite:///{database.as_posix()}")
@@ -76,6 +80,37 @@ def test_portfolio_builder_rebuild_creates_training_tables():
             KnowledgeDocument.source_provider == "HEALTHOPS_INTERNAL",
         ))
         assert approved == 12 and chunks == 59
+        member = session.scalar(select(Patient).where(Patient.external_id == "portfolio-demo-executive-a"))
+        assert member is not None
+        baseline = session.scalar(select(HealthAssessment).where(
+            HealthAssessment.patient_id == member.id,
+            HealthAssessment.cycle_year == 2026,
+            HealthAssessment.status == "CONFIRMED",
+        ))
+        assert baseline is not None
+        required = {"weight", "bmi", "ldl_c", "hba1c", "systolic_bp", "diastolic_bp"}
+        candidates = set(session.scalars(select(ReportExtractionCandidate.canonical_code).where(
+            ReportExtractionCandidate.patient_id == member.id,
+            ReportExtractionCandidate.status == "CONFIRMED",
+            ReportExtractionCandidate.canonical_code.in_(required),
+        )))
+        assert candidates == required
+        follow_ups = list(session.scalars(select(Observation).where(
+            Observation.patient_id == member.id,
+            Observation.source == "confirmed_synthetic_follow_up",
+        )))
+        assert len(follow_ups) == 13
+        view = BaselineVisualizationService().build(session, member.id, cycle_year=2026)
+        assert len(view.metrics) == 6
+        assert sum(trend.has_follow_up for trend in view.trends) == 6
+        assert sum(len(trend.points) for trend in view.trends) == 19
+        assert len(view.comparisons) == 6
+        assert len(view.coverage) == 6
+        assert view.covered_count >= 4
+        assert all(metric.source_candidate_id for metric in view.metrics)
+        empty_member = Patient(external_id="portfolio-empty-isolation", display_name="空资料成员", timezone="Asia/Tokyo")
+        session.add(empty_member); session.flush()
+        assert BaselineVisualizationService().available_years(session, empty_member.id) == ()
     engine.dispose()
 
 
@@ -95,4 +130,5 @@ def test_schema_guard_rejects_old_database_before_insert(tmp_path):
 
 def test_portfolio_launcher_upgrades_before_starting_services():
     source = (ROOT / "scripts" / "start_portfolio_demo.ps1").read_text(encoding="utf-8")
+    assert "--ensure-current" in source
     assert source.index("-m alembic upgrade head") < source.index("Start-Process -FilePath $python")

@@ -78,10 +78,10 @@ def test_reference_interval_is_report_derived_and_missing_range_is_not_fabricate
     session = _session(); member, _, _ = _baseline(session)
     view = BaselineVisualizationService().build(session, member.id, cycle_year=2026)
     by_code = {metric.code: metric for metric in view.metrics}
-    assert by_code["ldl"].reference.text == "0.0-3.4"
-    assert by_code["ldl"].explicit_status == "报告标记偏高"
+    assert by_code["ldl_c"].reference.text == "0.0-3.4"
+    assert by_code["ldl_c"].explicit_status == "报告标记偏高"
     assert by_code["weight"].reference is None
-    assert reference_range_chart(by_code["ldl"]) is not None
+    assert reference_range_chart(by_code["ldl_c"]) is not None
     assert reference_range_chart(by_code["weight"]) is None
 
 
@@ -119,7 +119,7 @@ def test_coverage_is_completeness_not_health_score() -> None:
     view = BaselineVisualizationService().build(session, member.id, cycle_year=2026)
     coverage = {item.label: item.status for item in view.coverage}
     assert coverage["年度体检"] == "已覆盖"
-    assert coverage["睡眠"] == "暂无数据"
+    assert coverage["连续健康数据"] == "部分"
     assert coverage["生活方式"] == "待补充"
     assert "健康评分" not in str(view)
     assert coverage_chart(view.coverage).to_dict()
@@ -135,7 +135,7 @@ def test_amendment_uses_active_reference_and_preserves_update_history() -> None:
     ); session.commit()
     view = BaselineVisualizationService().build(session, member.id, cycle_year=2026)
     assert view.assessment.id == amended.id
-    assert next(metric for metric in view.metrics if metric.code == "ldl").value == Decimal("3.90")
+    assert next(metric for metric in view.metrics if metric.code == "ldl_c").value == Decimal("3.90")
     assert view.amendments and view.amendments[0].reason == "纠正报告识别值"
     assert "4.15纠正为3.90" in view.amendments[0].changes[0]
 
@@ -155,3 +155,23 @@ def test_year_selector_projection_keeps_annual_baselines_separate() -> None:
     assert service.available_years(session, member.id) == (2027, 2026)
     assert service.build(session, member.id, cycle_year=2026).assessment.id == baseline_2026.id
     assert service.build(session, member.id, cycle_year=2027).assessment.id == baseline_2027.id
+
+
+def test_canonical_aliases_and_safe_unit_compatibility_cross_sources() -> None:
+    session = _session()
+    member, _, _ = _baseline(session, metrics=[
+        {"code": "LDL cholesterol", "value": "4.15", "unit": "mmol/L", "reference": "< 3.4", "flag": "H"},
+        {"code": "Body Weight", "value": "90", "unit": "kg", "reference": None, "flag": None},
+    ])
+    session.add_all([
+        Observation(patient_id=member.id, metric_code="LDL-C", value_numeric=Decimal("3.72"), unit="mmol/L", observed_at=datetime(2026, 6, 1, tzinfo=timezone.utc), source="confirmed_follow_up", quality_flag="valid"),
+        Observation(patient_id=member.id, metric_code="body_weight", value_numeric=Decimal("189.156"), unit="lb", observed_at=datetime(2026, 6, 1, tzinfo=timezone.utc), source="device", quality_flag="valid"),
+        Observation(patient_id=member.id, metric_code="weight", value_numeric=Decimal("80"), unit="stone", observed_at=datetime(2026, 7, 1, tzinfo=timezone.utc), source="device", quality_flag="valid"),
+    ])
+    session.commit()
+    view = BaselineVisualizationService().build(session, member.id, cycle_year=2026)
+    metrics = {metric.code: metric for metric in view.metrics}
+    assert set(metrics) == {"ldl_c", "weight"}
+    assert metrics["ldl_c"].current_value == Decimal("3.72")
+    assert metrics["weight"].current_value == Decimal("85.800")
+    assert next(row for row in view.comparisons if row.code == "weight").current == "85.800"

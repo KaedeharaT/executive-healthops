@@ -18,9 +18,14 @@ if (-not (Test-Path -LiteralPath $python)) {
 }
 
 $databasePath = Join-Path $projectRoot "data\portfolio_demo.db"
-if ($Rebuild -or -not (Test-Path -LiteralPath $databasePath)) {
+if ($Rebuild) {
     & $python (Join-Path $projectRoot "scripts\build_portfolio_demo.py") --rebuild
     if ($LASTEXITCODE -ne 0) { throw "作品集演示数据库创建失败。" }
+} else {
+    # The demo database is disposable synthetic data. Keep its fixture contract
+    # aligned with the application so an old local file cannot produce empty UI.
+    & $python (Join-Path $projectRoot "scripts\build_portfolio_demo.py") --ensure-current
+    if ($LASTEXITCODE -ne 0) { throw "作品集演示数据检查失败。" }
 }
 
 $databaseUrl = "sqlite:///" + ($databasePath -replace "\\", "/")
