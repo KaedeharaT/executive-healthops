@@ -63,6 +63,8 @@ from executive_health_ai.services.data_packages import (
     DataPackageAdapter, DataPackageError, HealthDataImportService, KnowledgePackageAdapter,
     build_healthops_template, build_synthetic_package,
 )
+from executive_health_ai.services.baseline_visualization import BaselineVisualizationService
+from executive_health_ai.ui.pages.baseline_visualization import render_baseline_visualization as render_baseline_visualization_ui
 from executive_health_ai.services.knowledge_adapters import ExternalPartnerKnowledgeAdapter, KnowledgeAdapterError
 from executive_health_ai.llm.local_llm_client import LocalLLMClient, LocalLLMSettings
 from executive_health_ai.services.chronic_care import apply_outcome_decision, complete_outcome_doctor_review
@@ -869,6 +871,26 @@ def _render_snapshot_item_evidence(patient_id: UUID, value: object, *, key_scope
                     )
                 else:
                     st.caption("依据：已确认的健康档案记录；详细原始记录保留在对应健康史或用药记录中。")
+
+
+def _render_metric_evidence(patient_id: UUID, candidate_id: UUID | None, *, key_scope: str, client_view: bool) -> None:
+    if candidate_id is None:
+        st.caption("该指标的来源保留在已确认健康记录中；当前没有可单独展示的报告区间。")
+        return
+    with st.expander("查看该指标依据"):
+        with SessionLocal() as session:
+            _render_candidate_evidence_by_id(
+                session, patient_id, candidate_id,
+                key_scope=key_scope, client_view=client_view,
+            )
+
+
+def _render_baseline_visualization(patient: Patient, baseline: HealthAssessment, *, audience: str, key_prefix: str) -> None:
+    render_baseline_visualization_ui(
+        patient, baseline, audience=audience, key_prefix=key_prefix,
+        session_factory=SessionLocal, section_header=_section_header, empty_state=_empty_state,
+        render_metric_evidence=_render_metric_evidence, format_datetime=_fmt_dt,
+    )
 
 
 def _timeline_evidence_payload(session, patient: Patient, event) -> dict[str, object]:
@@ -1952,13 +1974,29 @@ def render_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]) -> Non
             HealthAssessment.assessment_type == "BASELINE",
             HealthAssessment.status == "WAITING_MEDICAL_REVIEW",
         ).order_by(HealthAssessment.cycle_year.desc(), HealthAssessment.version.desc()))
+        confirmed_baseline = HealthAssessmentService().latest_baseline(session, patient.id, include_draft=False)
     if baseline_medical_review is not None:
         with section_frame("年度健康基线医学资料复核", "仅确认需要医学判断的内容；资料完整性仍由健康管理师确认。"):
             st.write(baseline_medical_review.summary)
             snapshot = baseline_medical_review.baseline_json or {}
             st.write("主要健康问题：" + ("；".join(str(row.get("title")) for row in snapshot.get("health_problems", []) if isinstance(row, dict)) or "暂无已记录问题"))
+            metrics = [row for row in snapshot.get("key_metrics", []) if isinstance(row, dict)]
+            if metrics:
+                st.markdown("**关键检验与生命体征**")
+                st.dataframe(pd.DataFrame([{
+                    "指标": _metric_display_name(str(row.get("metric") or "")),
+                    "基线数值": f"{row.get('value', '未记录')} {row.get('unit', '')}".strip(),
+                    "采集时间": str(row.get("observed_at") or "未记录")[:10],
+                } for row in metrics]), hide_index=True, width="stretch")
+                _render_snapshot_item_evidence(patient.id, metrics, key_scope=f"doctor-baseline-metrics-{baseline_medical_review.id}")
+            findings = [row for row in snapshot.get("important_findings", []) if isinstance(row, dict)]
+            if findings:
+                st.write("重要报告发现：" + "；".join(str(row.get("summary") or "已确认检查结果") for row in findings))
+                _render_snapshot_item_evidence(patient.id, findings, key_scope=f"doctor-baseline-findings-{baseline_medical_review.id}")
             medications = snapshot.get("current_medications")
             st.write("当前用药：" + ("；".join(str(row.get("name")) for row in medications if isinstance(row, dict)) if isinstance(medications, list) else "待补充"))
+            history = snapshot.get("procedures_or_hospitalizations")
+            st.write("重大病史：" + ("；".join(str(row.get("description") or row.get("type") or "已确认医疗记录") for row in history if isinstance(row, dict)) if isinstance(history, list) else "待补充"))
             with st.form(f"baseline-medical-review-{baseline_medical_review.id}"):
                 doctor_name = st.text_input("医生姓名", value="演示医生")
                 review_note = st.text_area("医学资料复核说明", placeholder="只记录人工医学判断和需要健管继续核对的事项")
@@ -1971,6 +2009,30 @@ def render_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]) -> Non
                     session.commit()
                 st.success("医学相关资料已复核，已返回健康管理师完成基线确认。")
                 st.rerun()
+    if confirmed_baseline is not None:
+        with st.expander(f"{confirmed_baseline.cycle_year or confirmed_baseline.assessed_at.year}年度健康基线医学摘要"):
+            snapshot = confirmed_baseline.baseline_json or {}
+            problems = [row for row in snapshot.get("health_problems", []) if isinstance(row, dict)]
+            findings = [row for row in snapshot.get("important_findings", []) if isinstance(row, dict)]
+            metrics = [row for row in snapshot.get("key_metrics", []) if isinstance(row, dict)]
+            medications = snapshot.get("current_medications")
+            history = snapshot.get("procedures_or_hospitalizations")
+            st.write("主要健康问题：" + ("；".join(str(row.get("title") or "已确认健康问题") for row in problems) or "暂无已记录问题"))
+            if metrics:
+                st.dataframe(pd.DataFrame([{
+                    "关键指标": _metric_display_name(str(row.get("metric") or "")),
+                    "基线数值": f"{row.get('value', '未记录')} {row.get('unit', '')}".strip(),
+                    "采集时间": str(row.get("observed_at") or "未记录")[:10],
+                } for row in metrics]), hide_index=True, width="stretch")
+                _render_snapshot_item_evidence(patient.id, metrics, key_scope=f"doctor-confirmed-baseline-metrics-{confirmed_baseline.id}")
+            st.write("重要报告发现：" + ("；".join(str(row.get("summary") or "已确认检查结果") for row in findings) or "暂无已记录发现"))
+            st.write("基线时用药：" + ("；".join(str(row.get("name") or "已确认用药") for row in medications if isinstance(row, dict)) if isinstance(medications, list) else "待补充"))
+            st.write("重大病史：" + ("；".join(str(row.get("description") or row.get("type") or "已确认医疗记录") for row in history if isinstance(row, dict)) if isinstance(history, list) else "待补充"))
+            with SessionLocal() as evidence_session:
+                _render_evidence_action(
+                    _baseline_evidence_payload(evidence_session, patient.id, confirmed_baseline),
+                    key_scope=f"doctor-confirmed-baseline-{confirmed_baseline.id}",
+                )
     if automation_goal and "医生" in automation_goal.current_stage:
         st.info(f"来源：{automation_goal.title} · 当前需要：医学复核。完成后由健康管理师继续执行。")
     yellow_pending = [item for item in ctx["reviews"] if item.status == "PENDING" and item.risk_event_id]
@@ -4617,6 +4679,17 @@ def render_health_assessments(patient: Patient) -> None:
     with SessionLocal() as session:
         assessments = HealthAssessmentService().history(session, patient.id)
         baseline = HealthAssessmentService().latest_baseline(session, patient.id)
+        years = BaselineVisualizationService().available_years(session, patient.id)
+    if years and baseline is not None and baseline.status in {"CONFIRMED", "AMENDED"}:
+        selected_year = st.selectbox(
+            "查看年度", years, index=0,
+            format_func=lambda year: f"{year}年度健康基线",
+            key=f"manager-baseline-year-{patient.id}",
+        )
+        with SessionLocal() as session:
+            baseline = HealthAssessmentService().latest_baseline(
+                session, patient.id, include_draft=False, cycle_year=int(selected_year),
+            )
     if baseline is not None:
         status_label = {
             "DRAFT": "资料收集中", "NEEDS_REVIEW": "待健康管理师确认",
@@ -4627,25 +4700,6 @@ def render_health_assessments(patient: Patient) -> None:
         st.markdown(f"### {label}")
         st.caption(baseline.summary)
         snapshot = baseline.baseline_json or {}
-        completeness = snapshot.get("completeness") or {}
-        organized = "、".join(completeness.get("organized", [])) or "已确认健康资料"
-        pending = "、".join(completeness.get("pending", [])) or "暂无"
-        columns = st.columns(2)
-        columns[0].write("已整理：" + organized)
-        columns[1].write("待补充：" + pending)
-        for heading, key in (("基本情况", "basic_information"), ("主要健康问题", "health_problems"), ("关键健康指标", "key_metrics"), ("重要检查结果", "important_findings"), ("当前用药", "current_medications"), ("手术 / 住院史", "procedures_or_hospitalizations"), ("近期生活健康数据", "recent_health_data"), ("当前管理重点", "management_focus")):
-            value = snapshot.get(key)
-            with st.expander(heading):
-                if isinstance(value, list) and value:
-                    st.dataframe(pd.DataFrame([_business_detail_row(item) for item in value if isinstance(item, dict)]), hide_index=True, width="stretch") if isinstance(value[0], dict) else st.write("；".join(str(item) for item in value))
-                elif isinstance(value, dict):
-                    if value.get("label"):
-                        st.caption(str(value["label"]))
-                    else:
-                        st.dataframe(pd.DataFrame([_business_detail_row(value)]), hide_index=True, width="stretch")
-                else:
-                    st.caption("待补充")
-                _render_snapshot_item_evidence(patient.id, value, key_scope=f"baseline-snapshot-{baseline.id}-{key}")
         st.caption("健康基线只记录周期起点事实；当前风险由确定性规则另行评估。没有风险记录不代表低风险。")
         with SessionLocal() as session:
             _render_evidence_action(
@@ -4653,24 +4707,28 @@ def render_health_assessments(patient: Patient) -> None:
                 key_scope=f"baseline-{patient.id}-{baseline.id}",
             )
         if baseline.status in {"CONFIRMED", "AMENDED"}:
-            with st.expander("查看年度起点与当前状态比较"):
-                with SessionLocal() as session:
-                    comparison = ReportComparisonService().compare_to_baseline(
-                        session, patient.id, cycle_year=baseline.cycle_year,
-                    )
-                comparison_labels = {"NEW": "新增", "PERSISTENT": "持续", "CHANGED": "发生变化", "NOT_RECHECKED": "未复查", "NOT_COMPARABLE": "无法比较"}
-                rows = comparison["changes"]
-                if rows:
-                    st.dataframe(pd.DataFrame([{
-                        "指标": _metric_display_name(row["metric"]),
-                        "年度起点": f"{row['baseline'] or '暂无'} {row['unit'] or ''}".strip(),
-                        "当前": f"{row['current'] or '暂无'} {row['unit'] or ''}".strip(),
-                        "状态": comparison_labels.get(row["status"], "待确认"),
-                    } for row in rows]), hide_index=True, width="stretch")
-                else:
-                    st.caption("当前还没有可与年度起点比较的新数据。")
-                st.caption(comparison["interpretation"])
+            _render_baseline_visualization(
+                patient, baseline, audience="manager", key_prefix=f"manager-baseline-{baseline.id}",
+            )
+            with st.expander("重要健康背景"):
+                for heading, key in (("主要健康问题", "health_problems"), ("重要检查结果", "important_findings"), ("当前用药", "current_medications"), ("手术 / 住院史", "procedures_or_hospitalizations"), ("基线前30天健康数据摘要", "recent_health_data")):
+                    value = snapshot.get(key)
+                    st.markdown(f"**{heading}**")
+                    if isinstance(value, list) and value:
+                        st.dataframe(pd.DataFrame([_business_detail_row(item) for item in value if isinstance(item, dict)]), hide_index=True, width="stretch") if isinstance(value[0], dict) else st.write("；".join(str(item) for item in value))
+                    elif isinstance(value, dict) and value.get("label"):
+                        st.caption(str(value["label"]))
+                    else:
+                        st.caption("待补充")
+                    _render_snapshot_item_evidence(patient.id, value, key_scope=f"baseline-context-{baseline.id}-{key}")
         if baseline.status in {"DRAFT", "NEEDS_REVIEW", "WAITING_MEDICAL_REVIEW"}:
+            completeness = snapshot.get("completeness") or {}
+            organized = "、".join(completeness.get("organized", [])) or "尚无"
+            pending = "、".join(completeness.get("pending", [])) or "暂无"
+            st.markdown("**资料完整性**")
+            st.write("已整理：" + organized)
+            st.write("待补充：" + pending)
+            st.caption("这是资料完整度，不代表健康评分。")
             st.warning("该初稿仅由已确认报告资料和现有健康档案整理，仍需健康管理师审核后才能成为正式健康基线。")
             if baseline.medical_review_required and not baseline.medical_reviewed_at:
                 st.info("其中包含需要医学判断的内容，正在等待医生复核；健管不能代替医生确认。")
@@ -5670,10 +5728,24 @@ def render_member_report_upload(patient: Patient) -> None:
 def _render_member_baseline_center(patient: Patient) -> None:
     with SessionLocal() as session:
         baseline = HealthAssessmentService().latest_baseline(session, patient.id)
+        years = BaselineVisualizationService().available_years(session, patient.id)
     if baseline is None:
         _empty_state("尚未建立健康基线", "上传最近一次体检报告后，系统可帮助健康管理团队整理初稿。")
         render_member_report_upload(patient)
         return
+    if years and baseline.status in {"CONFIRMED", "AMENDED"}:
+        selected_year = st.selectbox(
+            "查看年度", years, index=0,
+            format_func=lambda year: f"{year}年度健康基线",
+            key=f"member-baseline-year-{patient.id}",
+        )
+        with SessionLocal() as session:
+            baseline = HealthAssessmentService().latest_baseline(
+                session, patient.id, include_draft=False, cycle_year=int(selected_year),
+            )
+        if baseline is None:
+            _empty_state("该年度基线暂不可用", "请选择其他年度。")
+            return
     snapshot = baseline.baseline_json or {}
     cycle_label = f"{baseline.cycle_year or baseline.assessed_at.year}年度健康基线"
     if baseline.status in {"DRAFT", "NEEDS_REVIEW", "WAITING_MEDICAL_REVIEW"}:
@@ -5699,39 +5771,30 @@ def _render_member_baseline_center(patient: Patient) -> None:
                     st.success("已提交为成员自述资料，等待健康管理团队审核。")
                     st.rerun()
     else:
-        st.markdown(f"### 我的健康起点 · {cycle_label}")
-        update_note = " · 已完成资料修订" if baseline.status == "AMENDED" else ""
-        st.caption(f"建立日期：{_fmt_dt(baseline.confirmed_at or baseline.assessed_at)}{update_note}")
+        st.markdown(f"### {cycle_label}")
+        update_note = " · 资料已更新" if baseline.status == "AMENDED" else " · 已确认"
+        st.caption(f"建立时间：{_fmt_dt(baseline.confirmed_at or baseline.assessed_at)}{update_note}")
     st.write(baseline.summary)
     with SessionLocal() as session:
         _render_evidence_action(
             _baseline_evidence_payload(session, patient.id, baseline),
             key_scope=f"client-baseline-{patient.id}-{baseline.id}", client_view=True,
         )
-    main_health = [*(snapshot.get("health_problems") or []), *(snapshot.get("important_findings") or [])]
-    focus_and_coverage = {
-        "需要持续关注": "；".join(str(item) for item in snapshot.get("management_focus", [])) or "待健康管理团队确认",
-        **(snapshot.get("data_coverage") or {}),
-    }
-    member_sections = (
-        ("主要健康情况", main_health),
-        ("关键指标", snapshot.get("key_metrics")),
-        ("当前用药", snapshot.get("current_medications")),
-        ("重要历史", snapshot.get("procedures_or_hospitalizations")),
-        ("持续关注与资料完整性", focus_and_coverage),
-    )
-    for heading, value in member_sections:
-        with st.expander(heading):
-            if isinstance(value, list) and value:
-                st.dataframe(pd.DataFrame([_business_detail_row(item) for item in value if isinstance(item, dict)]), hide_index=True, width="stretch") if isinstance(value[0], dict) else st.write("；".join(str(item) for item in value))
-            elif isinstance(value, dict):
-                if value.get("label"):
+    if baseline.status in {"CONFIRMED", "AMENDED"}:
+        _render_baseline_visualization(
+            patient, baseline, audience="member", key_prefix=f"member-baseline-{baseline.id}",
+        )
+        with st.expander("重要健康背景"):
+            for heading, key in (("主要健康问题与检查结果", "health_problems"), ("当前用药", "current_medications"), ("手术 / 住院史", "procedures_or_hospitalizations"), ("下一步持续关注", "management_focus"), ("建立基线前30天生活与设备摘要", "recent_health_data")):
+                value = snapshot.get(key)
+                st.markdown(f"**{heading}**")
+                if isinstance(value, list) and value:
+                    st.dataframe(pd.DataFrame([_business_detail_row(item) for item in value if isinstance(item, dict)]), hide_index=True, width="stretch") if isinstance(value[0], dict) else st.write("；".join(str(item) for item in value))
+                elif isinstance(value, dict) and value.get("label"):
                     st.caption(str(value["label"]))
                 else:
-                    st.dataframe(pd.DataFrame([_business_detail_row(value)]), hide_index=True, width="stretch")
-            else:
-                st.caption("待补充")
-            _render_snapshot_item_evidence(patient.id, value, key_scope=f"client-baseline-snapshot-{baseline.id}-{heading}", client_view=True)
+                    st.caption("待补充")
+                _render_snapshot_item_evidence(patient.id, value, key_scope=f"client-baseline-context-{baseline.id}-{key}", client_view=True)
 
 
 def _render_member_center_baseline_entry(patient: Patient) -> None:
@@ -6202,8 +6265,20 @@ def _render_client_profile(patient: Patient) -> None:
                         st.error("当前授权状态无法更新，请联系健康管理团队。")
 
 
+def _open_client_baseline(patient_id: UUID) -> None:
+    st.session_state[f"client-baseline-expanded-{patient_id}"] = True
+
+
+def _close_client_baseline(patient_id: UUID) -> None:
+    st.session_state[f"client-baseline-expanded-{patient_id}"] = False
+
+
 def _render_client_health_overview(patient: Patient, ctx: dict[str, list[object]]) -> None:
-    """The first of five health views; details expand here instead of routing away."""
+    """The first of four health views; baseline detail stays inline at depth two."""
+    if st.session_state.get(f"client-baseline-expanded-{patient.id}"):
+        st.button("返回健康概览", key=f"client-baseline-back-{patient.id}", on_click=_close_client_baseline, args=(patient.id,))
+        _render_member_baseline_center(patient)
+        return
     risk, reason, _ = _member_risk_state(patient.id, ctx)
     with SessionLocal() as session:
         baseline = HealthAssessmentService().latest_baseline(session, patient.id, include_draft=False)
@@ -6214,18 +6289,12 @@ def _render_client_health_overview(patient: Patient, ctx: dict[str, list[object]
         if baseline is None:
             _empty_state("尚未建立健康基线", "上传最近体检报告并经健康管理团队确认后，可在这里形成健康基线。")
         else:
-            st.markdown(f"**{baseline.summary}**")
-            with st.expander("查看健康基线详情"):
-                snapshot = baseline.baseline_json or {}
-                for label, key in (("主要健康问题", "health_problems"), ("关键健康指标", "key_metrics"), ("当前管理重点", "management_focus")):
-                    value = snapshot.get(key)
-                    st.markdown(f"**{label}**")
-                    if isinstance(value, list) and value:
-                        st.write("；".join(str(item.get("title") or item.get("metric") or item) if isinstance(item, dict) else str(item) for item in value[:6]))
-                    else:
-                        st.caption("待补充")
-                with SessionLocal() as evidence_session:
-                    _render_evidence_action(_baseline_evidence_payload(evidence_session, patient.id, baseline), key_scope=f"client-health-baseline-{baseline.id}", client_view=True)
+            st.markdown(f"**{baseline.cycle_year or baseline.assessed_at.year}年度健康基线 · {'资料已更新' if baseline.status == 'AMENDED' else '已确认'}**")
+            st.caption("查看当时的关键健康事实、参考区间、后续变化与资料依据。")
+            st.button(
+                "查看年度健康基线", key=f"client-health-baseline-open-{baseline.id}", type="primary",
+                on_click=_open_client_baseline, args=(patient.id,),
+            )
     with section_frame("当前主要问题", "只显示最需要持续关注的三项。"):
         problems = [item for item in ctx["problems"] if item.status != "CLOSED"]
         if problems:

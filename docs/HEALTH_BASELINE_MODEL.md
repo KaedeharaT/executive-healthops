@@ -36,3 +36,14 @@ Missing data is shown as missing or insufficient; it is never interpreted as nor
 - `REPORT_TO_REPORT`: one confirmed report versus another comparable report.
 
 Both comparisons describe observed differences. They do not infer diagnosis, causality, improvement, or deterioration without separately governed semantics.
+
+## Visualization
+
+- **Health overview:** groups confirmed baseline facts by health domain. Blue means that a reference point exists, amber is used only when the source report explicitly marks an item for attention, and gray means that data is missing or insufficient. These domain labels are not Risk Engine results.
+- **Reference range:** a bullet-style indicator is drawn only when the confirmed report candidate contains an explicit numeric interval or threshold. Without that source field, the UI shows the value, unit, and evidence without inventing a normal range.
+- **Baseline trend:** each chart uses one metric and unit (blood pressure may pair systolic and diastolic values in mmHg). The annual-baseline point is labeled, and only later valid observations form the follow-up line. A single point produces an empty state, not a synthetic curve.
+- **Coverage:** shows which source groups are covered, partial, stale, missing, or awaiting completion. The interface explicitly states that this is data completeness rather than a health score.
+- **Comparison:** presents annual baseline and latest comparable observation side by side. It reports recorded change or missing follow-up without automatically claiming medical improvement or deterioration.
+- **Amendment:** charts use the current effective amended baseline while the UI retains the correction reason, confirmer, date, and evidence in a collapsed history.
+
+All visualization objects are read-only projections. They cannot update the baseline, current profile, Risk Engine, or source records.

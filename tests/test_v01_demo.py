@@ -85,9 +85,9 @@ def test_full_demo_seed_summaries_timeline_and_associations(session_factory: ses
         patient = session.scalar(select(Patient).where(Patient.external_id == "demo-executive-001"))
         assert patient is not None
         observations = list(session.scalars(select(Observation).where(Observation.patient_id == patient.id)))
-        # 30 daily synthetic activity/energy/exercise records extend the
-        # longitudinal demo without changing the BP/CGM source story.
-        assert len(observations) == 1614
+        # 30 daily synthetic activity/energy/exercise records plus two
+        # confirmed synthetic report metrics extend the longitudinal story.
+        assert len(observations) == 1616
         assert all(item.observed_at.tzinfo is not None for item in observations)
         bp_records = build_blood_pressure_records(observations)
         assert len([item for item in bp_records if item.is_complete]) == 60

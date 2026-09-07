@@ -259,7 +259,14 @@ def _ensure_longitudinal_demo(session: Session, patient_id: object) -> None:
         if run is None:
             run = ReportExtractionRun(document_id=document.id, patient_id=patient_id, status="COMPLETED", parser_version="synthetic-v1", canonical_registry_version="synthetic-v1", file_hash=hash_value, file_type="TXT", detected_report_date=report_date, candidate_count=2, completed_at=local_datetime(report_date, 12))
             session.add(run); session.flush()
-            session.add(ReportExtractionCandidate(extraction_run_id=run.id, document_id=document.id, patient_id=patient_id, candidate_type="OBSERVATION", canonical_code="ldl", raw_name="LDL", normalized_value=ldl, unit="mmol/L", confidence="HIGH", extraction_method="RULE", evidence_text=f"合成 LDL {ldl}", status="CONFIRMED"))
+            metric_candidate = ReportExtractionCandidate(extraction_run_id=run.id, document_id=document.id, patient_id=patient_id, candidate_type="OBSERVATION", canonical_code="ldl", raw_name="LDL", normalized_value=ldl, unit="mmol/L", reference_range="0.0-3.4", abnormal_flag="H", confidence="HIGH", extraction_method="RULE", source_section="血脂检查", source_page=6, evidence_text=f"合成 LDL {ldl} mmol/L（报告参考范围 0.0-3.4）", status="CONFIRMED")
+            session.add(metric_candidate)
+            session.flush()
+            session.add(Observation(
+                patient_id=patient_id, observed_at=local_datetime(report_date, 9), metric_code="ldl",
+                value_numeric=Decimal(ldl), unit="mmol/L", source="confirmed_health_check_report",
+                quality_flag="valid", source_record_id=str(metric_candidate.id),
+            ))
             session.add(ReportExtractionCandidate(extraction_run_id=run.id, document_id=document.id, patient_id=patient_id, candidate_type="FINDING", summary="合成影像检查结论", confidence="MEDIUM", extraction_method="LLM", evidence_text="合成影像检查结论", status="CONFIRMED"))
     session.flush()
     baseline_service = HealthAssessmentService()

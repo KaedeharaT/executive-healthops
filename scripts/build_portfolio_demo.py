@@ -13,6 +13,7 @@ import runpy
 import subprocess
 import sys
 from datetime import date, datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 
 
@@ -70,9 +71,15 @@ def _replace_report_fixture(session, patient_id) -> None:
     """Create a compact, anonymous report story with honest fixture evidence."""
     from sqlalchemy import delete, select
 
-    from executive_health_ai.models import Document, ReportExtractionCandidate, ReportExtractionRun
+    from executive_health_ai.models import Document, HealthAssessment, Observation, ReportExtractionCandidate, ReportExtractionRun
+    from executive_health_ai.services.longitudinal import HealthAssessmentService
 
     document_ids = list(session.scalars(select(Document.id).where(Document.patient_id == patient_id)))
+    session.execute(delete(HealthAssessment).where(HealthAssessment.patient_id == patient_id))
+    session.execute(delete(Observation).where(
+        Observation.patient_id == patient_id,
+        Observation.source.in_(("confirmed_health_check_report", "confirmed_synthetic_follow_up")),
+    ))
     if document_ids:
         session.execute(delete(ReportExtractionCandidate).where(ReportExtractionCandidate.document_id.in_(document_ids)))
         session.execute(delete(ReportExtractionRun).where(ReportExtractionRun.document_id.in_(document_ids)))
@@ -127,7 +134,7 @@ def _replace_report_fixture(session, patient_id) -> None:
         summary = f"{name}需要人工结合完整报告跟进。" if candidate_type == "FINDING" else None
         if candidate_type == "HISTORY":
             summary = "既往手术记录已提取，等待人工核对。"
-        session.add(ReportExtractionCandidate(
+        candidate = ReportExtractionCandidate(
             extraction_run_id=run.id,
             document_id=report.id,
             patient_id=patient_id,
@@ -148,6 +155,34 @@ def _replace_report_fixture(session, patient_id) -> None:
             status="CONFIRMED",
             reviewed_by="演示健康管理师",
             reviewed_at=datetime(2024, 8, 20, 11, tzinfo=timezone.utc),
+        )
+        session.add(candidate)
+        session.flush()
+        if candidate_type == "OBSERVATION":
+            observation = Observation(
+                patient_id=patient_id, observed_at=datetime(2024, 8, 20, 9, tzinfo=timezone.utc),
+                metric_code=code, value_numeric=Decimal(value), unit=unit,
+                source="confirmed_health_check_report", quality_flag="valid",
+                source_record_id=str(candidate.id),
+            )
+            session.add(observation)
+    session.flush()
+    baseline_service = HealthAssessmentService()
+    baseline = baseline_service.create_draft_from_report(
+        session, patient_id, report.id, created_by="演示健康管理师", cycle_year=2026,
+    )
+    baseline_service.confirm(session, baseline.id, "演示健康管理师", reviewer_role="HEALTH_MANAGER")
+    baseline.title = "2026年度健康基线（演示）"
+    baseline.summary = "基于匿名化体检结构、连续健康数据和人工管理记录整理的演示健康基线；不构成医学诊断。"
+    for code, value, unit in (
+        ("ldl", "3.90", "mmol/L"), ("triglyceride", "1.80", "mmol/L"),
+        ("hba1c", "5.90", "%"), ("bmi", "25.80", "kg/m²"),
+    ):
+        session.add(Observation(
+            patient_id=patient_id, observed_at=datetime(2026, 8, 20, 9, tzinfo=timezone.utc),
+            metric_code=code, value_numeric=Decimal(value), unit=unit,
+            source="confirmed_synthetic_follow_up", quality_flag="valid",
+            source_record_id=f"portfolio-follow-up-{code}-20260820",
         ))
 
 
