@@ -4,19 +4,19 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
 
 
 def _alembic(database: Path, revision: str) -> None:
     env = os.environ.copy()
     env["DATABASE_URL"] = f"sqlite:///{database.as_posix()}"
-    subprocess.run([str(PYTHON), "-m", "alembic", "upgrade", revision], cwd=ROOT, env=env, check=True, capture_output=True, text=True)
+    subprocess.run([sys.executable, "-m", "alembic", "upgrade", revision], cwd=ROOT, env=env, check=True, capture_output=True, text=True)
 
 
 def test_upgrade_adds_versioned_baseline_fields_and_preserves_legacy_snapshot(tmp_path: Path) -> None:
