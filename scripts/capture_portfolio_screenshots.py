@@ -19,7 +19,7 @@ from playwright.async_api import Locator, Page, TimeoutError as PlaywrightTimeou
 
 VIEWPORT = {"width": 1440, "height": 900}
 WAIT_AFTER_ACTION_MS = 900
-CORE_SCREENSHOTS = ("dashboard", "member_overview", "doctor_review", "timeline")
+CORE_SCREENSHOTS = ("dashboard", "member_overview", "baseline", "doctor_review", "timeline", "integration_center")
 STREAMLIT_APP_ROOT = '[data-testid="stAppViewContainer"]'
 
 
@@ -47,7 +47,6 @@ async def product_surface_is_ready(page: Page) -> bool:
         page.get_by_role("radio", name="今日", exact=True),
         page.get_by_role("radio", name="成员", exact=True),
         page.get_by_role("radio", name="运营后台", exact=True),
-        page.get_by_text("Executive HealthOps", exact=True),
     )
     for control in known_controls:
         if await first_visible(control) is not None:
@@ -187,6 +186,18 @@ async def main_async(args: argparse.Namespace) -> dict[str, CaptureResult]:
         async def member_overview(current_page: Page) -> None:
             await open_member_overview(current_page)
 
+        async def baseline(current_page: Page) -> None:
+            landing = await first_visible(current_page.get_by_role("button", name="进入成员健康中心", exact=True))
+            if landing is not None:
+                await landing.click()
+                await wait_for_streamlit(current_page)
+            await click_candidates(current_page, ("健康", "Health"), context="member health")
+            await click_candidates(current_page, ("查看年度健康基线",), context="annual health baseline", allow_text=False)
+            metrics = await first_visible(current_page.get_by_text("关键指标基线", exact=True))
+            if metrics is not None:
+                await metrics.scroll_into_view_if_needed()
+                await current_page.wait_for_timeout(350)
+
         async def doctor_review(current_page: Page) -> None:
             await choose_workspace(current_page, "医疗协同", "Medical collaboration", "Doctor review")
             try:
@@ -221,12 +232,24 @@ async def main_async(args: argparse.Namespace) -> dict[str, CaptureResult]:
                 else:
                     raise
 
+        async def integration_center(current_page: Page) -> None:
+            await choose_workspace(current_page, "更多", "More")
+            system = await first_visible(current_page.get_by_role("button", name="查看", exact=True).last)
+            if system is None:
+                raise RuntimeError(await dump_visible_text(current_page, "Could not find System card"))
+            await system.click()
+            await wait_for_streamlit(current_page)
+            if await first_visible(current_page.get_by_text("集成与数据", exact=True)) is None:
+                raise RuntimeError(await dump_visible_text(current_page, "Integration Center did not render"))
+
         workflows: tuple[tuple[str, Callable[[Page], Awaitable[None]]], ...] = (
             ("dashboard", dashboard),
             ("member_overview", member_overview),
+            ("baseline", baseline),
             ("doctor_review", doctor_review),
             ("timeline", timeline),
             ("knowledge_center", knowledge_center),
+            ("integration_center", integration_center),
         )
         for name, workflow in workflows:
             results[name] = await capture(page, output_dir, name, workflow, demo_url=args.url)
@@ -255,14 +278,16 @@ def main() -> int:
     labels = {
         "dashboard": "Dashboard",
         "member_overview": "Member overview",
+        "baseline": "Health baseline",
         "doctor_review": "Doctor review",
         "timeline": "Timeline",
         "knowledge_center": "Knowledge center",
+        "integration_center": "Integration center",
     }
     for name, label in labels.items():
         result = results[name]
         detail = result.path if result.path else result.reason
-        print(f"{label}: {result.status}" + (f" — {detail}" if detail else ""))
+        print(f"{label}: {result.status}" + (f" - {detail}" if detail else ""))
 
     return 0 if all(results[name].status == "PASS" for name in CORE_SCREENSHOTS) else 1
 

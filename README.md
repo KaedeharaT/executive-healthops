@@ -1,6 +1,6 @@
 # Executive HealthOps
 
-**Proactive Longitudinal Health Operations Platform for Executives and High-Net-Worth Families**
+**Proactive Longitudinal Health Operations Platform with Bounded Agentic Automation**
 
 English | [简体中文](README_zh.md)
 
@@ -58,6 +58,28 @@ Receives a focused medical-review context: the question requiring judgement, rel
 | **Quarterly** | Compare key indicators, reassess risk, review outcomes, and recalibrate the plan. |
 | **Yearly** | Compare annual reports, summarize major events and services, record annual outcomes, and prepare the next-year plan. |
 
+## Longitudinal Health Baseline
+
+A Health Baseline is the **human-confirmed reference point at the start of an annual management cycle**. It is deliberately separate from the Current Health Profile, which continues to change as later observations arrive.
+
+```text
+Baseline Draft → Human Review → Doctor Review when required → Confirmed
+      → Monthly / Quarterly Comparison → Annual Review → Next-year Draft
+```
+
+For example, a 2026 baseline weight of `90.0 kg` remains `90.0 kg` when the latest confirmed weight becomes `85.8 kg`. The change belongs to comparison, outcome, and timeline views; it does not rewrite the historical baseline.
+
+- Confirmed baselines are frozen; factual corrections create traceable amendments.
+- New observations update the Current Profile, never the confirmed starting point.
+- Important baseline items retain report/observation evidence.
+- Missing or stale data remains explicit and is never presented as normal.
+- Medical conclusions preserve their doctor or formal-source boundary.
+- The UI renders report-derived reference ranges, Baseline → Current trends, six-category data coverage, and compact comparisons without inventing a health score.
+
+![Evidence-backed annual health baseline](docs/images/healthops-baseline.png)
+
+*The synthetic demo shows six confirmed baseline metrics, report-derived reference metadata, later observations, and a frozen annual reference point.*
+
 ## Key Capabilities
 
 1. **Health Report Intelligence** — parses report content into reviewable findings, observations, and follow-up candidates; AI output does not become a health fact without confirmation.
@@ -101,6 +123,8 @@ The timeline explains what happened, what evidence supported it, who acted, what
 
 The administrator path is **Operations → More → System → Integration & Data**. Structured partner and device files use one guarded flow:
 
+![Lightweight Integration Center](docs/images/healthops-integration-center.png)
+
 ```text
 Upload → Validate → Preview → Confirm → Normalize → Persist
 ```
@@ -120,9 +144,26 @@ Trigger → Review → Decision → Schedule → Delivery → Result → Writeba
 
 Service work retains the member, owner, provider when available, appointment, SLA, completion evidence, result, and next step. A completed service returns to the member record, plan, timeline, and follow-up queue when needed.
 
-## Bounded Long-Running Orchestration
+## Bounded Long-Running HealthOps Agent
 
-The V1 Agent Supervisor demonstrates one approval-aware, event-driven workflow: post-checkup management. It can maintain a durable goal, use permissioned HealthOps tools, wait for a member, health manager, doctor, external event, or scheduled time, then resume with bounded retry and an auditable replan. The planner is deterministic and template-guided; it cannot diagnose, prescribe, assign clinical risk, modify a `RiskRule`, or bypass human approval.
+The Agent Supervisor provides **bounded, long-running workflow autonomy—not autonomous medical decision-making**. V1 demonstrates one complete post-checkup management path:
+
+```text
+Report uploaded → Goal → Report confirmation → Baseline → Deterministic risk
+→ Manager work → Doctor review when required → Plan / Task / Service
+→ Follow-up → Outcome → Timeline → Goal complete
+```
+
+Its template-guided orchestration supports:
+
+- event-driven execution and durable goals;
+- versioned plans and governed read/write tools;
+- manager and doctor approval gates;
+- waiting for people, services, events, or scheduled time;
+- resume, bounded retry, reflection, and auditable replan;
+- execution trace, idempotency protection, and manual takeover.
+
+The Agent cannot diagnose, prescribe, change medication, decide clinical risk, modify thresholds or `RiskRule` records, or bypass doctor review. Agent goals, plans, and traces describe orchestration state; they are not a second health-record database.
 
 ## Architecture
 
@@ -132,10 +173,12 @@ flowchart TB
     H[Health Manager UI] --> A
     D[Doctor UI] --> A
 
-    A --> C[Observation and Evidence]
-    A --> R[RiskEvent and Worklist]
-    A --> W[Plan / Task / Service / Outcome]
+    A --> C[Report / Baseline / Observation / Evidence]
+    A --> R[Deterministic RiskEvent / Worklist]
+    A --> W[Doctor Review / Plan / Task / Service / Outcome]
     A --> T[Longitudinal Timeline]
+
+    S[Agent Supervisor<br/>Event / Goal / Plan / Tool / Approval<br/>Wait-Resume / Retry / Replan / Trace] -. orchestrates through services .-> A
 
     C --> DB[(SQLAlchemy persistence)]
     R --> DB
@@ -147,6 +190,8 @@ flowchart TB
 ```
 
 The business entities are the sources of truth. Dashboards and timelines are projections; UI session state and AI output are not clinical facts. See the [architecture documentation](docs/architecture/README.md) and [BP product alignment](docs/BP_PRODUCT_ALIGNMENT.md).
+
+Representative APIs include `/agent/events`, `/agent/goals`, and `/agent/approvals`; the complete FastAPI surface is available from `/docs` when the demo service is running.
 
 ## Grounded AI and Safety
 
@@ -183,13 +228,15 @@ pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 
 The launcher creates only the isolated `data/portfolio_demo.db` and starts Streamlit at `http://127.0.0.1:8501` and FastAPI docs at `http://127.0.0.1:8000/docs`. Demo members, reports, observations, knowledge, and workflows are synthetic and de-identified.
 
+The launcher also starts the lightweight demo Agent worker. For isolated development, it can be run separately with `python scripts/run_agent_worker.py`; a distributed production worker is intentionally outside V1.
+
 ## Testing
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current v0.9.0 regression suite: **432 passed / 0 failed**.
+Current regression suite: **432 passed / 0 failed**.
 
 ## Current Limitations
 
@@ -197,6 +244,7 @@ Current v0.9.0 regression suite: **432 passed / 0 failed**.
 - Real device-vendor APIs and Apple Health real-device verification are pending.
 - A real partner knowledge service is not connected in the Portfolio Demo.
 - Production Auth/RBAC, TLS, secrets management, and multi-user PostgreSQL deployment are pending.
+- Production distributed scheduling/worker infrastructure and failover are pending; V1 uses a lightweight database-backed worker.
 - Hospital-system integration, payment, and production service-provider connections are outside this prototype.
 
 ## Documentation

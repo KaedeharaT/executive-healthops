@@ -1,6 +1,6 @@
 # Executive HealthOps
 
-**企业家主动式持续健康管理平台**
+**面向企业高管与家庭的主动式持续健康运营平台**
 
 [English](README.md) | 简体中文
 
@@ -58,6 +58,28 @@ flowchart LR
 | **每季度** | 对比关键指标、重新评估风险、复盘阶段结果并校准计划。 |
 | **每年** | 对比年度体检、汇总重大事件与服务、记录年度结果并制定下一年度计划。 |
 
+## 长期健康基线
+
+健康基线是**某个年度管理周期开始时，经人工确认的健康参考起点**。它与持续更新的 Current Health Profile（当前健康状态）明确分离。
+
+```text
+基线初稿 → 人工核对 → 必要时医生复核 → 正式确认
+    → 月度 / 季度比较 → 年度复盘 → 下一年度初稿
+```
+
+例如，2026 年度基线体重为 `90.0 kg`，后续最新确认体重变为 `85.8 kg`，基线仍保留 `90.0 kg`。变化进入比较、Outcome 和时间轴，不会改写历史起点。
+
+- 正式基线确认后冻结；事实错误通过可追溯的 Amendment（资料修订）处理。
+- 新 Observation 只更新当前状态，不覆盖已确认基线。
+- 重要基线项目保留报告或 Observation 依据。
+- 缺失和陈旧资料会明确展示，不会被解释为正常。
+- 医学结论继续遵守医生或正式医疗来源边界。
+- 界面展示报告来源的参考区间、Baseline → Current 趋势、六类资料覆盖和紧凑数值比较，不生成虚构健康总分。
+
+![有依据的年度健康基线](docs/images/healthops-baseline.png)
+
+*匿名合成 Demo 展示六项已确认基线指标、报告参考信息、后续 Observation 与冻结的年度参考值。*
+
 ## 核心能力
 
 1. **体检报告结构化**：将报告整理成可审核的发现、健康观测和复查候选；未经人工确认的 AI 结果不会成为正式健康事实。
@@ -101,6 +123,8 @@ flowchart LR
 
 管理员入口为：**运营后台 → 更多 → 系统 → 集成与数据**。合作方和设备提供的结构化文件统一经过受控流程：
 
+![轻量集成与数据中心](docs/images/healthops-integration-center.png)
+
 ```text
 上传 → 检查 → 预览 → 确认 → 标准化 → 写入
 ```
@@ -120,9 +144,26 @@ flowchart LR
 
 服务事项保留客户、负责人、可用时的服务方、预约时间、SLA、完成依据、结果和下一步。服务完成后回到成员档案、计划和时间轴，必要时创建后续任务。
 
-## 有边界的长期自主编排
+## 有边界的长期 HealthOps Agent
 
-V1 Agent Supervisor 只演示一条需要人工审批、由事件驱动的长期流程：体检后管理。它可以保存长期目标，调用有权限边界的 HealthOps 工具，等待成员、健康管理师、医生、外部事件或约定时间，再通过有限重试和可审计的重新规划继续执行。Planner 使用确定性安全模板；它不能诊断、处方、决定临床风险、修改 `RiskRule`，也不能绕过人工审批。
+Agent Supervisor 提供的是**有边界、可长期运行的流程自主性，不是自主医疗决策**。V1 跑通一条完整的体检后管理路径：
+
+```text
+报告上传 → Goal → 报告确认 → 健康基线 → 确定性风险
+→ 健管处理 → 必要时医生复核 → 计划 / 任务 / 服务
+→ 随访 → Outcome → Timeline → Goal 完成
+```
+
+基于安全模板的编排能力包括：
+
+- 事件驱动执行与持久化 Goal；
+- 版本化 Plan 与有权限边界的读写 Tool；
+- 健管和医生 Approval Gate；
+- 等待成员、服务、业务事件或约定时间；
+- Resume、有限 Retry、Reflection 与可审计 Replan；
+- 执行 Trace、幂等保护和人工接手。
+
+Agent 不能诊断、处方、改药、决定临床风险、修改阈值或 `RiskRule`，也不能绕过医生复核。Agent 的 Goal、Plan 和 Trace 只描述编排状态，不是第二套健康档案。
 
 ## 系统架构
 
@@ -132,10 +173,12 @@ flowchart TB
     H[健康管理师界面] --> A
     D[医生界面] --> A
 
-    A --> C[Observation 与 Evidence]
-    A --> R[RiskEvent 与 Worklist]
-    A --> W[Plan / Task / Service / Outcome]
+    A --> C[Report / Baseline / Observation / Evidence]
+    A --> R[确定性 RiskEvent / Worklist]
+    A --> W[Doctor Review / Plan / Task / Service / Outcome]
     A --> T[长期健康 Timeline]
+
+    S[Agent Supervisor<br/>Event / Goal / Plan / Tool / Approval<br/>Wait-Resume / Retry / Replan / Trace] -.通过业务服务编排.-> A
 
     C --> DB[(SQLAlchemy 持久化)]
     R --> DB
@@ -147,6 +190,8 @@ flowchart TB
 ```
 
 业务实体是真实来源。Dashboard 和 Timeline 是投影；UI 状态与 AI 输出都不是临床事实。详见[架构文档](docs/architecture/README.md)与 [BP 产品对齐说明](docs/BP_PRODUCT_ALIGNMENT.md)。
+
+代表性接口包括 `/agent/events`、`/agent/goals` 和 `/agent/approvals`；Demo 服务运行后可在 `/docs` 查看完整 FastAPI 接口。
 
 ## 有依据的 AI 与安全边界
 
@@ -181,13 +226,15 @@ pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 
 启动脚本只创建隔离的 `data/portfolio_demo.db`，并启动 Streamlit（`http://127.0.0.1:8501`）和 FastAPI 文档（`http://127.0.0.1:8000/docs`）。演示成员、报告、观测、知识和工作流全部是可重复生成的匿名合成数据。
 
+启动脚本同时运行轻量 Demo Agent worker。独立开发时也可执行 `python scripts/run_agent_worker.py`；V1 不包含生产级分布式 Worker。
+
 ## 测试
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-当前 v0.9.0 回归套件：**432 passed / 0 failed**。
+当前回归套件：**432 passed / 0 failed**。
 
 ## 当前限制
 
@@ -195,6 +242,7 @@ pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 - 真实设备厂商 API 与 Apple Health 真机验证仍待接入。
 - Portfolio Demo 尚未连接真实合作方知识服务。
 - 生产级 Auth/RBAC、TLS、密钥管理和 PostgreSQL 多用户部署尚未完成。
+- 生产级分布式调度、Worker 与故障切换尚未完成；V1 使用轻量数据库调度。
 - 医院系统、支付和生产服务商连接不在当前原型范围内。
 
 ## 文档

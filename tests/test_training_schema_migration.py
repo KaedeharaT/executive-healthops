@@ -66,7 +66,7 @@ def test_old_revision_upgrades_without_data_loss_and_legacy_training_table_remai
 def test_portfolio_builder_rebuild_creates_training_tables():
     subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "build_portfolio_demo.py"), "--rebuild"],
-        cwd=ROOT, check=True, capture_output=True, text=True, timeout=180,
+        cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180,
     )
     database = ROOT / "data" / "portfolio_demo.db"
     engine = create_engine(f"sqlite:///{database.as_posix()}")

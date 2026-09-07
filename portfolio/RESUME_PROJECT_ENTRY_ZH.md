@@ -17,6 +17,8 @@
 - **健康管理师工作台**：统一汇总风险、报告审核、到期任务、医生依赖、服务交付和结果复盘，按优先级、Owner、SLA 与 Next Action 推进。
 - **医生协作**：围绕明确医学问题提供成员事实、用药、报告 Evidence、风险上下文和健管动作；医生结论返回健管继续执行。
 - **线下服务闭环**：覆盖触发、核对、决策、安排、交付、结果和回写，服务完成后更新成员档案、计划、时间轴及必要的后续任务。
+- **年度健康基线**：将年度起点与持续更新的当前状态分离；确认后冻结，纠错通过 Amendment 留痕，后续 Observation 只进入对比、Outcome 与 Timeline；UI 展示来源可追溯的参考区间、趋势和资料覆盖。
+- **长期 Agent 编排**：以 Event → Goal → Plan → Tool → Approval → Wait/Resume → Retry/Replan → Trace 推进体检后管理，支持人工接手；Agent 不诊断、不处方、不决定 Risk，也不修改 Clinical Rule。
 - **轻量集成中心**：合作方或设备数据统一经过 Upload → Validate → Preview → Confirm → Normalize → Persist，避免为每个外部系统重复建设业务逻辑。
 - **AI 安全边界**：用户可见 AI 解释必须引用真实 Fact Evidence 和/或已批准 Knowledge Evidence；无来源时拒答。人工纠错只在审核、去标识化和离线评测后用于 Prompt 或模型改进，不在线自动学习或部署。
 
