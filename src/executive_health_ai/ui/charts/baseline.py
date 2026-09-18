@@ -7,6 +7,7 @@ import altair as alt
 import pandas as pd
 
 from executive_health_ai.services.baseline_visualization import BaselineMetricView, BaselineTrendView, CoverageItem
+from executive_health_ai.ui.charts.axes import CHART_PADDING, health_axis_config, time_axis_config, numeric_axis_config
 
 
 BLUE = "#2563EB"
@@ -59,36 +60,33 @@ def baseline_trend_chart(trends: tuple[BaselineTrendView, ...]) -> alt.Chart | N
         latest = max((p.observed_at for p in trend.points if p.point_type == "FOLLOW_UP"), default=None)
         for point in trend.points:
             kind = "年度基线" if point.point_type == "BASELINE" else "当前" if point.observed_at == latest else "后续记录"
+            label_value = f"{float(point.value):.1f}" if point.value == point.value.to_integral_value() else f"{float(point.value):g}"
             rows.append({"时间": point.observed_at, "数值": float(point.value), "指标": point.series,
                          "类型": kind, "单位": trend.unit, "来源": point.source_type,
-                         "标记": f"{kind} {float(point.value):g} {trend.unit}"})
+                         "标记": f"{kind} {label_value} {trend.unit}"})
     frame = pd.DataFrame(rows)
     values = frame["数值"]
     span = float(values.max() - values.min()) or max(abs(float(values.max())) * .05, 1)
     domain = [float(values.min()) - span * .2, float(values.max()) + span * .2]
     dates = pd.to_datetime(frame["时间"], utc=True)
     date_format = "%Y/%m" if (dates.max() - dates.min()).days >= 60 else "%m/%d"
-    x = alt.X("时间:T", title="时间", axis=alt.Axis(format=date_format, tickCount=4, labels=True,
-        ticks=True, domain=True, grid=False, labelAngle=0, labelOverlap=True))
+    x = alt.X("时间:T", title="时间", axis=time_axis_config(date_format, dates=dates))
     y = alt.Y("数值:Q", title=f"数值（{trends[0].unit}）", scale=alt.Scale(domain=domain, zero=False, nice=True),
-        axis=alt.Axis(tickCount=5, labels=True, ticks=True, domain=True, grid=True))
+        axis=numeric_axis_config(trends[0].unit, title=f"数值（{trends[0].unit}）"))
     color = alt.Color("指标:N", scale=alt.Scale(domain=[t.label for t in trends], range=[DEEP_BLUE, BLUE]),
-        legend=alt.Legend(title=None, orient="top"))
+        legend=alt.Legend(title=None, orient="top", labelFontSize=12))
     tooltip = [alt.Tooltip("时间:T", title="日期", format="%Y/%m/%d"), alt.Tooltip("指标:N"),
         alt.Tooltip("数值:Q", format=".3~f"), alt.Tooltip("单位:N"), alt.Tooltip("类型:N"), alt.Tooltip("来源:N")]
     base = alt.Chart(frame).encode(x=x, y=y, color=color, tooltip=tooltip)
     line = base.mark_line(point=alt.OverlayMarkDef(filled=True, size=55), strokeWidth=2.5)
     baselines = base.transform_filter(alt.datum.类型 == "年度基线")
     current = base.transform_filter(alt.datum.类型 == "当前")
-    rules = alt.Chart(frame[frame["类型"] == "年度基线"]).mark_rule(strokeDash=[6, 4], strokeWidth=1.5).encode(y=y, color=color, tooltip=tooltip)
+    rules = alt.Chart(frame[frame["类型"] == "年度基线"]).mark_rule(strokeDash=[7, 4], strokeWidth=2).encode(y=y, color=color, tooltip=tooltip)
     markers = baselines.mark_point(shape="diamond", filled=True, size=120)
-    baseline_labels = baselines.mark_text(align="left", dx=7, dy=-14, fontWeight="bold").encode(text="标记:N")
+    baseline_labels = baselines.mark_text(align="left", dx=9, dy=-16, fontSize=13, fontWeight="bold").encode(text="标记:N")
     current_points = current.mark_point(filled=True, size=140, stroke="white", strokeWidth=1.5)
-    current_labels = current.mark_text(align="right", dx=-7, dy=-14, fontWeight="bold").encode(text="标记:N")
-    return alt.layer(line, rules, markers, baseline_labels, current_points, current_labels).properties(height=270).configure_view(stroke=None).configure_axis(
-        gridColor="#E2E8F0", domainColor=BLUE_GRAY, tickColor=BLUE_GRAY,
-        labelColor="#334155", titleColor="#334155", labelFontSize=12, titleFontSize=12,
-    )
+    current_labels = current.mark_text(align="right", dx=-9, dy=-28, fontSize=13, fontWeight="bold").encode(text="标记:N")
+    return alt.layer(line, rules, markers, baseline_labels, current_points, current_labels).properties(height=320, padding=CHART_PADDING).configure_view(stroke=None).configure_axis(**health_axis_config())
 
 
 def coverage_chart(items: tuple[CoverageItem, ...]) -> alt.Chart:

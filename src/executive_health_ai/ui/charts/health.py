@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from executive_health_ai.services.health_visualization import option_label
+from executive_health_ai.ui.charts.axes import CHART_PADDING, health_axis_config, time_axis_config, numeric_axis_config
 
 BLUE = "#185da8"
 
@@ -23,11 +24,11 @@ def metric_trend_chart(series, *, compact=False):
     if (at.max() - at.min()).total_seconds() < 86400:
         date_format = "%m/%d %H:%M"
     return alt.Chart(frame).mark_line(point=alt.OverlayMarkDef(filled=True, size=30 if compact else 48), strokeWidth=2).encode(
-        x=alt.X("时间:T", title="时间", axis=alt.Axis(format=date_format, tickCount=3 if compact else 5, labels=True, ticks=True, domain=True, grid=False, labelAngle=0, labelOverlap=True)),
-        y=alt.Y("数值:Q", title=series[0].unit, scale=alt.Scale(zero=False, domain=[low-pad, high+pad], nice=True), axis=alt.Axis(labels=True, ticks=True, domain=True, tickCount=3 if compact else 5, grid=True)),
-        color=alt.Color("指标:N", scale=alt.Scale(range=[BLUE, "#609bd0"]), legend=alt.Legend(title=None, orient="top")),
+        x=alt.X("时间:T", title="时间", axis=time_axis_config(date_format, dates=at, compact=compact)),
+        y=alt.Y("数值:Q", title=series[0].unit, scale=alt.Scale(zero=False, domain=[low-pad, high+pad], nice=True), axis=numeric_axis_config(series[0].unit, compact=compact)),
+        color=alt.Color("指标:N", scale=alt.Scale(range=[BLUE, "#609bd0"]), legend=alt.Legend(title=None, orient="top", labelFontSize=12)),
         tooltip=[alt.Tooltip("时间:T", title="时间", format="%Y/%m/%d %H:%M"), alt.Tooltip("数值:Q", format=".3~f"), alt.Tooltip("单位:N"), alt.Tooltip("来源:N"), alt.Tooltip("指标:N")],
-    ).properties(height=190 if compact else 280).configure_view(stroke=None).configure_axis(gridColor="#e2e8f0", labelColor="#334155", titleColor="#334155", domainColor="#64748b", tickColor="#64748b")
+    ).properties(height=190 if compact else 320, padding=5 if compact else CHART_PADDING).configure_view(stroke=None).configure_axis(**health_axis_config())
 
 
 def render_metric_trend(series, *, key, compact=False):
