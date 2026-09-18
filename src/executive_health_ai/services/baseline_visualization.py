@@ -7,7 +7,7 @@ report candidate captured by the baseline.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 import re
 from typing import Any
@@ -91,6 +91,7 @@ class TrendPoint:
     value: Decimal
     series: str
     point_type: str
+    source_type: str = "健康数据"
 
 
 @dataclass(frozen=True)
@@ -127,6 +128,32 @@ class BaselineComparisonView:
     current: str
     unit: str
     status: str
+    delta: Decimal | None = None
+    percentage: Decimal | None = None
+    direction: str = "暂无后续数据"
+
+    @property
+    def delta_text(self) -> str:
+        if self.delta is None:
+            return self.direction
+        unit = "个百分点" if self.unit == "%" else self.unit
+        return f"{self.direction} {number_text(abs(self.delta))} {unit}".strip()
+
+
+def number_text(value: Decimal | str) -> str:
+    number = Decimal(str(value))
+    return format(number.quantize(Decimal('0.001')), 'f').rstrip('0').rstrip('.') if number else '0'
+
+
+def comparison_change(baseline: Decimal, current: Decimal | None, code: str, unit: str):
+    """Numeric direction only; no risk or clinical effectiveness inference."""
+    if current is None:
+        return None, None, "暂无后续数据"
+    delta = current - baseline
+    direction = "↑ 上升" if delta > 0 else "↓ 下降" if delta < 0 else "→ 基本持平"
+    ratio_metrics = {"weight", "bmi", "waist_circumference", "ldl_c", "hdl_c", "triglycerides", "steps", "exercise_minutes", "sleep_duration"}
+    percentage = delta / baseline * 100 if baseline > 0 and code in ratio_metrics and unit != "%" else None
+    return delta, percentage, direction
 
 
 @dataclass(frozen=True)
@@ -155,8 +182,9 @@ class BaselineVisualization:
 
 def _decimal(value: object) -> Decimal | None:
     try:
-        return Decimal(str(value)) if value not in {None, ""} else None
-    except (InvalidOperation, ValueError):
+        number = Decimal(str(value)) if value not in (None, "") else None
+        return number if number is not None and number.is_finite() else None
+    except (InvalidOperation, ValueError, TypeError):
         return None
 
 
@@ -190,9 +218,10 @@ def _uuid(value: object) -> UUID | None:
 
 def _datetime(value: object) -> datetime | None:
     if isinstance(value, datetime):
-        return value
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
     try:
-        return datetime.fromisoformat(str(value)) if value else None
+        parsed = datetime.fromisoformat(str(value)) if value else None
+        return _datetime(parsed) if parsed else None
     except (TypeError, ValueError):
         return None
 
@@ -259,7 +288,7 @@ class BaselineVisualizationService:
             reference = parse_reference_interval(candidate.reference_range if candidate else None)
             metrics.append(BaselineMetricView(
                 code=code, label=METRIC_LABELS.get(code, code.upper() or "健康指标"),
-                value=value, value_text=str(row.get("value") or "未记录"), unit=str(row.get("unit") or ""),
+                value=value, value_text=str(row.get("value")) if value is not None else "未记录", unit=str(row.get("unit") or ""),
                 observed_at=_datetime(row.get("observed_at")), source_candidate_id=candidate_id,
                 reference=reference if code in SUPPORTED_REFERENCE_METRICS else None,
                 explicit_status=_explicit_status(candidate.abnormal_flag if candidate else None),
@@ -285,12 +314,13 @@ class BaselineVisualizationService:
                 finalized_metrics.append(metric)
                 continue
             baseline_at = metric.observed_at or baseline.confirmed_at or baseline.assessed_at
-            points = [TrendPoint(baseline_at, metric.value, metric.label, "BASELINE")]
+            points = [TrendPoint(baseline_at, metric.value, metric.label, "BASELINE", "已确认年度基线")]
             comparable = [
                 (row, value) for row in by_code.get(metric.code, [])
-                if row.observed_at > baseline_at and (value := _comparable_value(metric, row)) is not None
+                if row.observed_at > baseline_at and (value := _comparable_value(metric, row)) is not None and value.is_finite()
             ]
-            points.extend(TrendPoint(row.observed_at, value, metric.label, "FOLLOW_UP") for row, value in comparable)
+            source_labels = {"manual": "人工记录", "device": "设备数据", "report": "体检报告", "confirmed_report": "已确认体检报告"}
+            points.extend(TrendPoint(row.observed_at, value, metric.label, "FOLLOW_UP", source_labels.get(row.source, "健康数据")) for row, value in comparable)
             trends.append(BaselineTrendView(metric.code, metric.label, metric.unit, metric.value, tuple(points)))
             current = comparable[-1] if comparable else None
             finalized_metrics.append(replace(
@@ -302,6 +332,7 @@ class BaselineVisualizationService:
                 metric.code, metric.label, metric.value_text,
                 str(current[1]) if current else "暂无后续数据", metric.unit,
                 "发生变化" if current and current[1] != metric.value else "已记录" if current else "未复查",
+                *comparison_change(metric.value, current[1] if current else None, metric.code, metric.unit),
             ))
 
         coverage = self._coverage(snapshot)

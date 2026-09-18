@@ -49,28 +49,46 @@ def reference_range_chart(metric: BaselineMetricView) -> alt.Chart | None:
 
 
 def baseline_trend_chart(trends: tuple[BaselineTrendView, ...]) -> alt.Chart | None:
-    """Plot comparable observations with an explicit annual-baseline marker."""
-    selected = [trend for trend in trends if trend.has_follow_up]
-    if not selected:
+    """Explicit axes, true observations, baseline rules and latest-value labels."""
+    if not trends or not any(trend.has_follow_up for trend in trends):
         return None
-    rows = [{
-        "时间": point.observed_at, "数值": float(point.value), "指标": point.series,
-        "类型": "年度基线" if point.point_type == "BASELINE" else "后续记录",
-    } for trend in selected for point in trend.points]
+    if len({trend.unit for trend in trends}) != 1:
+        raise ValueError("不同单位的指标不能使用同一数值坐标轴。")
+    rows = []
+    for trend in trends:
+        latest = max((p.observed_at for p in trend.points if p.point_type == "FOLLOW_UP"), default=None)
+        for point in trend.points:
+            kind = "年度基线" if point.point_type == "BASELINE" else "当前" if point.observed_at == latest else "后续记录"
+            rows.append({"时间": point.observed_at, "数值": float(point.value), "指标": point.series,
+                         "类型": kind, "单位": trend.unit, "来源": point.source_type,
+                         "标记": f"{kind} {float(point.value):g} {trend.unit}"})
     frame = pd.DataFrame(rows)
-    line = alt.Chart(frame).mark_line(point=True, strokeWidth=2.5).encode(
-        x=alt.X("时间:T", title=None), y=alt.Y("数值:Q", scale=alt.Scale(zero=False), title=selected[0].unit or None),
-        color=alt.Color("指标:N", scale=alt.Scale(range=[DEEP_BLUE, BLUE]), legend=alt.Legend(title=None)),
-        tooltip=[alt.Tooltip("时间:T", title="时间"), alt.Tooltip("指标:N"), alt.Tooltip("数值:Q"), alt.Tooltip("类型:N")],
+    values = frame["数值"]
+    span = float(values.max() - values.min()) or max(abs(float(values.max())) * .05, 1)
+    domain = [float(values.min()) - span * .2, float(values.max()) + span * .2]
+    dates = pd.to_datetime(frame["时间"], utc=True)
+    date_format = "%Y/%m" if (dates.max() - dates.min()).days >= 60 else "%m/%d"
+    x = alt.X("时间:T", title="时间", axis=alt.Axis(format=date_format, tickCount=4, labels=True,
+        ticks=True, domain=True, grid=False, labelAngle=0, labelOverlap=True))
+    y = alt.Y("数值:Q", title=f"数值（{trends[0].unit}）", scale=alt.Scale(domain=domain, zero=False, nice=True),
+        axis=alt.Axis(tickCount=5, labels=True, ticks=True, domain=True, grid=True))
+    color = alt.Color("指标:N", scale=alt.Scale(domain=[t.label for t in trends], range=[DEEP_BLUE, BLUE]),
+        legend=alt.Legend(title=None, orient="top"))
+    tooltip = [alt.Tooltip("时间:T", title="日期", format="%Y/%m/%d"), alt.Tooltip("指标:N"),
+        alt.Tooltip("数值:Q", format=".3~f"), alt.Tooltip("单位:N"), alt.Tooltip("类型:N"), alt.Tooltip("来源:N")]
+    base = alt.Chart(frame).encode(x=x, y=y, color=color, tooltip=tooltip)
+    line = base.mark_line(point=alt.OverlayMarkDef(filled=True, size=55), strokeWidth=2.5)
+    baselines = base.transform_filter(alt.datum.类型 == "年度基线")
+    current = base.transform_filter(alt.datum.类型 == "当前")
+    rules = alt.Chart(frame[frame["类型"] == "年度基线"]).mark_rule(strokeDash=[6, 4], strokeWidth=1.5).encode(y=y, color=color, tooltip=tooltip)
+    markers = baselines.mark_point(shape="diamond", filled=True, size=120)
+    baseline_labels = baselines.mark_text(align="left", dx=7, dy=-14, fontWeight="bold").encode(text="标记:N")
+    current_points = current.mark_point(filled=True, size=140, stroke="white", strokeWidth=1.5)
+    current_labels = current.mark_text(align="right", dx=-7, dy=-14, fontWeight="bold").encode(text="标记:N")
+    return alt.layer(line, rules, markers, baseline_labels, current_points, current_labels).properties(height=270).configure_view(stroke=None).configure_axis(
+        gridColor="#E2E8F0", domainColor=BLUE_GRAY, tickColor=BLUE_GRAY,
+        labelColor="#334155", titleColor="#334155", labelFontSize=12, titleFontSize=12,
     )
-    baseline_rows = frame[frame["类型"] == "年度基线"]
-    markers = alt.Chart(baseline_rows).mark_point(shape="diamond", filled=True, size=150, color=BLUE).encode(
-        x="时间:T", y=alt.Y("数值:Q", scale=alt.Scale(zero=False)), tooltip=["指标:N", "类型:N", "数值:Q"]
-    )
-    labels = alt.Chart(baseline_rows).mark_text(align="left", dx=8, dy=-10, color=DEEP_BLUE, fontWeight="bold").encode(
-        x="时间:T", y=alt.Y("数值:Q", scale=alt.Scale(zero=False)), text=alt.value("年度基线")
-    )
-    return alt.layer(line, markers, labels).properties(height=260).configure_view(stroke=None).configure_axis(gridColor="#E2E8F0", labelColor="#475569", titleColor="#334155")
 
 
 def coverage_chart(items: tuple[CoverageItem, ...]) -> alt.Chart:

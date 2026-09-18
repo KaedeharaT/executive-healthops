@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+import logging
+from typing import Protocol, Any
 
 import pandas as pd
 import streamlit as st
@@ -10,6 +12,13 @@ from executive_health_ai.services.longitudinal import HealthAssessmentService, H
 from executive_health_ai.services.task_transitions import TaskTransitionService
 from executive_health_ai.services.member_services import MemberServiceOperations
 from executive_health_ai.ui import experience as ux
+
+logger = logging.getLogger(__name__)
+
+
+class TimelineAdapter(Protocol):
+    def _label(self, value: str | None) -> str: ...
+    def render_longitudinal_timeline(self, patient: Any, *, key_scope: str, client_view: bool) -> None: ...
 
 
 def _tasks(patient_id):
@@ -88,7 +97,11 @@ def overview(app, patient, ctx):
     with SessionLocal() as session:
         baseline = HealthAssessmentService().latest_baseline(session, patient.id)
         data = ux.observations(session, patient.id)
-    ux.baseline_summary(baseline, data)
+    if baseline:
+        from executive_health_ai.ui.pages.baseline_visualization import render_baseline_overview
+        render_baseline_overview(patient, baseline, session_factory=SessionLocal, key_prefix=f"member-overview-{patient.id}")
+    else:
+        ux.baseline_summary(baseline, data)
     if baseline:
         st.button("查看年度健康基线", key=f"client-health-baseline-open-{baseline.id}", type="primary", on_click=app._open_client_baseline, args=(patient.id,))
     st.subheader("当前变化")
@@ -196,7 +209,16 @@ def plan(app, patient, ctx):
         st.caption("阶段复盘后，确认的结果会显示在这里。")
 
 
-def timeline(app, patient, *, client_view=True):
+def timeline(app: TimelineAdapter, patient, *, client_view=True):
+    """Contain unexpected rendering failures without exposing health data or paths."""
+    try:
+        _timeline_content(app, patient, client_view=client_view)
+    except Exception:
+        logger.exception("member_timeline_render_failed")
+        st.error("健康历程暂时无法加载，请稍后重试。")
+
+
+def _timeline_content(app: TimelineAdapter, patient, *, client_view=True):
     ux.page_header("长期健康历程", "只呈现重要健康事件与人工确认的进展。")
     with SessionLocal() as session:
         events = HealthTimelineService().get_timeline(session, patient.id, limit=100)
@@ -209,7 +231,7 @@ def timeline(app, patient, *, client_view=True):
     for event in important[:20]:
         title = "阶段结果" if event.event_type == "outcome" else event.title
         summary = event.summary or "已归档健康记录"
-        meta = "记录于 " + ux.when(event.occurred_at)
+        meta = "记录于 " + ux.when(event.occurred_at) + " · " + ux.business_text(event.event_type_label or "健康记录")
         if event.event_type == "risk":
             state = risk_states.get(event.related_entity)
             meta += " · " + app._label(state)

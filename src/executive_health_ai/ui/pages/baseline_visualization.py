@@ -11,7 +11,7 @@ import streamlit as st
 
 from executive_health_ai.blood_pressure import TOKYO_TIMEZONE
 from executive_health_ai.models import HealthAssessment, Patient
-from executive_health_ai.services.baseline_visualization import BaselineVisualizationService
+from executive_health_ai.services.baseline_visualization import BaselineVisualizationService, number_text
 from executive_health_ai.ui.charts.baseline import baseline_trend_chart, coverage_chart, reference_range_chart
 
 
@@ -45,6 +45,8 @@ def render_baseline_visualization(
     phase_columns[1].markdown("**当前 · 持续管理**")
     phase_columns[2].caption("下一步 · 阶段复盘")
 
+    render_baseline_progress(view, key_prefix=key_prefix)
+
     section_header("健康概览")
     for domain in view.domains:
         status_color = {"需要持续关注": "#B45309", "资料不足": "#64748B"}.get(domain.status, "#2563EB")
@@ -66,50 +68,13 @@ def render_baseline_visualization(
             chart = reference_range_chart(metric)
             if chart is not None:
                 st.altair_chart(chart, width="stretch", key=f"{key_prefix}-range-{metric.code}")
-                st.caption(f"报告参考范围：{metric.reference.text}")
+                st.caption(f"参考下限：{metric.reference.lower if metric.reference.lower is not None else '未提供'} · 参考上限：{metric.reference.upper if metric.reference.upper is not None else '未提供'} · 基线值：{metric.value_text} {metric.unit}")
             else:
                 st.caption("报告未提供可用于绘图的明确参考范围；仅显示已确认数值和来源。")
             render_metric_evidence(
                 patient.id, metric.source_candidate_id,
                 key_scope=f"{key_prefix}-metric-evidence-{metric.code}", client_view=client_view,
             )
-
-    section_header("从基线到现在")
-    trend_options: dict[str, tuple[object, ...]] = {}
-    by_code = {trend.code: trend for trend in view.trends}
-    if "systolic_bp" in by_code and "diastolic_bp" in by_code:
-        trend_options["血压"] = (by_code["systolic_bp"], by_code["diastolic_bp"])
-    for trend in view.trends:
-        if trend.code not in {"systolic_bp", "diastolic_bp"}:
-            trend_options[trend.label] = (trend,)
-    if trend_options:
-        selected_label = st.selectbox("选择指标", list(trend_options), key=f"{key_prefix}-trend-metric")
-        window = st.selectbox("时间范围", ["当前管理周期", "7天", "30天", "3个月", "1年", "全部"], key=f"{key_prefix}-trend-window")
-        selected = trend_options[selected_label]
-        if window not in {"当前管理周期", "全部"}:
-            days = {"7天": 7, "30天": 30, "3个月": 90, "1年": 365}[window]
-            cutoff = datetime.now(TOKYO_TIMEZONE) - timedelta(days=days)
-            selected = tuple(replace(
-                trend, points=tuple(point for point in trend.points if point.point_type == "BASELINE" or point.observed_at >= cutoff),
-            ) for trend in selected)
-        chart = baseline_trend_chart(selected)
-        if chart is None:
-            inline_empty("暂无足够连续数据形成趋势", "目前只有年度基线，后续同类数据确认后会显示变化。")
-        else:
-            st.altair_chart(chart, width="stretch", key=f"{key_prefix}-trend-chart")
-            st.caption("菱形点标示年度基线；折线仅连接同一指标、同一单位的真实记录。")
-    else:
-        inline_empty("暂无足够连续数据形成趋势", "当前基线尚无可比较的定量指标。")
-
-    section_header("基线与当前")
-    if view.comparisons:
-        st.dataframe(pd.DataFrame([{
-            "指标": item.label, "年度基线": f"{item.baseline} {item.unit}".strip(),
-            "当前记录": f"{item.current} {item.unit}".strip(), "比较状态": item.status,
-        } for item in view.comparisons]), hide_index=True, width="stretch")
-        st.caption("这里只描述数值是否变化，不自动判断医学上的改善或恶化。")
-    else:
-        inline_empty("暂无可比较指标", "后续同类数据确认后会显示基线与当前记录。")
 
     if audience == "manager":
         section_header("基线资料覆盖")
@@ -126,3 +91,63 @@ def render_baseline_visualization(
                 for change in amendment.changes or ("修订内容保留在基线记录中。",):
                     st.write(change)
                 st.caption(f"依据：{amendment.evidence}")
+
+
+def render_baseline_progress(view, *, key_prefix: str) -> None:
+    """The same comparable projection and chart for members and managers."""
+    st.markdown("**基线与当前**")
+    if view.comparisons:
+        rows = []
+        for item in view.comparisons:
+            rows.append({"指标": item.label,
+                         "年度基线": f"{number_text(item.baseline)} {item.unit}",
+                         "当前记录": f"{number_text(item.current)} {item.unit}" if item.delta is not None else "暂无后续数据",
+                         "数值变化": item.delta_text,
+                         "相对变化": f"{item.percentage:+.1f}%" if item.percentage is not None else "—"})
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    else:
+        st.caption("暂无可比较指标，已确认的定量数据会显示在这里。")
+    st.caption("↑ / ↓ 只表示数值方向，不自动解释为改善或恶化；百分比指标的绝对差使用百分点。")
+    st.markdown("**从基线到现在**")
+    by_code = {trend.code: trend for trend in view.trends}
+    options = {}
+    for code in ("weight", "bmi", "ldl_c", "hba1c"):
+        if code in by_code:
+            options[by_code[code].label] = (by_code[code],)
+    if all(code in by_code for code in ("systolic_bp", "diastolic_bp")) and by_code["systolic_bp"].unit == by_code["diastolic_bp"].unit:
+        options["血压（收缩压 / 舒张压）"] = (by_code["systolic_bp"], by_code["diastolic_bp"])
+    grouped = {t.code for group in options.values() for t in group}
+    for trend in view.trends:
+        if trend.code not in grouped:
+            options[trend.label] = (trend,)
+    if not options:
+        st.caption("目前还没有足够的后续数据形成趋势。请由健康管理师核对并补充基线指标。")
+        return
+    columns = st.columns([2, 1])
+    selected_label = columns[0].selectbox("选择指标", list(options), key=f"{key_prefix}-trend-metric")
+    window = columns[1].selectbox("时间范围", ["当前管理周期", "7天", "30天", "3个月", "1年", "全部"], key=f"{key_prefix}-trend-window")
+    selected = options[selected_label]
+    if window not in {"当前管理周期", "全部"}:
+        cutoff = datetime.now(TOKYO_TIMEZONE) - timedelta(days={"7天":7,"30天":30,"3个月":90,"1年":365}[window])
+        selected = tuple(replace(trend, points=tuple(p for p in trend.points if p.point_type == "BASELINE" or p.observed_at >= cutoff)) for trend in selected)
+        st.caption("保留年度基线作为起点；后续记录按所选时间范围展示。")
+    chart = baseline_trend_chart(selected)
+    if chart is None:
+        st.caption("目前还没有足够的后续数据形成趋势。")
+        st.caption("；".join(f"{t.label} · 基线 {number_text(t.baseline_value)} {t.unit}" for t in selected))
+    else:
+        # Explicit Vega-Lite axes must not inherit Streamlit's minimalist theme.
+        st.altair_chart(chart, width="stretch", theme=None, key=f"{key_prefix}-trend-chart")
+        st.caption("虚线 / 菱形：年度基线；末端圆点：当前有效记录。悬停查看日期、数值、单位和来源。")
+
+
+def render_baseline_overview(patient, baseline, *, session_factory, key_prefix):
+    st.subheader(f"{baseline.cycle_year or baseline.assessed_at.year}年度健康基线")
+    if baseline.status not in {"CONFIRMED", "AMENDED"}:
+        st.caption("基线尚待人工确认，确认后可比较当前变化。")
+        return
+    with session_factory() as session:
+        view = BaselineVisualizationService().build(session, patient.id, cycle_year=baseline.cycle_year)
+    confirmed = view.assessment.confirmed_at or view.assessment.assessed_at
+    st.caption(f"已确认 · 建立时间：{confirmed:%Y/%m/%d} · 已记录 {len(view.metrics)} 项指标；缺失资料不推断为正常。")
+    render_baseline_progress(view, key_prefix=key_prefix)

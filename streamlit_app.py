@@ -4477,7 +4477,10 @@ def render_health_assessments(patient: Patient) -> None:
                     value = snapshot.get(key)
                     st.markdown(f"**{heading}**")
                     if isinstance(value, list) and value:
-                        st.dataframe(pd.DataFrame([_business_detail_row(item) for item in value if isinstance(item, dict)]), hide_index=True, width="stretch") if isinstance(value[0], dict) else st.write("；".join(str(item) for item in value))
+                        if isinstance(value[0], dict):
+                            st.dataframe(pd.DataFrame([_business_detail_row(item) for item in value if isinstance(item, dict)]), hide_index=True, width="stretch")
+                        else:
+                            st.write("；".join(str(item) for item in value))
                     elif isinstance(value, dict) and value.get("label"):
                         st.caption(str(value["label"]))
                     else:
@@ -5248,12 +5251,17 @@ def render_longitudinal_timeline(patient: Patient, *, key_scope: str = "archive"
                 st.write("医生意见：" + "；".join(item.opinion for item in reviews))
         if event.event_type == "assessment":
             st.markdown("**当时健康快照**")
-            snapshot = {key: value for key, value in details.items() if key not in {"status", "reviewed_by", "source_references"} and value not in {None, "", [], {}}}
+            snapshot = {key: value for key, value in details.items() if key not in {"status", "reviewed_by", "source_references"} and value not in (None, "", [], {})}
             if snapshot:
                 basic = snapshot.get("basic_information") if isinstance(snapshot.get("basic_information"), dict) else {}
                 columns = st.columns(2)
-                columns[0].markdown("**主要健康问题**\n\n" + ("\n".join(f"• {item.get('title', '已确认健康问题')}" for item in snapshot.get("health_problems", [])[:5] if isinstance(item, dict)) or "待补充"))
-                columns[1].markdown("**当前用药**\n\n" + ("\n".join(f"• {item.get('name', '已记录用药')}" for item in snapshot.get("current_medications", [])[:5] if isinstance(item, dict)) or "待补充"))
+                problems = snapshot.get("health_problems")
+                medications = snapshot.get("current_medications")
+                # Pending/confirmed-none snapshots use a dict, confirmed records a list.
+                problems = problems if isinstance(problems, list) else []
+                medications = medications if isinstance(medications, list) else []
+                columns[0].markdown("**主要健康问题**\n\n" + ("\n".join(f"• {ux.business_text(item.get('title', '已确认健康问题'))}" for item in problems[:5] if isinstance(item, dict)) or "待补充"))
+                columns[1].markdown("**当前用药**\n\n" + ("\n".join(f"• {ux.business_text(item.get('name', '已记录用药'))}" for item in medications[:5] if isinstance(item, dict)) or "暂无已确认用药记录"))
                 metric_rows = snapshot.get("key_metrics") if isinstance(snapshot.get("key_metrics"), list) else []
                 if metric_rows:
                     st.markdown("**关键指标**")
@@ -5551,7 +5559,10 @@ def _render_member_baseline_center(patient: Patient) -> None:
                 value = snapshot.get(key)
                 st.markdown(f"**{heading}**")
                 if isinstance(value, list) and value:
-                    st.dataframe(pd.DataFrame([_business_detail_row(item) for item in value if isinstance(item, dict)]), hide_index=True, width="stretch") if isinstance(value[0], dict) else st.write("；".join(str(item) for item in value))
+                    if isinstance(value[0], dict):
+                        st.dataframe(pd.DataFrame([_business_detail_row(item) for item in value if isinstance(item, dict)]), hide_index=True, width="stretch")
+                    else:
+                        st.write("；".join(str(item) for item in value))
                 elif isinstance(value, dict) and value.get("label"):
                     st.caption(str(value["label"]))
                 else:
