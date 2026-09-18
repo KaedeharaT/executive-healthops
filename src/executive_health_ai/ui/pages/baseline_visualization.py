@@ -125,10 +125,10 @@ def render_baseline_progress(view, *, key_prefix: str) -> None:
         return
     columns = st.columns([2, 1])
     selected_label = columns[0].selectbox("选择指标", list(options), key=f"{key_prefix}-trend-metric")
-    window = columns[1].selectbox("时间范围", ["当前管理周期", "7天", "30天", "3个月", "1年", "全部"], key=f"{key_prefix}-trend-window")
+    window = columns[1].selectbox("时间范围", ["当前管理周期", "7天", "30天", "3个月", "6个月", "1年", "全部"], key=f"{key_prefix}-trend-window")
     selected = options[selected_label]
     if window not in {"当前管理周期", "全部"}:
-        cutoff = datetime.now(TOKYO_TIMEZONE) - timedelta(days={"7天":7,"30天":30,"3个月":90,"1年":365}[window])
+        cutoff = datetime.now(TOKYO_TIMEZONE) - timedelta(days={"7天":7,"30天":30,"3个月":90,"6个月":180,"1年":365}[window])
         selected = tuple(replace(trend, points=tuple(p for p in trend.points if p.point_type == "BASELINE" or p.observed_at >= cutoff)) for trend in selected)
         st.caption("保留年度基线作为起点；后续记录按所选时间范围展示。")
     chart = baseline_trend_chart(selected)

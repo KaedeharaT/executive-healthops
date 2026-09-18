@@ -42,6 +42,8 @@ def detail(app, patient, review, *, read_only=False):
         ordered = [latest[code] for code in priority if code in latest] + [r for code, r in latest.items() if code not in priority]
         ux.metric_row([(ux.metric_name(r.metric_code), f"{float(r.value_numeric):g} {r.unit}") for r in ordered[:4]])
         st.caption("当前用药：" + ("；".join(f"{r.drug_name} {r.dose or ''}{r.dose_unit or ''}" for r in meds if r.status.lower() == "active") or "暂无已确认记录"))
+    from executive_health_ai.ui.pages.health_visualization import render_doctor_trend
+    render_doctor_trend(patient.id, review)
     ux.evidence_summary(payload)
     with st.expander("完整资料位置与核对信息"):
         app._render_evidence_action(payload, key_scope=f"ux-doctor-evidence-{review.id}")

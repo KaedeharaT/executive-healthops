@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE = ROOT / "data" / "portfolio_demo.db"
 DEMO_EXTERNAL_ID = "portfolio-demo-executive-a"
-DEMO_DATA_VERSION = "portfolio-demo-role-ux-v3"
+DEMO_DATA_VERSION = "portfolio-demo-chart-restoration-v4"
 
 
 def _configure_console_encoding() -> None:
@@ -214,6 +214,20 @@ def _replace_report_fixture(session, patient_id) -> None:
             source="confirmed_synthetic_follow_up", quality_flag="valid",
             source_record_id=f"portfolio-follow-up-{code}-{index}",
         ))
+
+    # Recent, explicit synthetic measurements make the doctor's 30-day view
+    # demonstrable without substituting old measurements for recent data.
+    for days, systolic, diastolic in ((21, "128", "82"), (14, "127", "81"), (7, "126", "80")):
+        for code, value in (("systolic_bp", systolic), ("diastolic_bp", diastolic)):
+            session.add(Observation(patient_id=patient_id, observed_at=datetime.now(timezone.utc)-timedelta(days=days), metric_code=code, value_numeric=Decimal(value), unit="mmHg", source="confirmed_synthetic_follow_up", quality_flag="valid", source_record_id=f"portfolio-recent-{code}-{days}"))
+
+    # A second confirmed report enables the existing report-comparison story.
+    follow_report = Document(patient_id=patient_id, document_type="health_check_report", title="2026年9月复查报告（演示）", storage_reference="portfolio-demo://anonymous-follow-up-2026", source="portfolio_demo_fixture", status="AVAILABLE")
+    session.add(follow_report); session.flush()
+    follow_run = ReportExtractionRun(document_id=follow_report.id, patient_id=patient_id, status="COMPLETED", parser_version="portfolio-fixture-v1", canonical_registry_version="v1", file_hash=DEMO_DATA_VERSION+"-follow-up", file_type="TXT", detected_report_date=date(2026, 9, 1), candidate_count=6, completed_at=datetime(2026, 9, 1, 10, tzinfo=timezone.utc), metadata_json={"portfolio_fixture": True, "anonymised": True})
+    session.add(follow_run); session.flush()
+    for code, name, value, unit in (("weight", "体重", "85.8", "kg"), ("bmi", "BMI", "27.9", "kg/m²"), ("ldl_c", "LDL-C", "3.72", "mmol/L"), ("hba1c", "糖化血红蛋白", "6.0", "%"), ("systolic_bp", "收缩压", "126", "mmHg"), ("diastolic_bp", "舒张压", "80", "mmHg")):
+        session.add(ReportExtractionCandidate(extraction_run_id=follow_run.id, document_id=follow_report.id, patient_id=patient_id, candidate_type="OBSERVATION", canonical_code=code, raw_name=name, normalized_value=value, unit=unit, confidence="HIGH", extraction_method="RULE", evidence_text=f"匿名演示复查记录：{name} {value} {unit}", status="CONFIRMED", reviewed_by="演示健康管理师", reviewed_at=datetime(2026, 9, 1, 11, tzinfo=timezone.utc)))
 
 
 def _add_knowledge_demo(session) -> None:

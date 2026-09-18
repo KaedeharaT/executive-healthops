@@ -4402,6 +4402,8 @@ def render_member_archive(patient: Patient) -> None:
         member_pages.health_data(_ui_adapter(), patient.id)
         return
     if view == "体检":
+        from executive_health_ai.ui.pages.health_visualization import render_report_trends
+        render_report_trends(patient.id, key=f"manager-report-trend-{patient.id}")
         left, right = st.columns([1, 1.7], gap="large")
         with SessionLocal() as session:
             documents = list(session.scalars(select(Document).where(Document.patient_id == patient.id).order_by(Document.created_at.desc()).limit(20)))
@@ -5911,6 +5913,8 @@ def _render_client_health_overview(patient, ctx):
 
 def _render_client_checkup_page(patient: Patient) -> None:
     """Report list and selected report live on the same second-level health page."""
+    from executive_health_ai.ui.pages.health_visualization import render_report_trends
+    render_report_trends(patient.id, key=f"member-report-trend-{patient.id}")
     left, right = st.columns([1, 1.7], gap="large")
     with SessionLocal() as session:
         documents = list(session.scalars(select(Document).where(Document.patient_id == patient.id).order_by(Document.created_at.desc()).limit(20)))

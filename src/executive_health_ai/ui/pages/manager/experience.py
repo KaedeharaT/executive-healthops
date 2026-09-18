@@ -203,6 +203,10 @@ def member_detail(app, patient):
                 st.caption(ux.owner(request.assigned_manager))
             else:
                 st.caption("暂无服务安排；可从服务工作台安排。")
+        from executive_health_ai.ui.pages.health_visualization import render_previews
+        st.markdown("**最近健康趋势**")
+        render_previews(patient.id, key=f"manager-overview-trend-{patient.id}", maximum=1,
+            open_trend=lambda: app.request_navigation(surface="运营后台", ops_page="成员", member_id=patient.id, member_section="健康", archive_view="健康数据"))
         cols = st.columns(3)
         for col, label, target in zip(cols, ["查看完整健康历程", "建立 / 调整计划", "医生协同"], ["历程", "管理", "医疗"]):
             col.button(label, key=f"ux-overview-{target}-{patient.id}", on_click=app.request_navigation, kwargs={"surface": "运营后台", "ops_page": "成员", "member_id": patient.id, "member_section": target})

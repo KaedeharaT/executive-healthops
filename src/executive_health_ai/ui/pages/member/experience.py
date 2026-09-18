@@ -12,6 +12,7 @@ from executive_health_ai.services.longitudinal import HealthAssessmentService, H
 from executive_health_ai.services.task_transitions import TaskTransitionService
 from executive_health_ai.services.member_services import MemberServiceOperations
 from executive_health_ai.ui import experience as ux
+from executive_health_ai.ui.pages.health_visualization import render_previews, render_health_explorer
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,6 @@ def home(app, patient, ctx):
     with SessionLocal() as session:
         program = session.scalar(select(HealthProgram).where(HealthProgram.patient_id == patient.id, HealthProgram.status.in_(("ACTIVE", "PLANNED", "PAUSED"))).order_by(HealthProgram.created_at.desc()))
         requests = list(session.scalars(select(ServiceRequest).where(ServiceRequest.patient_id == patient.id)))
-        data = ux.observations(session, patient.id)
     st.divider()
     st.subheader(f"{datetime.now(ux.LOCAL).year}年度健康管理")
     if program:
@@ -75,11 +75,8 @@ def home(app, patient, ctx):
     if upcoming:
         st.caption(f"下次服务：{ux.when(upcoming.scheduled_at)} · {ux.owner(upcoming.assigned_manager)}")
     st.subheader("近期变化")
-    changes = ux.changes(data)
-    for label, value, note in changes:
-        ux.work_item(label, value, note)
-    if not changes:
-        ux.empty_state("暂无足够连续数据", "上传健康数据后可查看变化。")
+    render_previews(patient.id, key=f"home-trends-{patient.id}", maximum=2,
+        open_trend=lambda: app.request_navigation(surface="成员健康中心", member_page="健康", member_id=patient.id, archive_view="健康数据"))
     cols = st.columns(3)
     if cols[0].button("查看健康计划", key=f"client-home-plan-{patient.id}"):
         app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
@@ -104,11 +101,11 @@ def overview(app, patient, ctx):
         ux.baseline_summary(baseline, data)
     if baseline:
         st.button("查看年度健康基线", key=f"client-health-baseline-open-{baseline.id}", type="primary", on_click=app._open_client_baseline, args=(patient.id,))
-    st.subheader("当前变化")
-    for label, value, note in ux.changes(data, 2):
-        ux.work_item(label, value, note)
-    if not ux.changes(data, 2):
-        st.caption("暂无足够连续数据。")
+    if not baseline or baseline.status not in {"CONFIRMED", "AMENDED"}:
+        st.subheader("当前健康变化")
+        render_health_explorer(patient.id, key=f"overview-metric-{patient.id}")
+    else:
+        st.caption("当前健康变化已呈现在上方基线趋势中；其他指标可进入健康数据查看。")
     st.subheader("持续关注事项")
     problems = [p for p in ctx["problems"] if p.status != "CLOSED"]
     for problem in problems[:3]:
@@ -122,40 +119,7 @@ def overview(app, patient, ctx):
 
 def health_data(app, patient_id):
     ux.page_header("健康数据", "选择指标与时间范围，查看记录来源和变化。")
-    window = st.session_state.get(f"health-data-window-{patient_id}")
-    with SessionLocal() as session:
-        rows = ux.observations(session, patient_id)
-    if not rows:
-        ux.empty_state("暂无已确认健康数据", "上传报告或导入健康数据后，这里会显示趋势。")
-        return
-    metrics = list(dict.fromkeys(r.metric_code for r in rows))
-    metric = st.selectbox("选择健康指标", metrics, format_func=ux.metric_name, key=f"ux-metric-{patient_id}")
-    periods = (["时间轴范围"] if window else []) + ["近30天", "近90天", "全部记录"]
-    period = st.radio("时间范围", periods, horizontal=True, key=f"ux-period-{patient_id}")
-    all_metric = [r for r in rows if r.metric_code == metric]
-    since = datetime.now(ux.LOCAL) - timedelta(days=30 if period == "近30天" else 90)
-    if period == "时间轴范围":
-        try:
-            start = datetime.fromisoformat(window["start"]).date()
-            end = datetime.fromisoformat(window["end"]).date()
-            visible = [r for r in all_metric if start <= ux.local_time(r.observed_at).date() <= end]
-            st.info(f"时间轴选择的时间段：{start:%Y年%m月%d日} — {end:%Y年%m月%d日}")
-        except (TypeError, ValueError, KeyError):
-            visible = []
-            st.warning("时间范围无效，请选择近30天、近90天或全部记录。")
-    else:
-        visible = [r for r in all_metric if period == "全部记录" or ux.local_time(r.observed_at) >= since]
-    latest = all_metric[-1]
-    st.caption(f"最后记录：{ux.when(latest.observed_at)} · 历史数据可用不代表设备当前已连接")
-    if len(visible) >= 2:
-        st.line_chart(pd.DataFrame({"记录时间": [ux.local_time(r.observed_at) for r in visible], ux.metric_name(metric): [float(r.value_numeric) for r in visible]}).set_index("记录时间"), height=260)
-    elif visible:
-        st.metric(ux.metric_name(metric), f"{float(latest.value_numeric):g} {latest.unit}")
-        st.caption("当前范围只有一条数据，暂不判断趋势。")
-    else:
-        st.caption("所选时间范围暂无记录；切换“全部记录”查看历史数据。")
-    with st.expander("数据来源与记录"):
-        st.dataframe(pd.DataFrame([{"时间": ux.when(r.observed_at), "数值": f"{float(r.value_numeric):g} {r.unit}", "来源": app.get_provider_display(r.source)} for r in reversed(visible)]), hide_index=True, width="stretch")
+    render_health_explorer(patient_id)
 
 
 def plan(app, patient, ctx):

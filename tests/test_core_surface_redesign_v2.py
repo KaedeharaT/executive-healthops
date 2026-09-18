@@ -39,7 +39,7 @@ def test_member_overview_keeps_the_two_column_focus_then_next_step_structure() -
 def test_member_home_is_personal_and_limits_today_to_six_health_tiles() -> None:
     home = _source("_render_client_home", "def _render_client_plan")
     assert "今天最重要的事情" in home and "tasks[:3]" in home
-    assert "近期变化" in home and "ux.changes(data)" in home
+    assert "近期变化" in home and "render_previews(" in home and "maximum=2" in home
     assert "render_longitudinal_timeline" not in home
     assert "render_member_report_upload" not in home
 

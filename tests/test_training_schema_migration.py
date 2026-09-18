@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 
 from alembic import command
 from alembic.config import Config
@@ -14,6 +15,7 @@ from executive_health_ai.models import (
     ReportExtractionCandidate, TrainingSession,
 )
 from executive_health_ai.services.baseline_visualization import BaselineVisualizationService
+from executive_health_ai.services.health_visualization import HealthVisualizationService
 from executive_health_ai.services.schema_guard import DatabaseSchemaOutdated, require_training_schema
 
 
@@ -99,11 +101,16 @@ def test_portfolio_builder_rebuild_creates_training_tables():
             Observation.patient_id == member.id,
             Observation.source == "confirmed_synthetic_follow_up",
         )))
-        assert len(follow_ups) == 13
+        assert len(follow_ups) == 19
+        recent = [row for row in follow_ups if row.observed_at >= datetime.now(timezone.utc)-timedelta(days=30)]
+        assert sum(row.metric_code == "systolic_bp" for row in recent) >= 3
+        assert sum(row.metric_code == "diastolic_bp" for row in recent) >= 3
+        report_trends = HealthVisualizationService().report_series(session, member.id)
+        assert {row.code for row in report_trends if row.has_trend} == required
         view = BaselineVisualizationService().build(session, member.id, cycle_year=2026)
         assert len(view.metrics) == 6
         assert sum(trend.has_follow_up for trend in view.trends) == 6
-        assert sum(len(trend.points) for trend in view.trends) == 19
+        assert sum(len(trend.points) for trend in view.trends) == 25
         assert len(view.comparisons) == 6
         assert len(view.coverage) == 6
         assert view.covered_count >= 4
