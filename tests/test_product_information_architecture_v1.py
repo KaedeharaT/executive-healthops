@@ -8,15 +8,15 @@ MORE_SHELL = APP.parent / "src" / "executive_health_ai" / "ui" / "pages" / "shel
 
 
 def _source(name: str, next_marker: str) -> str:
-    return APP.read_text(encoding="utf-8").split(f"def {name}", 1)[1].split(next_marker, 1)[0]
+    from tests.ui_source import source
+    return source(name, next_marker)
 
 
 def test_member_home_has_four_decision_sections_and_no_full_record() -> None:
     home = _source("_render_client_home", "def _render_client_plan")
-    for heading in ("我现在怎么样", "今天", "最近变化", "我的下一步"):
+    for heading in ("今日健康", "今天最重要的事情", "近期变化", "年度健康管理"):
         assert heading in home
-    assert "render_longitudinal_timeline" not in home
-    assert "render_member_report_upload" not in home
+    assert "render_longitudinal_timeline" not in home and "render_member_report_upload" not in home
 
 
 def test_member_health_uses_four_inline_views_and_timeline_is_primary() -> None:
@@ -25,13 +25,13 @@ def test_member_health_uses_four_inline_views_and_timeline_is_primary() -> None:
     assert 'st.radio("健康内容", allowed' in health
     client = _source("render_member_client_view", "def render_global_doctor_workspace")
     assert 'page in {"历程", "健康历程"}' in client
-    assert 'render_longitudinal_timeline(patient, key_scope="member-center-journey", client_view=True)' in client
+    assert 'member_pages.timeline(_ui_adapter(), patient)' in client
 
 
 def test_member_plan_has_four_execution_sections() -> None:
     plan = _source("_render_client_plan", "def render_member_service_management")
-    for heading in ("当前方案", "我的任务", "阶段结果"):
-        assert heading in plan
+    for heading in ("本阶段", "待完成", "等待他人", "近期节点", "阶段结果"):
+        assert heading in plan if heading != "本阶段" else "program.main_goal" in plan
     assert "接受方案" in plan and "希望调整" in plan and "暂缓" in plan
 
 
@@ -52,8 +52,8 @@ def test_member_and_ops_primary_navigation_have_at_most_five_destinations() -> N
 def test_ops_today_is_kpis_plus_worklist_and_member_detail_has_five_tabs() -> None:
     today = _source("render_manager_dashboard", "def _render_member_header")
     member = _source("render_member_detail", "def render_member_archive")
-    assert "_status_strip(" in today and '"优先处理"' in today
-    assert '["概览", "管理", "健康", "医疗", "历程"]' in member
+    assert "ux.metric_row(" in today and '"优先处理"' in today
+    assert '["概览", "健康", "管理", "医疗", "历程"]' in member
 
 
 def test_medical_collaboration_and_service_operations_are_separate() -> None:

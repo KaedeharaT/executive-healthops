@@ -37,7 +37,7 @@ def test_dashboard_context_never_queries_observations_and_is_bounded() -> None:
 def test_more_root_routes_before_loading_its_selected_module() -> None:
     root_source = _function_source("render_more_workspace", "def render_collaboration_workspace")
     shell_source = MORE_SHELL.read_text(encoding="utf-8")
-    assert "render_more_workspace_shell(" in root_source
+    assert 'request_navigation(surface="系统管理")' in root_source
     assert 'st.session_state.get("more-navigation")' in shell_source
     assert shell_source.index('else:\n        render_integration_center()') > shell_source.index('elif more == "操作记录"')
     assert "render_data_gateway(load_members())" not in shell_source
@@ -103,12 +103,12 @@ def test_all_sidebar_and_more_pages_render_without_exception() -> None:
         _radio(app, "工作区").set_value(workspace)
         app.run(timeout=30)
         assert not app.exception
-    for page in ["风险规则", "操作记录", "系统"]:
+    for page in ["集成与数据", "自动化运营", "规则与知识", "系统状态"]:
         app = AppTest.from_file(root)
         app.run(timeout=30)
-        _radio(app, "工作区").set_value("更多")
+        _radio(app, "当前视图").set_value("系统管理")
         app.run(timeout=30)
-        next(button for button in app.button if button.key == f"more-open-{page}").click()
+        _radio(app, "系统").set_value(page)
         app.run(timeout=30)
         assert not app.exception
     for page in ["内部医生", "外部医疗"]:

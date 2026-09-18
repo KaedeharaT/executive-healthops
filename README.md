@@ -13,7 +13,7 @@ English | [简体中文](README_zh.md)
 
 Executive HealthOps connects **health reports, continuous health data, deterministic risk triage, health-manager operations, doctor collaboration, care plans, offline services, and longitudinal health records** into one responsibility-driven workflow. The product is organized around three questions: **What happens next? Who owns it? When must it be completed?**
 
-![Executive HealthOps health-manager workbench](docs/images/healthops-dashboard.png)
+![Executive HealthOps health-manager workbench](docs/images/manager-today.png)
 
 *The synthetic Portfolio Demo shows a prioritized operational worklist, explicit ownership, due work, and doctor collaboration.*
 
@@ -76,7 +76,7 @@ For example, a 2026 baseline weight of `90.0 kg` remains `90.0 kg` when the late
 - Medical conclusions preserve their doctor or formal-source boundary.
 - The UI renders report-derived reference ranges, Baseline → Current trends, six-category data coverage, and compact comparisons without inventing a health score.
 
-![Evidence-backed annual health baseline](docs/images/healthops-baseline.png)
+![Evidence-backed annual health baseline](docs/images/member-health.png)
 
 *The synthetic demo shows six confirmed baseline metrics, report-derived reference metadata, later observations, and a frozen annual reference point.*
 
@@ -97,25 +97,25 @@ For example, a 2026 baseline weight of `90.0 kg` remains `90.0 kg` when the late
 
 ### Health Manager Workbench
 
-![Health Manager Workbench](docs/images/healthops-dashboard.png)
+![Health Manager Workbench](docs/images/manager-today.png)
 
 The workbench answers who needs attention today, why, who owns the next step, and when it is due.
 
 ### Member Health Overview
 
-![Member Health Overview](docs/images/healthops-member-overview.png)
+![Member Health Overview](docs/images/member-360.png)
 
 Member context combines confirmed health facts, active problems, plans, tasks, and the next owned action.
 
 ### Doctor Review and Evidence
 
-![Doctor Review and Evidence](docs/images/healthops-doctor-review.png)
+![Doctor Review and Evidence](docs/images/doctor-review.png)
 
 Doctors review an explicit question with linked evidence and return a human medical decision to the operational workflow.
 
 ### Longitudinal Health Record
 
-![Longitudinal Health Record](docs/images/healthops-timeline.png)
+![Longitudinal Health Record](docs/images/member-timeline.png)
 
 The timeline explains what happened, what evidence supported it, who acted, what was delivered, and what followed.
 
@@ -123,7 +123,7 @@ The timeline explains what happened, what evidence supported it, who acted, what
 
 The administrator path is **Operations → More → System → Integration & Data**. Structured partner and device files use one guarded flow:
 
-![Lightweight Integration Center](docs/images/healthops-integration-center.png)
+![Lightweight Integration Center](docs/images/admin-integrations.png)
 
 ```text
 Upload → Validate → Preview → Confirm → Normalize → Persist
@@ -260,3 +260,14 @@ Current regression suite: **432 passed / 0 failed**.
 ## License and Data
 
 The repository contains no real member records, original health reports, databases, uploads, or secrets（仓库不包含真实成员资料、原始健康报告、数据库、上传文件或密钥）. Portfolio data is reproducible synthetic fixture data. Code is released under the [MIT License](LICENSE). Third-party medical sources retain their own licensing and attribution requirements.
+
+## Role-based product experience
+
+Members start with today's action; health managers start with an owned work queue; doctors start with a review question and evidence; administrators start with connection and runtime status. Role switching remains a **demo preview**, not authentication.
+
+- [Product references](docs/PRODUCT_UX_BENCHMARK.md)
+- [Information architecture and navigation inventory](docs/PRODUCT_INFORMATION_ARCHITECTURE.md)
+- [Before / after changes](docs/UX_REDESIGN_CHANGELOG.md)
+- [Browser and visual QA](docs/UX_VISUAL_QA.md)
+
+A five-minute walkthrough: Member home → annual baseline → Manager today / member 360 → plan, follow-up and outcome → Doctor review / return to manager → longitudinal record. Connection setup is a separate administrator workspace.

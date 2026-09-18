@@ -13,7 +13,7 @@
 
 Executive HealthOps 把**体检、连续健康数据、确定性风险分级、健管跟进、医生协作、健康计划、线下服务和长期健康时间轴**串成一条以责任为核心的全年健康管理闭环。产品始终回答三个问题：**下一步是什么？由谁负责？什么时候完成？**
 
-![Executive HealthOps 健康管理师工作台](docs/images/healthops-dashboard.png)
+![Executive HealthOps 健康管理师工作台](docs/images/manager-today.png)
 
 *匿名 Portfolio Demo 展示统一优先队列、明确责任人、到期事项和医生协作。*
 
@@ -76,7 +76,7 @@ flowchart LR
 - 医学结论继续遵守医生或正式医疗来源边界。
 - 界面展示报告来源的参考区间、Baseline → Current 趋势、六类资料覆盖和紧凑数值比较，不生成虚构健康总分。
 
-![有依据的年度健康基线](docs/images/healthops-baseline.png)
+![有依据的年度健康基线](docs/images/member-health.png)
 
 *匿名合成 Demo 展示六项已确认基线指标、报告参考信息、后续 Observation 与冻结的年度参考值。*
 
@@ -97,25 +97,25 @@ flowchart LR
 
 ### 健康管理师工作台
 
-![健康管理师工作台](docs/images/healthops-dashboard.png)
+![健康管理师工作台](docs/images/manager-today.png)
 
 工作台直接回答今天先处理谁、为什么处理、下一步由谁负责，以及什么时候到期。
 
 ### 成员健康总览
 
-![成员健康总览](docs/images/healthops-member-overview.png)
+![成员健康总览](docs/images/member-360.png)
 
 成员上下文汇总已确认健康事实、当前问题、计划、任务和下一项责任动作。
 
 ### 医生复核与依据
 
-![医生复核与依据](docs/images/healthops-doctor-review.png)
+![医生复核与依据](docs/images/doctor-review.png)
 
 医生围绕明确问题查看相关依据，并把人工医学判断返回运营闭环。
 
 ### 长期健康档案
 
-![长期健康档案](docs/images/healthops-timeline.png)
+![长期健康档案](docs/images/member-timeline.png)
 
 时间轴说明什么时候发生了什么、依据是什么、谁处理、交付了什么，以及后来发生了什么。
 
@@ -123,7 +123,7 @@ flowchart LR
 
 管理员入口为：**运营后台 → 更多 → 系统 → 集成与数据**。合作方和设备提供的结构化文件统一经过受控流程：
 
-![轻量集成与数据中心](docs/images/healthops-integration-center.png)
+![轻量集成与数据中心](docs/images/admin-integrations.png)
 
 ```text
 上传 → 检查 → 预览 → 确认 → 标准化 → 写入
@@ -258,3 +258,11 @@ pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 ## 许可证与数据
 
 仓库不包含真实成员资料、原始健康报告、数据库、上传文件或密钥。Portfolio 数据全部由可重复构建的 synthetic fixture 生成。代码依据 [MIT License](LICENSE) 发布；第三方医学来源仍适用各自的许可与归属要求。
+
+## 角色驱动的产品体验
+
+成员从今日行动开始，健管从待办工作开始，医生从复核问题和依据开始，管理员从连接与运行状态开始。角色切换仍是演示预览，不是登录鉴权。
+
+设计与验收：[公开产品研究](docs/PRODUCT_UX_BENCHMARK.md) · [信息架构及入口盘点](docs/PRODUCT_INFORMATION_ARCHITECTURE.md) · [改版前后](docs/UX_REDESIGN_CHANGELOG.md) · [实屏验收](docs/UX_VISUAL_QA.md)。
+
+五分钟演示：成员今日行动 → 年度基线 → 健管今日与成员360 → 计划/随访/阶段结果 → 医生复核并交回健管 → 长期历程。管理员配置独立于业务处理。

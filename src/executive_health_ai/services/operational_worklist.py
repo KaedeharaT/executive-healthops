@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from uuid import UUID
 
 from sqlalchemy import select
@@ -72,7 +73,7 @@ def _risk_state(event: RiskEvent, review: DoctorReview | None, task: Task | None
     if event.status == "MONITORING":
         return 2, "处理中", task.instruction if task else "按期复核健康数据", owner
     if event.status == "ACKNOWLEDGED":
-        return 2, "已接手", "联系成员或安排下一次复核", owner
+        return 2, "处理中", "联系成员或安排下一次复核", owner
     if event.status == "IN_REVIEW":
         return 2, "处理中", task.instruction if task else "完成健康管理调整", owner
     return 2, "处理中", "确认下一步人工处理", owner
@@ -86,6 +87,7 @@ class OperationalWorklistService:
     """
 
     def list_items(self, session: Session, now: datetime) -> list[OperationalWorkItem]:
+        now = now.astimezone(ZoneInfo("Asia/Tokyo"))
         items: list[OperationalWorkItem] = []
         active_tasks = list(session.scalars(select(Task).where(Task.status.not_in(CLOSED_TASK_STATUSES)).order_by(Task.due_at, Task.created_at.desc()).limit(150)))
         tasks_by_risk: dict[UUID, Task] = {}
@@ -113,10 +115,10 @@ class OperationalWorklistService:
         for task in active_tasks:
             if task.risk_event_id in active_risk_ids:
                 continue
-            if task.due_at is not None and task.due_at.date() > now.date() and task.source != "member_plan_choice":
+            if task.due_at is not None and task.due_at > now + timedelta(days=1) and task.source != "member_plan_choice":
                 continue
-            is_overdue = bool(task.due_at and task.due_at.date() < now.date())
-            status = "逾期" if is_overdue else "今日跟进"
+            is_overdue = bool(task.due_at and task.due_at < now)
+            status = "逾期" if is_overdue else "今日跟进" if task.due_at and task.due_at.astimezone(now.tzinfo).date() == now.date() else "待处理"
             if task.source.startswith("member_report_upload:"):
                 try:
                     document_id = UUID(task.source.rsplit(":", 1)[1])
@@ -159,7 +161,7 @@ class OperationalWorklistService:
                 continue
             items.append(OperationalWorkItem(
                 signal.patient_id, "management_signal", signal.id, 5, "建议健康管理", signal.summary,
-                "近期生活方式数据出现需要关注的变化，不等同于医学风险。", "查看趋势并决定跟进", signal.last_detected_at,
+                "近期生活方式数据出现需要关注的变化，不等同于医学风险。", "查看趋势并决定跟进", None,
                 owner="健康管理师", route_target="member_health", created_at=signal.last_detected_at, event_at=signal.last_detected_at,
             ))
 
@@ -177,7 +179,7 @@ class OperationalWorklistService:
             items.append(OperationalWorkItem(
                 request.patient_id, "service_request", request.id, 3, status, f"{catalog.name if catalog else '会员服务'}",
                 request.reason or "成员服务申请", request.next_action or next_action,
-                request.sla_due_at or request.scheduled_at or request.requested_at,
+                request.sla_due_at or request.scheduled_at,
                 owner=request.assigned_manager or "待分配", route_target="member_service",
                 created_at=request.requested_at, event_at=request.scheduled_at or request.requested_at,
             ))

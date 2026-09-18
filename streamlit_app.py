@@ -76,6 +76,24 @@ from executive_health_ai.services.workflow import (
 )
 
 
+from types import SimpleNamespace
+from executive_health_ai.ui import experience as ux
+from executive_health_ai.ui.pages.member import experience as member_pages
+from executive_health_ai.ui.pages.manager import experience as manager_pages
+from executive_health_ai.ui.pages.doctor import experience as doctor_pages
+from executive_health_ai.ui.pages.admin import experience as admin_pages
+from executive_health_ai.services import care_commands
+
+
+def _ui_adapter():
+    """Legacy detailed views stay behind one boundary while role pages are extracted."""
+    return SimpleNamespace(**globals())
+
+
+def render_doctor_reviews(patient, ctx):
+    doctor_pages.workspace(_ui_adapter(), [patient], patient=patient)
+
+
 st.set_page_config(page_title="企业高管健康运营中心", page_icon="🩺", layout="wide")
 LOGGER = logging.getLogger(__name__)
 NAVIGATION_PROFILE_ENABLED = os.getenv("HEALTHOPS_PROFILE_NAV", "").lower() in {"1", "true", "yes"}
@@ -117,93 +135,12 @@ ROUTE_LABELS = {"SELF_MANAGEMENT": "成员持续管理", "HEALTH_MANAGER": "健�
 PENDING_NAVIGATION_KEY = "_pending_navigation"
 
 
-def _inject_style() -> None:
-    """Stable, low-noise visual tokens shared by both product surfaces."""
-    st.markdown(
-        """
-        <style>
-        :root {--ink:#17243a;--muted:#607086;--faint:#8796aa;--line:#d9e2ef;--canvas:#f4f7fb;--card:#fff;--blue:#2563eb;--blue-hover:#1d4ed8;--blue-dark:#163b82;--blue-soft:#eaf1ff;--green:#287a55;--amber:#a86614;--red:#b63f46;--gray:#64748b;--radius:14px;}
-        html, body, [class*="css"] {font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;}
-        [data-testid="stAppViewContainer"] {background:var(--canvas); color:var(--ink);}
-        [data-testid="stAppViewContainer"] .main .block-container {
-            max-width:1260px !important; margin:0 auto; padding:2.4rem 2rem 5.5rem;
-        }
-        h1 {font-size:1.95rem !important; line-height:1.2; letter-spacing:-.045em; margin:0 0 .45rem !important; font-weight:720 !important; color:var(--ink);}
-        h2 {font-size:1.26rem !important; line-height:1.3; letter-spacing:-.022em; margin:2.35rem 0 .55rem !important; font-weight:700 !important; color:var(--ink);}
-        h3 {font-size:1rem !important; line-height:1.4; letter-spacing:-.012em; margin:.4rem 0 !important;}
-        [data-testid="stCaptionContainer"] {color:var(--muted); font-size:.84rem; line-height:1.55;}
-        [data-testid="stMetric"] {background:transparent; border:0; padding:.2rem 0;}
-        [data-testid="stMetricLabel"] {font-size:.76rem; color:var(--muted); font-weight:600;}
-        [data-testid="stMetricValue"] {font-size:1.55rem; font-weight:720; letter-spacing:-.035em; color:var(--ink);}
-        [data-testid="stVerticalBlockBorderWrapper"] {border:1px solid var(--line) !important; border-radius:var(--radius) !important; box-shadow:0 2px 7px rgba(24,38,58,.035); background:var(--card);}
-        [data-testid="stVerticalBlockBorderWrapper"] > div {padding:.8rem .85rem;}
-        .section-frame-title {font-size:1.08rem; font-weight:720; letter-spacing:-.018em; margin:.15rem 0 .18rem; color:var(--ink);}
-        [data-testid="stExpander"] {border:1px solid var(--line) !important; border-radius:12px !important; background:#fff; margin:.5rem 0;}
-        [data-testid="stDivider"] {margin:1.75rem 0 !important; border-color:var(--line);}
-        .stButton > button {border-radius:9px; min-height:2.35rem; font-size:.88rem; font-weight:650; border-color:#cad5e1; background:#fff; color:var(--ink);}
-        .stButton > button:hover {border-color:#9eb6cf; color:var(--blue); background:#f9fbfd;}
-        .stButton > button[kind="primary"] {background:var(--blue); border-color:var(--blue); color:#fff;}
-        .stButton > button[kind="primary"]:hover {background:var(--blue-hover); border-color:var(--blue-hover); color:#fff;}
-        [data-testid="stDataFrame"] {border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff;}
-        [data-testid="stFileUploader"] {border:1px dashed #b9c8d7; border-radius:12px; padding:.4rem; background:#fbfcfd;}
-        [data-testid="stSidebar"] {background:#fff; border-right:1px solid var(--line);}
-        [data-testid="stSidebar"] > div:first-child {padding:1.35rem .7rem 2rem;}
-        [data-testid="stSidebar"] h2 {font-size:1.08rem !important; margin:.25rem .65rem .15rem !important;}
-        [data-testid="stSidebar"] [data-testid="stRadio"] label {padding:.67rem .75rem; margin:.14rem 0; border-radius:9px; transition:background .12s ease, color .12s ease;}
-        [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {background:#f2f6f9;}
-        [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {background:var(--blue-soft); color:var(--blue); font-weight:700;}
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"][aria-orientation="horizontal"] {background:#edf1f5;padding:3px;border-radius:10px;gap:2px;}
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"][aria-orientation="horizontal"] label {flex:1;text-align:center;padding:.45rem .35rem;}
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"][aria-orientation="horizontal"] label:has(input:checked) {background:#fff;box-shadow:0 1px 3px rgba(24,38,58,.10);}
-        [data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child {display:none;}
-        [data-testid="stSidebar"] [data-testid="stRadio"] label > div:last-child {padding-left:0;}
-        [data-testid="stRadio"] div[role="radiogroup"] {gap:.35rem;}
-        [data-testid="stMain"] [data-testid="stRadio"] div[role="radiogroup"] {background:#edf1f5;padding:3px;border-radius:10px;gap:2px;}
-        [data-testid="stMain"] [data-testid="stRadio"] label {border-radius:7px;padding:.38rem .7rem;margin:0;min-height:2rem;}
-        [data-testid="stMain"] [data-testid="stRadio"] label > div:first-child {display:none;}
-        [data-testid="stMain"] [data-testid="stRadio"] label > div:last-child {padding-left:0;}
-        [data-testid="stMain"] [data-testid="stRadio"] label:has(input:checked) {background:#fff;box-shadow:0 1px 3px rgba(24,38,58,.10);color:var(--blue);font-weight:700;}
-        [data-testid="stSegmentedControl"] {background:#edf1f5; border-radius:10px; padding:3px; width:100%;}
-        [data-testid="stSegmentedControl"] button {border-radius:7px !important; font-size:.83rem !important; font-weight:650 !important;}
-        .surface-label {font-size:.7rem; font-weight:750; color:var(--faint); letter-spacing:.08em; text-transform:uppercase; margin:.2rem .65rem .45rem;}
-        .page-header {margin:0 0 1.35rem; max-width:740px;}
-        .page-header .eyebrow {font-size:.71rem; font-weight:750; color:var(--blue); letter-spacing:.08em; margin-bottom:.38rem; text-transform:uppercase;}
-        .page-header + h1 {margin-top:0 !important;}.page-header + h1 + [data-testid="stCaptionContainer"] {font-size:.93rem; max-width:650px; margin-bottom:1.25rem;}
-        .status-strip {display:flex; gap:0; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; margin:.35rem 0 1.8rem; box-shadow:0 2px 7px rgba(24,38,58,.025);}
-        .status-strip > div {flex:1; padding:.82rem .95rem; border-right:1px solid var(--line);}
-        .status-strip > div:last-child {border-right:0;}
-        .status-strip b {font-size:1.32rem; display:block; color:var(--ink); letter-spacing:-.03em;}
-        .status-strip span {font-size:.74rem; color:var(--muted);}
-        .status-strip .urgent b {color:var(--red);} .status-strip .attention b {color:var(--amber);} .status-strip .action b {color:var(--blue);} .status-strip .neutral b {color:var(--gray);}
-        .section-kicker {font-size:.74rem; color:var(--muted); margin-bottom:.25rem;}
-        .member-hero,.client-hero {background:var(--card); border:1px solid var(--line); border-radius:16px; padding:1.5rem 1.65rem; margin:.15rem 0 1.25rem; box-shadow:0 2px 8px rgba(24,38,58,.035);}
-        .member-hero,.client-hero {border-left:4px solid var(--blue);}
-        .member-hero h1,.client-hero h1 {font-size:1.78rem !important; margin:0 !important;}.member-hero p,.client-hero p{margin:.24rem 0 .65rem;color:var(--muted);}
-        .hero-facts{display:flex;gap:1.5rem;flex-wrap:wrap;margin-top:1.15rem;padding-top:1rem;border-top:1px solid var(--line);}.hero-fact{min-width:100px;}.hero-fact b{display:block;font-size:1.08rem;color:var(--ink);letter-spacing:-.02em;}.hero-fact span{display:block;font-size:.74rem;color:var(--muted);margin-top:.15rem;}
-        .quiet-list {list-style:none; margin:0; padding:0;}.quiet-list li {padding:.68rem 0; border-bottom:1px solid var(--line);}.quiet-list li:last-child{border-bottom:0;}
-        .empty-state {text-align:center; max-width:440px; margin:1.1rem auto; padding:1.5rem; color:var(--muted); background:#fafbfd; border:1px dashed #cbd7e2; border-radius:12px;}
-        .empty-state strong {display:block; color:var(--ink); font-size:1rem; margin-bottom:.35rem;}
-        .summary-note {font-size:.83rem; color:var(--muted); margin:.15rem 0 .75rem;}
-        .status-badge {display:inline-flex;align-items:center;border-radius:999px;padding:.24rem .58rem;font-size:.75rem;font-weight:700;line-height:1.2;background:#eef2f5;color:#516174;}.status-badge.urgent{background:#fbecec;color:#aa3838;}.status-badge.attention{background:#fff4df;color:#936019;}.status-badge.action{background:#e8f1fa;color:#205c9e;}.status-badge.stable{background:#e7f4ef;color:#266d55;}.status-badge.neutral{background:#eef2f5;color:#516174;}
-        .metric-tile {padding:1rem 1.05rem;border:1px solid var(--line);border-radius:12px;background:#fff;min-height:104px;}.metric-tile .label{font-size:.78rem;font-weight:650;color:var(--muted);}.metric-tile .value{font-size:1.48rem;font-weight:720;letter-spacing:-.03em;color:var(--ink);margin:.28rem 0 .12rem;}.metric-tile .note{font-size:.76rem;color:var(--muted);}
-        .entry-card {border:1px solid var(--line);border-radius:14px;background:#fff;padding:1.05rem;min-height:142px;box-shadow:0 2px 7px rgba(24,38,58,.025);}.entry-card .entry-title{font-weight:720;font-size:1rem;color:var(--ink);}.entry-card .entry-value{font-size:.8rem;color:var(--blue);font-weight:650;margin:.55rem 0 .2rem;}.entry-card .entry-copy{font-size:.8rem;line-height:1.55;color:var(--muted);}
-        .work-item {border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:12px;background:#fff;padding:1rem 1.05rem;margin:.55rem 0;}.work-item .work-member{font-size:.86rem;font-weight:720;color:var(--ink);}.work-item .work-title{font-size:1.02rem;font-weight:720;color:var(--ink);margin:.6rem 0;}.work-item .work-label{font-size:.73rem;font-weight:720;color:var(--muted);margin-bottom:.1rem;}.work-item .work-copy{font-size:.84rem;color:#46576b;line-height:1.45;}
-        .member-card {border:1px solid var(--line);border-radius:14px;background:#fff;padding:1.1rem;min-height:255px;box-shadow:0 2px 8px rgba(24,38,58,.03);}.member-card .member-name{font-size:1.12rem;font-weight:730;color:var(--ink);}.member-card .member-meta{font-size:.8rem;color:var(--muted);margin:.24rem 0 1rem;}.member-card .member-label{font-size:.72rem;font-weight:720;color:var(--muted);margin-top:.68rem;}.member-card .member-value{font-size:.9rem;color:var(--ink);margin-top:.12rem;}
-        .detail-panel {background:#fff;border:1px solid var(--line);border-radius:14px;padding:1.1rem;margin:.45rem 0;}
-        .portfolio-landing {max-width:760px;margin:8vh auto 0;padding:2.1rem 2.2rem;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 8px 24px rgba(24,38,58,.06);}
-        .portfolio-landing .portfolio-kicker{font-size:.74rem;font-weight:760;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);}.portfolio-landing h1{font-size:2.2rem !important;margin:.45rem 0 .7rem !important;}.portfolio-landing p{max-width:625px;color:var(--muted);line-height:1.75;margin:0 0 1.5rem;}
-        .focus-row{display:grid;grid-template-columns:30px 1fr auto;gap:.75rem;align-items:start;padding:.8rem 0;border-bottom:1px solid var(--line);}.focus-row:last-child{border-bottom:0;}.focus-index{font-size:.75rem;font-weight:760;color:var(--blue);padding-top:.14rem;}.focus-title{font-size:.94rem;font-weight:720;color:var(--ink);}.focus-copy{font-size:.79rem;color:var(--muted);margin-top:.15rem;}.next-row{padding:.75rem 0;border-bottom:1px solid var(--line);}.next-row:last-child{border-bottom:0;}.next-date{font-size:.74rem;color:var(--blue);font-weight:720;}.timeline-preview{display:grid;grid-template-columns:92px 1fr;gap:.7rem;padding:.6rem 0;border-bottom:1px solid var(--line);}.timeline-preview:last-child{border-bottom:0;}.timeline-date{font-size:.77rem;color:var(--muted);font-weight:650;}.timeline-title{font-size:.87rem;color:var(--ink);font-weight:680;}.timeline-copy{font-size:.78rem;color:var(--muted);margin-top:.15rem;}
-        @media (max-width: 900px) {[data-testid="stAppViewContainer"] .main .block-container{padding:1.35rem 1rem 3rem;} .status-strip{flex-wrap:wrap;}.status-strip > div{min-width:45%;}.member-hero,.client-hero{padding:1.2rem;}}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+def _inject_style():
+    ux.inject_design("member" if st.session_state.get("surface-mode") == "成员健康中心" else "manager")
 
 
-def _fmt_dt(value: datetime | None) -> str:
-    if value is None:
-        return "未记录"
-    return display_datetime(value)
+def _fmt_dt(value) -> str:
+    return ux.when(value)
 
 
 def _age(patient: Patient) -> str:
@@ -245,23 +182,7 @@ def _risk_text(level: str) -> str:
 
 
 def _metric_display_name(metric_code: str | None, raw_name: str | None = None) -> str:
-    """Return a member-facing metric label without leaking canonical placeholders.
-
-    The raw parser and device layers may legitimately retain an unmapped code.
-    That is useful provenance, but it is not a useful label in a normal health
-    screen.  Keep any human source name when it is available; otherwise use the
-    central registry's neutral fallback and log the mapping gap without PHI.
-    """
-    code = (metric_code or "").strip()
-    source_name = (raw_name or "").strip()
-    placeholder_values = {"", "unknown", "none", "null", "unmapped", "other"}
-    if code.lower() not in placeholder_values and code in OBSERVATION:
-        return display_observation(code)
-    if source_name and source_name.lower() not in placeholder_values:
-        return source_name
-    if code.lower() not in placeholder_values:
-        LOGGER.warning("ui_unmapped_metric_display metric_code=%s", code)
-    return "健康数据"
+    return ux.metric_name(raw_name or metric_code)
 
 
 _TECHNICAL_DETAIL_FIELDS = {
@@ -376,15 +297,8 @@ def _active_agent_goal(session, member_id: UUID) -> AgentGoal | None:
     ).order_by(AgentGoal.started_at.desc()))
 
 
-def _publish_agent_event(session, *, event_type: str, member_id: UUID, source_type: str, source_id: object, summary: str, actor: str) -> None:
-    """Wake the optional worker path without exposing orchestration to UI code."""
-    if not AGENT_SUPERVISOR_ENABLED:
-        return
-    event, _ = EventService().publish(
-        session, event_type=event_type, member_id=member_id, source_type=source_type,
-        source_id=str(source_id), payload_summary=summary, metadata={"actor": actor},
-    )
-    HealthOpsAgentSupervisor().receive_event(session, event)
+def _publish_agent_event(session, **kwargs):
+    care_commands.publish_progress(session, **kwargs)
 
 
 def _render_member_automation_status(member_id: UUID, *, audience: str) -> None:
@@ -403,7 +317,7 @@ def _render_member_automation_status(member_id: UUID, *, audience: str) -> None:
 
 def _render_admin_automation() -> None:
     with SessionLocal() as session:
-        goals = list(session.scalars(select(AgentGoal).where(AgentGoal.status.in_(("ACTIVE", "WAITING", "BLOCKED"))).order_by(AgentGoal.started_at.desc()).limit(100)))
+        goals = list(session.scalars(select(AgentGoal).where(AgentGoal.status.in_(("ACTIVE", "WAITING", "BLOCKED", "FAILED"))).order_by(AgentGoal.started_at.desc()).limit(100)))
         members = {item.id: item for item in session.scalars(select(Patient).where(Patient.id.in_({goal.member_id for goal in goals})))} if goals else {}
         pending_approvals = list(session.scalars(select(AgentApprovalRequest).where(AgentApprovalRequest.status == "PENDING").order_by(AgentApprovalRequest.requested_at)))
     with section_frame("自动化运营", "查看长期目标的当前等待状态；待办仍统一进入今日工作台。"):
@@ -413,7 +327,7 @@ def _render_admin_automation() -> None:
             ("等待健管", sum("健康管理师" in goal.current_stage for goal in goals), "attention"),
             ("等待医生", sum("医生" in goal.current_stage for goal in goals), "attention"),
             ("等待时间", sum("下一次复核" in goal.current_stage for goal in goals), "neutral"),
-            ("需要处理", sum(goal.status == "BLOCKED" for goal in goals), "urgent"),
+            ("需要处理", sum(goal.status in {"BLOCKED", "FAILED"} for goal in goals), "urgent"),
         )
         if not goals:
             _empty_state("暂无进行中的长期目标", "新体检报告进入人工确认后，自动跟进状态会显示在这里。")
@@ -473,15 +387,15 @@ def _render_sidebar_navigation() -> str:
         st.session_state["ops-navigation"] = legacy[selected]
     return st.sidebar.radio(
         "工作区", ["今日", "成员", "医疗协同", "服务运营", "更多"],
-        key="ops-navigation", label_visibility="collapsed",
+        key="ops-navigation", label_visibility="collapsed", format_func=lambda value: "服务" if value == "服务运营" else value,
     )
 
 
 def _render_surface_switcher() -> str:
     """Development-only surface switcher; no authentication is implied."""
     st.sidebar.markdown("<div class='surface-label'>切换视图</div>", unsafe_allow_html=True)
-    surface = st.sidebar.radio("当前视图", ["运营后台", "成员健康中心"], key="surface-mode", label_visibility="collapsed", horizontal=True)
-    st.sidebar.caption("预览视图")
+    surface = st.sidebar.radio("当前视图", ["运营后台", "成员健康中心", "医生工作台", "系统管理"], key="surface-mode", label_visibility="collapsed", format_func=lambda value: {"运营后台": "健康管理师", "成员健康中心": "成员", "医生工作台": "医生", "系统管理": "管理员"}[value])
+    st.sidebar.caption("演示角色预览 · 不代表登录鉴权")
     st.sidebar.divider()
     return surface
 
@@ -496,9 +410,6 @@ def _render_member_center_navigation() -> str:
         on_change=lambda: st.session_state.pop("member-profile-open", None),
     )
     st.sidebar.divider()
-    if st.sidebar.button("个人设置", key="member-profile-open-button", width="stretch"):
-        st.session_state["member-profile-open"] = True
-        st.rerun()
     return "个人设置" if st.session_state.get("member-profile-open") else page
 
 
@@ -1170,6 +1081,8 @@ def apply_pending_navigation() -> None:
     member_id = pending.get("member_id")
     if member_id:
         st.session_state["focused_member_id"] = member_id
+        if pending.get("member_page") in {"健康数据", "数据"}:
+            st.session_state[f"client-health-view-{member_id}"] = "健康数据"
         if pending.get("member_section"):
             st.session_state[f"member-section-{member_id}"] = {"数据": "健康", "档案": "健康"}.get(pending["member_section"], pending["member_section"])
         if pending.get("archive_view") is not None:
@@ -1304,7 +1217,7 @@ def render_yellow_risk_operations(patient: Patient, event: RiskEvent) -> None:
     """Compact human-only action surface for an observation-driven Yellow event."""
     st.subheader("需要关注")
     st.caption(f"{_risk_event_source(event)} · {_label(event.status)}")
-    st.write(event.summary)
+    st.write(ux.business_text(event.summary))
     st.caption(f"触发时间：{_fmt_dt(event.created_at)} · {_risk_event_evidence_caption(event)}")
     with SessionLocal() as session:
         _render_evidence_action(_risk_evidence_payload(session, patient.id, event.id), key_scope=f"risk-yellow-{event.id}")
@@ -1645,73 +1558,8 @@ def _open_report_review_from_worklist(member_id: UUID, document_id: UUID) -> Non
     )
 
 
-def render_manager_dashboard() -> None:
-    patients = _patient_map()
-    _page_header("今日", "今天需要优先处理的健康事项。", eyebrow="今日健康运营")
-    with SessionLocal() as session:
-        work_items = OperationalWorklistService().list_items(session, datetime.now(TOKYO_TIMEZONE))
-    _status_strip(
-        ("高优先级", sum(item.priority <= 1 for item in work_items), "urgent"),
-        ("到期与随访", sum(item.status in {"今日跟进", "逾期", "建议健康管理", "待随访"} for item in work_items), "attention"),
-        ("等待成员", sum(item.status == "等待成员" for item in work_items), "neutral"),
-        ("等待医生", sum(item.status == "等待医生" for item in work_items), "action"),
-        ("服务待完成", sum(item.source_type == "service_request" for item in work_items), "action"),
-    )
-    with SessionLocal() as session:
-        active_automation = list(session.scalars(select(AgentGoal).where(
-            AgentGoal.status.in_(("ACTIVE", "WAITING", "BLOCKED")),
-        ).order_by(AgentGoal.started_at.desc()).limit(5)))
-    if active_automation:
-        with st.expander(f"自动跟进状态 · {len(active_automation)} 项", expanded=False):
-            for goal in active_automation:
-                member = patients.get(goal.member_id)
-                st.markdown(f"**{_member_display(member)} · {goal.title}**")
-                st.caption(f"{goal.current_stage} · 下一步：{goal.next_action or '等待人工确认'} · 负责人：{goal.owner or '待分配'}")
-
-    filters = {
-        "全部事项": lambda item: True,
-        "高优先级": lambda item: item.priority <= 1,
-        "到期与随访": lambda item: item.status in {"今日跟进", "逾期", "建议健康管理", "待随访"},
-        "等待成员": lambda item: item.status == "等待成员",
-        "等待医生": lambda item: item.status == "等待医生",
-        "服务": lambda item: item.source_type == "service_request",
-    }
-    selected_filter = st.radio(
-        "今日事项筛选", list(filters), horizontal=True, label_visibility="collapsed",
-        key="manager-today-filter",
-    )
-    visible_items = [item for item in work_items if filters[selected_filter](item)]
-
-    def render_dashboard_item(item, key: str) -> None:
-        member = patients.get(item.member_id)
-        if member is None:
-            return
-        if item.source_type == "report_review" and item.document_id:
-            callback, args = _open_report_review_from_worklist, (member.id, item.document_id)
-        elif item.route_target == "member_management":
-            callback, args = _open_member_management, (member.id,)
-        elif item.route_target == "member_service":
-            callback, args = _open_member_service, (member.id,)
-        elif item.route_target == "doctor_review":
-            callback, args = _open_member, (member.id,)
-        else:
-            callback, args = _open_member, (member.id,)
-        work_item_card(
-            _member_display(member), item.status, item.title, item.reason, item.next_action,
-            key=key, source=item.source_label, owner=item.owner, due_at=item.due_at,
-            on_click=callback, args=args,
-        )
-
-    with section_frame("优先处理", "每项只保留发生原因与下一步，进入后再查看完整成员资料。"):
-        if not visible_items:
-            _empty_state("当前筛选下暂无事项", "今天没有需要您处理的此类健康运营事项。")
-            return
-        for item in visible_items[:5]:
-            render_dashboard_item(item, f"today-{item.source_type}-{item.source_id}")
-        if len(visible_items) > 5:
-            with st.expander(f"查看其余 {len(visible_items) - 5} 项"):
-                for item in visible_items[5:]:
-                    render_dashboard_item(item, f"today-more-{item.source_type}-{item.source_id}")
+def render_manager_dashboard():
+    manager_pages.today(_ui_adapter())
 
 
 def _render_member_header(patient: Patient, ctx: dict[str, list[object]]) -> None:
@@ -1720,7 +1568,8 @@ def _render_member_header(patient: Patient, ctx: dict[str, list[object]]) -> Non
     open_tasks = [item for item in ctx["tasks"] if item.status not in {"COMPLETED", "CANCELLED"}]
     next_task = next((item for item in open_tasks if item.due_at), None)
     name = html.escape(patient.display_name or "未命名成员")
-    doctor_reviews = len([item for item in ctx["alerts"] if item.status == "WAITING_DOCTOR_REVIEW"])
+    with SessionLocal() as session:
+        doctor_reviews = len(ux.pending_doctor_work(session, patient.id))
     next_review = _fmt_dt(next_task.due_at) if next_task and next_task.due_at else "暂无安排"
     st.markdown(
         f"<div class='member-hero'><h1>{name}</h1><p>{html.escape(_age(patient))} · 成员健康档案</p>"
@@ -1772,7 +1621,7 @@ def _render_problem_card(patient: Patient, problem: HealthProblem, ctx: dict[str
     with st.container(border=True):
         st.markdown(f"### {problem.title}　{_severity_badge(problem.severity)} {_status_badge(problem.status, problem.severity)}")
         st.caption(f"负责人：{_role_label(problem.responsible_role, name=problem.owner)} · 创建：{_fmt_dt(problem.opened_at)} · 截止：{_fmt_dt(next((item.due_at for item in related['tasks'] if item.due_at), None))}")
-        st.write(problem.description)
+        st.write(ux.business_text(problem.description))
         steps = [
             ("发现健康问题", True), ("建立管理方案", bool(related["plans"])), ("执行任务", bool(related["tasks"])),
             ("医生复核", bool(related["reviews"])), ("随访", bool(related["followups"])), ("完成", problem.status == "CLOSED"),
@@ -1965,7 +1814,7 @@ def _format_observation_value(observation: Observation) -> str:
     return f"{value:g} {observation.unit}" if observation.unit else f"{value:g}"
 
 
-def render_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]) -> None:
+def _render_legacy_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]) -> None:
     st.subheader("医生复核")
     with SessionLocal() as session:
         automation_goal = _active_agent_goal(session, patient.id)
@@ -2156,11 +2005,12 @@ def render_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]) -> Non
                 },
                 key_scope=f"doctor-alert-{alert.id}",
             )
-    if not pending:
-        st.info("当前没有待医生复核的健康异常事项。以下为已确认的医生复核记录。")
-    if ctx["reviews"]:
+    if not pending and not yellow_pending and not outcome_pending and baseline_medical_review is None:
+        st.caption("当前没有待医生复核事项。")
+    completed_reviews = [r for r in ctx["reviews"] if r.status == "CONFIRMED"]
+    if completed_reviews:
         st.markdown("#### 已完成医生复核")
-        for review in ctx["reviews"]:
+        for review in completed_reviews:
             with st.expander(f"{_fmt_dt(review.reviewed_at)} · {review.department} · {review.doctor_name}"):
                 st.markdown("**需要医生回答的问题**")
                 st.write(review.question_for_doctor)
@@ -2793,7 +2643,7 @@ def render_programs(patient: Patient, ctx: dict[str, list[object]]) -> None:
             if reviews:
                 st.caption(f"最近复盘：{reviews[0].key_changes} · 下周重点：{reviews[0].next_week_focus}")
             if outcomes:
-                st.success("阶段结果：" + "；".join(f"{display_observation(o.metric)} {o.baseline_value}{o.unit} → {o.current_value}{o.unit}（{_label(o.result)}）" for o in outcomes))
+                st.success("阶段结果：" + "；".join(f"{_metric_display_name(o.metric)} {o.baseline_value}{o.unit} → {o.current_value}{o.unit}（{_label(o.result)}）" for o in outcomes))
                 latest_outcome = outcomes[0]
                 with st.expander("确认阶段结果后的下一步"):
                     decision = st.radio(
@@ -2935,7 +2785,7 @@ def render_simple_member_overview(patient: Patient, ctx: dict[str, list[object]]
         if events:
             rows = "".join(
                 f"<div class='timeline-preview'><div class='timeline-date'>{html.escape(_fmt_dt(event.occurred_at))}</div>"
-                f"<div><div class='timeline-title'>{html.escape(event.title)}</div><div class='timeline-copy'>{html.escape(event.summary or '已记录重要健康事件')}</div></div></div>"
+                f"<div><div class='timeline-title'>{html.escape(event.title)}</div><div class='timeline-copy'>{html.escape(ux.business_text(event.summary or '已记录重要健康事件'))}</div></div></div>"
                 for event in events
             )
             st.markdown(rows, unsafe_allow_html=True)
@@ -3023,29 +2873,24 @@ def render_simple_medical_records(patient: Patient, ctx: dict[str, list[object]]
         st.caption("暂无外部医疗协同记录。")
 
 
-def render_members_workspace(members: list[Patient]) -> None:
-    _page_header("成员", "查看成员当前状态、最近变化和下一步。", eyebrow="成员管理")
+def render_members_workspace(members):
+    _page_header("成员", "在同一上下文查看当前阶段、负责人和下一行动。", eyebrow="成员管理")
     query = st.text_input("搜索成员", placeholder="输入姓名或职位")
-    visible = [member for member in members if not query or query.lower() in _member_display(member).lower()]
+    visible = [m for m in members if not query or query.lower() in _member_display(m).lower()]
+    summaries = _member_list_summaries([m.id for m in visible])
+    for member in visible:
+        summary = summaries.get(member.id, {})
+        program, task = summary.get("program"), summary.get("next_task")
+        left, middle, right = st.columns([3, 3, 1])
+        with left:
+            ux.work_item(_member_display(member), "；".join(summary.get("problems", [])) or "待确认关注事项", f"{display_program_type(program.program_type) if program else '待建立计划'} · {summary.get('risk', '暂无法判断')}")
+        with middle:
+            st.write("下一步：" + ux.business_text(task.title if task else "等待负责人更新安排"))
+            st.caption(ux.owner(program.owner if program else None))
+            st.caption("最近管理记录：" + ux.when(task.created_at if task else program.created_at if program else None))
+        right.button("查看成员", key=f"member-card-{member.id}", on_click=_open_member, args=(member.id,))
     if not visible:
-        _empty_state("未找到匹配成员", "请调整搜索条件，或稍后再试。")
-        return
-    summaries = _member_list_summaries([member.id for member in visible])
-    for start in range(0, len(visible), 2):
-        columns = st.columns(2)
-        for column, member in zip(columns, visible[start:start + 2]):
-            summary = summaries.get(member.id, {})
-            program = summary.get("program")
-            display_risk = summary.get("risk", "正常")
-            problems = summary.get("problems", [])
-            next_task = summary.get("next_task")
-            with column:
-                stage = display_program_type(program.program_type) if program else "健康评估"
-                member_card(
-                    _member_display(member), f"{_age(member)} · 健康管理成员", "稳定" if display_risk == "正常" else display_risk,
-                    f"{len(problems)} 项", str(problems[0]) if problems else stage,
-                    next_task.title if next_task else "等待阶段复盘", key=f"member-card-{member.id}", on_click=_open_member, args=(member.id,),
-                )
+        ux.empty_state("未找到匹配成员", "请调整搜索条件。")
 
 
 KNOWLEDGE_CATEGORIES = ["PATIENT_EDUCATION", "MEDICATION", "LAB_TEST", "CLINICAL_GUIDELINE", "TEXTBOOK_REFERENCE", "INTERNAL_SOP", "COMMUNICATION", "SERVICE_SOP", "AI_SAFETY", "PRIVACY"]
@@ -3776,11 +3621,13 @@ def _render_ai_service_integration() -> None:
             allow_external_phi=bool(allow_external and service_type == "外部兼容AI"),
         )
         health = LocalLLMClient(candidate).health_check()
+        st.session_state["integration-tested-AI服务"] = ux.when(datetime.now(TOKYO_TIMEZONE)) + (" · 通过" if health.available else " · 未通过")
+        st.caption("连接测试未发送成员健康数据。")
         if health.available:
             st.success("连接正常，已找到所选模型。测试未发送成员健康数据。")
         else:
             st.warning(health.reason or "AI服务暂不可用。测试未发送成员健康数据。")
-    st.caption("配置由部署环境安全保存；页面不会显示完整密钥。")
+    st.caption("此表单仅测试连接，不保存配置。持久配置由部署环境管理；页面不会显示完整密钥。")
 
 
 def _render_knowledge_service_integration() -> None:
@@ -3799,7 +3646,7 @@ def _render_knowledge_service_integration() -> None:
     columns = st.columns(2)
     columns[0].metric("本地内部规范", "可用" if local_count else "暂无")
     columns[0].caption(f"{local_count} 份已审核资料")
-    columns[1].metric("合作方知识服务", "已连接" if partner_ready else "未配置")
+    columns[1].metric("合作方知识服务", "已配置，待测试" if partner_ready else "未配置")
     columns[1].caption("必须返回标题、来源、机构和版本")
     with st.form("integration-knowledge-form"):
         partner_address = st.text_input("服务地址", value=os.getenv("KNOWLEDGE_API_BASE", ""))
@@ -3809,6 +3656,7 @@ def _render_knowledge_service_integration() -> None:
         )
         test_partner = st.form_submit_button("测试连接")
     if test_partner:
+        st.session_state["integration-tested-专业知识服务"] = ux.when(datetime.now(TOKYO_TIMEZONE)) + " · 已测试，结果见下方"
         if not partner_address.strip():
             st.warning("专业知识服务暂不可用；内部规范仍可使用。")
         else:
@@ -3870,58 +3718,16 @@ def _render_device_integration() -> None:
     _render_data_package_import(key_prefix="device-batch", title="导入设备数据")
 
 
-def render_integration_center() -> None:
-    _page_header("集成与数据", "连接外部数据、AI、专业知识和设备服务。", eyebrow="系统")
-    st.info("仅管理员或部署人员可修改连接；当前原型在运营后台展示管理员验收边界，成员端与医生工作视图不提供配置入口。")
-    with SessionLocal() as session:
-        latest_import = session.scalar(select(IngestionJob).where(IngestionJob.source_system == "healthops_data_package").order_by(IngestionJob.created_at.desc()))
-        try:
-            revision = session.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
-        except Exception:
-            revision = None
-    llm = LocalLLMSettings.from_environment()
-    partner_ready = os.getenv("KNOWLEDGE_PROVIDER", "local").lower() == "partner" and bool(os.getenv("KNOWLEDGE_API_BASE"))
-    cards = st.columns(4)
-    with cards[0]:
-        _integration_card("数据导入", "正常" if latest_import is None or latest_import.status != "FAILED" else "需要处理", "导入合作方或服务团队整理的数据包。", "数据导入", "integration-open-data")
-    with cards[1]:
-        _integration_card("AI服务", "已连接" if llm.enabled and llm.model else "未配置", "用于报告整理、摘要与有依据的解释。", "AI服务", "integration-open-ai")
-    with cards[2]:
-        _integration_card("专业知识服务", "已连接" if partner_ready else "本地规范可用", "连接外部专业知识并保留真实出处。", "专业知识服务", "integration-open-knowledge")
-    with cards[3]:
-        _integration_card("设备接入", "接口已准备", "查看连接状态或批量导入设备数据。", "设备接入", "integration-open-device")
-    mode = st.session_state.get("integration-center-mode", "数据导入")
-    if mode == "数据导入":
-        if latest_import:
-            st.caption(f"最近导入：{_fmt_dt(latest_import.completed_at or latest_import.created_at)} · {_label(latest_import.status)} · 新增 {latest_import.records_created} 条")
-        else:
-            st.caption("尚无批量导入记录。")
-        _render_data_package_import(key_prefix="integration-data")
-    elif mode == "AI服务":
-        _render_ai_service_integration()
-    elif mode == "专业知识服务":
-        _render_knowledge_service_integration()
-    else:
-        _render_device_integration()
-    with st.expander("数据存储"):
-        st.write("SQLite（当前）")
-        st.caption(f"连接状态：正常 · 数据版本：{'最新' if revision else '待检查'} · 备份：{'可用' if (Path('data/backups').exists()) else '未配置'}")
-        st.caption("数据库连接信息由部署环境管理，不在业务页面中修改或显示。")
-    _render_admin_automation()
+def render_integration_center():
+    admin_pages.integrations(_ui_adapter())
 
 
-def render_more_workspace() -> None:
-    """Compatibility wrapper for the extracted tools-shell page."""
-    render_more_workspace_shell(
-        page_header=_page_header,
-        load_members=_members,
-        render_integration_center=render_integration_center,
-        render_ai_improvement=lambda: render_ai_improvement(SessionLocal),
-        render_risk_rules=render_risk_rules,
-        render_audit=render_audit,
-        audit_context=_audit_context,
-        member_display=_member_display,
-    )
+def render_more_workspace():
+    _page_header("更多", "低频资料与系统配置。")
+    if st.button("进入系统", key="more-open-系统"):
+        request_navigation(surface="系统管理")
+    with st.expander("专业资料"):
+        render_knowledge_library_entry()
 
 
 def render_oversight_summary() -> None:
@@ -3942,7 +3748,7 @@ def render_collaboration_workspace() -> None:
     collaboration = st.radio("医疗协同内容", ["内部医生", "外部医疗"], horizontal=True, label_visibility="collapsed", key="collaboration-view")
     members = _members()
     if collaboration == "内部医生":
-        render_global_doctor_workspace(members)
+        doctor_pages.workspace(_ui_adapter(), members, read_only=True)
     else:
         render_external_doctor_workspace(members)
 
@@ -3985,7 +3791,7 @@ def render_service_operations_workspace() -> None:
             st.markdown(f"**{service_names.get(selected.service_item_id, '会员服务')} · {_member_display(member)}**")
             st.write(selected.reason or "成员提交服务申请。")
             st.caption(f"当前状态：{_label(selected.status)} · 负责人：{selected.assigned_manager or '待分配'}")
-            st.caption(f"申请时间：{_fmt_dt(selected.requested_at)} · SLA：{_fmt_dt(selected.sla_due_at) if selected.sla_due_at else '待确认'}")
+            st.caption(f"申请时间：{_fmt_dt(selected.requested_at)} · 预计处理：{_fmt_dt(selected.sla_due_at) if selected.sla_due_at else '待确认'}")
             st.write("下一步：" + (selected.next_action or "健康管理师确认下一步"))
             if selected.status in {"REQUESTED", "REVIEWING"}:
                 if primary_action("审核申请", key=f"service-operations-approve-{selected.id}", width="content"):
@@ -4549,24 +4355,7 @@ def render_member_medical_workspace(patient: Patient, ctx: dict[str, list[object
     """One medical tab with four inline views and no record-detail route."""
     view = st.radio("医疗内容", ["医生复核", "用药", "检查", "手术住院"], horizontal=True, label_visibility="collapsed", key=f"member-medical-view-{patient.id}")
     if view == "医生复核":
-        rows: list[DoctorReview] = ctx["reviews"]  # type: ignore[assignment]
-        with section_frame("医生复核", "选择记录后在当前区域查看复核问题、意见和依据。"):
-            if not rows:
-                _empty_state("暂无医生复核", "需要医学判断的事项会在这里显示。")
-                return
-            selected_key = f"member-medical-review-selected-{patient.id}"
-            if st.session_state.get(selected_key) not in {str(item.id) for item in rows}:
-                st.session_state[selected_key] = str(rows[0].id)
-            left, right = st.columns([1, 1.3], gap="large")
-            with left:
-                for item in rows[:12]:
-                    if secondary_action(f"{_fmt_dt(item.reviewed_at)} · {_label(item.status)}", key=f"member-medical-review-{item.id}"):
-                        st.session_state[selected_key] = str(item.id); st.rerun()
-            selected = next(item for item in rows if str(item.id) == st.session_state[selected_key])
-            with right:
-                with detail_panel("医生复核详情", "只显示需要医学判断的记录。"):
-                    st.write(selected.opinion or "医生意见待补充")
-                    st.caption("复核问题：" + (selected.question_for_doctor or "待补充"))
+        doctor_pages.workspace(_ui_adapter(), [patient], patient=patient, read_only=True)
         return
     if view == "用药":
         render_medications(ctx)
@@ -4597,35 +4386,8 @@ def render_member_medical_workspace(patient: Patient, ctx: dict[str, list[object
                 st.write("来源：" + (selected.source or "已确认医疗记录"))
 
 
-def render_member_detail(patient: Patient) -> None:
-    if st.button("← 返回运营中心", key="back-to-dashboard"):
-        st.session_state.pop("focused_member_id", None)
-        st.rerun()
-    summary_ctx = _member_summary_context(patient.id)
-    _render_member_header(patient, summary_ctx)
-    _render_member_automation_status(patient.id, audience="manager")
-    section = st.radio(
-        "成员页面", ["概览", "管理", "健康", "医疗", "历程"],
-        horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",
-    )
-    if section == "概览":
-        render_simple_member_overview(patient, summary_ctx)
-    elif section == "管理":
-        management_ctx = _member_management_context(patient.id)
-        render_programs(patient, management_ctx)
-        render_member_management_signals(patient, management_ctx)
-        _section_header("本周任务")
-        render_tasks(management_ctx)
-        _section_header("最近复盘与结果")
-        render_intervention_comparison(patient)
-        _section_header("服务摘要")
-        render_member_service_management(patient)
-    elif section == "健康":
-        render_member_archive(patient)
-    elif section == "医疗":
-        render_member_medical_workspace(patient, _member_medical_context(patient.id))
-    else:
-        render_longitudinal_timeline(patient, key_scope="member-journey")
+def render_member_detail(patient):
+    manager_pages.member_detail(_ui_adapter(), patient)
 
 
 def render_member_archive(patient: Patient) -> None:
@@ -4637,7 +4399,7 @@ def render_member_archive(patient: Patient) -> None:
         st.session_state[key] = "数据"
     view = st.radio("成员健康内容", views, horizontal=True, label_visibility="collapsed", key=key)
     if view == "数据":
-        render_health_data(patient.id)
+        member_pages.health_data(_ui_adapter(), patient.id)
         return
     if view == "体检":
         left, right = st.columns([1, 1.7], gap="large")
@@ -4662,7 +4424,7 @@ def render_member_archive(patient: Patient) -> None:
         with section_frame("健康史", "显示已确认的健康问题与既往资料。"):
             if history:
                 for item in history:
-                    st.markdown(f"<div class='next-row'><div class='focus-title'>{html.escape(item.title)}</div><div class='focus-copy'>{html.escape(item.description or '已确认健康记录')}</div></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='next-row'><div class='focus-title'>{html.escape(item.title)}</div><div class='focus-copy'>{html.escape(ux.business_text(item.description or '已确认健康记录'))}</div></div>", unsafe_allow_html=True)
             else:
                 _empty_state("暂无健康史", "人工确认的既往史和健康问题会在这里长期保留。")
         return
@@ -5117,7 +4879,7 @@ def _timeline_card_text(event) -> tuple[str, str, str]:
     badge = event.risk_label if event.event_type == "risk" else (event.event_type_label or get_event_type_display(event.event_type))
     if synthetic_title and event.event_type != "risk":
         badge = "演示 · " + badge
-    summary = (event.summary or "已记录").strip()
+    summary = ux.business_text(event.summary or "已记录")
     if summary.lower() in {"unknown", "none"} or "synthetic_" in summary.lower() or "demo medication" in summary.lower():
         summary = "已记录健康事件"
     return badge, title, summary
@@ -5446,7 +5208,7 @@ def render_longitudinal_timeline(patient: Patient, *, key_scope: str = "archive"
         elif (related_risk := (event.expandable_details or {}).get("related_risk_level")):
             risk_label = _risk_text(str(related_risk))
             st.markdown(f"关联风险：{_status_pill(risk_label)}", unsafe_allow_html=True)
-        st.write(event.summary)
+        st.write(ux.business_text(event.summary))
         details = event.expandable_details or {}
         with SessionLocal() as session:
             _render_evidence_action(
@@ -5582,7 +5344,7 @@ def render_longitudinal_timeline(patient: Patient, *, key_scope: str = "archive"
                     )
         if event.event_type in {"procedure", "surgery", "hospitalization"}:
             st.markdown("**医疗履历详情**")
-            st.write(f"记录：{event.summary}")
+            st.write("记录：" + ux.business_text(event.summary))
             st.caption("仅显示已有正式记录；没有记录的信息不会被推断。")
             if st.button("查看手术履历详情", key=f"timeline-procedure-{event.group_key}"):
                 request_navigation(ops_page="成员", member_id=patient.id, member_section="医疗")
@@ -5899,155 +5661,12 @@ def _render_client_report_intake_entry(
                     )
 
 
-def _render_client_home(patient: Patient, ctx: dict[str, list[object]]) -> None:
-    risk, reason, _ = _member_risk_state(patient.id, ctx)
-    name = html.escape(patient.display_name or "成员")
-    st.markdown(
-        f"<div class='client-hero'><h1>我现在怎么样</h1><p>我的健康 · 欢迎回来，{name}</p>"
-        f"{risk_badge(risk)}<div class='focus-copy' style='margin-top:.7rem'>"
-        f"{html.escape(reason or '当前没有正式风险评估；其他主要指标会随确认资料持续更新。')}</div></div>",
-        unsafe_allow_html=True,
-    )
-    _render_member_automation_status(patient.id, audience="member")
-    active_tasks = sorted(
-        (item for item in ctx["tasks"] if item.status not in {"COMPLETED", "CANCELLED"}),
-        key=lambda item: (item.due_at is None, item.due_at or datetime.max.replace(tzinfo=TOKYO_TIMEZONE)),
-    )
-    next_task = next((item for item in active_tasks if item.responsible_role == "member"), active_tasks[0] if active_tasks else None)
-    with SessionLocal() as session:
-        lifestyle = HealthDataSummaryService().get_lifestyle_summary(session, patient.id, days=7)
-        realtime = HealthDataSummaryService().get_realtime_summary(session, patient.id)
-        cycle = current_care_cycle(session, patient.id)
-        next_service = session.scalar(select(ServiceRequest).where(
-            ServiceRequest.patient_id == patient.id,
-            ServiceRequest.status.in_(("REQUESTED", "REVIEWING", "APPROVED", "SCHEDULED", "IN_SERVICE", "IN_PROGRESS")),
-        ).order_by(ServiceRequest.scheduled_at, ServiceRequest.requested_at))
-        program = session.scalar(select(HealthProgram).where(
-            HealthProgram.patient_id == patient.id,
-            HealthProgram.status.in_(("ACTIVE", "PLANNED", "PAUSED")),
-        ).order_by(HealthProgram.created_at.desc()))
-
-    with section_frame("我的下一步 · 今天的行动", "先完成明确行动；需要医学判断时由医生负责。"):
-        if next_task:
-            st.markdown(f"<div class='next-row'><div class='next-date'>{html.escape(_fmt_dt(next_task.due_at) if next_task.due_at else '待安排')}</div><div class='focus-title'>{html.escape(next_task.title)}</div><div class='focus-copy'>{html.escape(next_task.instruction)} · 负责人：{html.escape(next_task.assignee or ('成员本人' if next_task.responsible_role == 'member' else '健康管理师'))}</div></div>", unsafe_allow_html=True)
-            if next_task.responsible_role == "member" and primary_action("完成任务", key=f"client-home-complete-{next_task.id}", width="content"):
-                try:
-                    with SessionLocal() as session:
-                        TaskTransitionService().complete(session, next_task.id, actor="成员本人", outcome="成员在健康中心确认已完成。")
-                        session.commit()
-                    st.success("任务已完成，健康管理师可以看到结果并继续跟进。")
-                    st.rerun()
-                except ValueError:
-                    LOGGER.exception("member task completion rejected", extra={"task_id": str(next_task.id)})
-                    st.error("当前任务需要由健康管理团队继续处理，请联系您的健康管理师。")
-        else:
-            _empty_state("今天没有待完成任务", "新的行动、复查或服务安排会由健康管理团队更新。")
-
-    with section_frame("当前管理周期", "全年有人负责：首月建基线、每月执行、季度校准、年度复盘。"):
-        st.markdown(f"**{cycle.label}**")
-        st.write(cycle.objective)
-        st.caption(f"负责人：{program.owner if program and program.owner else '健康管理团队'} · 下次复盘：{cycle.next_review_date.strftime('%Y-%m-%d')}")
-        if next_service:
-            st.caption(f"下一次服务安排：{_fmt_dt(next_service.scheduled_at) if next_service.scheduled_at else '健康管理团队正在安排'}")
-
-    with section_frame("今日健康摘要", "只显示已有数据；详细趋势和是否需要行动在健康页查看。"):
-        today_cards = (
-            ("睡眠", lifestyle.latest.get("sleep_duration"), "今日"),
-            ("深度睡眠", lifestyle.latest.get("deep_sleep_duration"), "今日"),
-            ("步数", lifestyle.latest.get("steps"), "今日"),
-            ("活动消耗", lifestyle.latest.get("active_calories"), "今日"),
-            ("血压", realtime.latest_systolic, "最近一次"),
-            ("血糖", realtime.cgm_current, "持续关注"),
-        )
-        available_cards = [(label, observation, note) for label, observation, note in today_cards if observation is not None]
-        if available_cards:
-            cards = st.columns(min(3, len(available_cards)))
-            for index, (label, observation, note) in enumerate(available_cards):
-                with cards[index % len(cards)]:
-                    if label == "血压" and realtime.latest_diastolic:
-                        health_metric_card(label, f"{int(observation.value_numeric)} / {int(realtime.latest_diastolic.value_numeric)}", note)
-                    else:
-                        health_metric_card(label, _format_observation_value(observation), note)
-        else:
-            _empty_state("暂无今日健康数据", "连接健康数据来源后，这里会显示睡眠、活动与健康监测摘要。")
-
-    with section_frame("最近变化", "用少量变化帮助你判断今天需要关注什么。"):
-        observations = ctx.get("observations", [])
-        if observations:
-            rows = "".join(
-                f"<div class='timeline-preview'><div class='timeline-date'>{html.escape(_metric_display_name(item.metric_code))}</div>"
-                f"<div><div class='timeline-title'>{html.escape(_format_observation_value(item))}</div>"
-                f"<div class='timeline-copy'>最近一次健康记录</div></div></div>"
-                for item in observations[:3]
-            )
-            st.markdown(rows, unsafe_allow_html=True)
-        else:
-            _empty_state("暂无近期变化", "后续健康数据会在这里形成趋势。")
-    with section_frame("快速入口", "需要时进入相应页面继续处理，不在首页展开完整资料。"):
-        report, data, service, plan = st.columns(4)
-        with report:
-            if primary_action("上传体检报告", key=f"client-home-report-{patient.id}"):
-                _open_member_report_upload(patient.id)
-        with data:
-            if secondary_action("查看健康数据", key=f"client-home-data-{patient.id}"):
-                request_navigation(surface="成员健康中心", member_page="健康", member_id=patient.id, archive_view="健康数据")
-        with service:
-            if secondary_action("申请服务", key=f"client-home-service-{patient.id}"):
-                request_navigation(surface="成员健康中心", member_page="服务", member_id=patient.id)
-        with plan:
-            if secondary_action("查看健康计划", key=f"client-home-plan-{patient.id}"):
-                request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
+def _render_client_home(patient, ctx):
+    member_pages.home(_ui_adapter(), patient, ctx)
 
 
-def _render_client_plan(patient: Patient, ctx: dict[str, list[object]]) -> None:
-    """Three plan views; task and result details stay on the same page."""
-    _page_header("计划", "查看当前方案、我的任务和阶段结果。", eyebrow="成员健康中心")
-    program = _active_program(ctx)
-    active_tasks = [item for item in ctx["tasks"] if item.status not in {"COMPLETED", "CANCELLED"}]
-    completed_tasks = [item for item in ctx["tasks"] if item.status == "COMPLETED"]
-    with SessionLocal() as session:
-        cycle = current_care_cycle(session, patient.id)
-    view = st.radio("计划内容", ["当前方案", "我的任务", "阶段结果"], horizontal=True, label_visibility="collapsed", key=f"client-plan-view-{patient.id}")
-    if view == "当前方案":
-        with section_frame("当前方案", "健康管理团队确认后执行；不包含自动医疗处方或诊断。"):
-            if program:
-                st.markdown(f"### {program.title}")
-                st.caption(program.main_goal or "当前目标待健康管理团队补充。")
-                st.info(f"当前周期：{cycle.label} · {cycle.objective} · 下次复盘 {cycle.next_review_date.strftime('%Y-%m-%d')}")
-                day = _program_day(program)
-                if day:
-                    st.progress(min(day / 90, 1.0), text=f"第 {day} 天 / 90 天")
-                choice = st.radio("我的选择", ["接受方案", "希望调整", "暂缓", "和健康管理师讨论"], horizontal=True, key=f"member-plan-choice-{patient.id}")
-                if primary_action("记录选择", key=f"member-plan-choice-save-{patient.id}", width="content"):
-                    with SessionLocal() as session:
-                        MemberServiceOperations().record_choice(session, patient.id, choice)
-                        session.commit()
-                    st.success("已记录您的选择，健康管理师会后续跟进。")
-            else:
-                _empty_state("暂无当前健康方案", "健康管理师确认方案后，会在这里说明目标和执行安排。")
-        return
-    if view == "我的任务":
-        total = len(active_tasks) + len(completed_tasks)
-        with section_frame("我的任务", "按今天、本周与逾期安排查看；完成情况不代表医疗结果。"):
-            summary_metric("本周完成", f"{len(completed_tasks)} / {total}" if total else "暂无任务", "持续完成比一次性冲刺更重要")
-            rows = [*completed_tasks, *active_tasks]
-            if rows:
-                st.markdown("".join(
-                    f"<div class='next-row'><div class='focus-title'>{'✓' if task.status == 'COMPLETED' else '○'}　{html.escape(task.title)}</div>"
-                    f"<div class='focus-copy'>{html.escape(_fmt_dt(task.due_at) if task.due_at else '本周安排')} · {html.escape(task.instruction)}</div></div>"
-                    for task in rows[:10]
-                ), unsafe_allow_html=True)
-            else:
-                _empty_state("暂无待完成任务", "本周需要完成的健康管理任务会在这里显示。")
-        return
-    with section_frame("阶段结果", "仅呈现已经确认的前后变化，不推断干预原因。"):
-        with SessionLocal() as session:
-            outcomes = list(session.scalars(select(OutcomeEvaluation).where(OutcomeEvaluation.patient_id == patient.id).order_by(OutcomeEvaluation.evaluation_date.desc()).limit(5)))
-        if outcomes:
-            for outcome in outcomes:
-                st.markdown(f"<div class='next-row'><div class='focus-title'>{html.escape(_metric_display_name(outcome.metric))}：{html.escape(str(outcome.baseline_value))} {html.escape(outcome.unit)} → {html.escape(str(outcome.current_value))} {html.escape(outcome.unit)}</div><div class='focus-copy'>{html.escape(outcome.notes or '已确认阶段结果')}</div></div>", unsafe_allow_html=True)
-        else:
-            _empty_state("尚无阶段结果", "完成阶段复盘后，确认的结果会显示在这里。")
+def _render_client_plan(patient, ctx):
+    member_pages.plan(_ui_adapter(), patient, ctx)
 
 
 def render_member_service_management(patient: Patient) -> None:
@@ -6125,7 +5744,7 @@ def _render_client_service(patient: Patient, ctx: dict[str, list[object]]) -> No
     view = st.radio("服务内容", ["可用服务", "我的申请", "服务记录"], horizontal=True, label_visibility="collapsed", key=f"client-service-view-{patient.id}")
     names = {item.id: item.name for item, _ in services}
     if view != "可用服务":
-        rows = requests if view == "我的申请" else [item for item in requests if item.status == "COMPLETED"]
+        rows = [item for item in requests if item.status not in {"COMPLETED", "CANCELLED"}] if view == "我的申请" else [item for item in requests if item.status in {"COMPLETED", "CANCELLED"}]
         with section_frame(view, "选择一条记录后，同页查看状态、安排和结果。"):
             if not rows:
                 _empty_state("暂无服务记录", "提交服务申请后，审核、安排和结果会显示在这里。")
@@ -6155,8 +5774,10 @@ def _render_client_service(patient: Patient, ctx: dict[str, list[object]]) -> No
                         "COMPLETED": "服务已完成，结果已记录。",
                         "CANCELLED": "本次服务已取消；如仍有需要，可重新申请。",
                     }.get(selected.status, "健康管理团队将更新下一步安排。")
+                    if selected.status == "SCHEDULED" and selected.scheduled_at and ux.local_time(selected.scheduled_at) < datetime.now(TOKYO_TIMEZONE):
+                        next_member_action = "预约时间已过，健康管理师需确认是否完成或重新安排。"
                     st.write(selected.result_summary or next_member_action)
-                    st.caption(f"负责人：{selected.assigned_manager or '待分配'} · SLA：{_fmt_dt(selected.sla_due_at) if selected.sla_due_at else '待确认'}")
+                    st.caption(f"负责人：{selected.assigned_manager or '待分配'} · 预计处理：{_fmt_dt(selected.sla_due_at) if selected.sla_due_at else '待确认'}")
                     if selected.service_provider:
                         st.caption("服务执行方：" + selected.service_provider)
                     if selected.status == "COMPLETED":
@@ -6273,35 +5894,8 @@ def _close_client_baseline(patient_id: UUID) -> None:
     st.session_state[f"client-baseline-expanded-{patient_id}"] = False
 
 
-def _render_client_health_overview(patient: Patient, ctx: dict[str, list[object]]) -> None:
-    """The first of four health views; baseline detail stays inline at depth two."""
-    if st.session_state.get(f"client-baseline-expanded-{patient.id}"):
-        st.button("返回健康概览", key=f"client-baseline-back-{patient.id}", on_click=_close_client_baseline, args=(patient.id,))
-        _render_member_baseline_center(patient)
-        return
-    risk, reason, _ = _member_risk_state(patient.id, ctx)
-    with SessionLocal() as session:
-        baseline = HealthAssessmentService().latest_baseline(session, patient.id, include_draft=False)
-    with section_frame("当前健康状态", "先看已经确认的结论；需要医学判断时由医生处理。"):
-        st.markdown(risk_badge(risk), unsafe_allow_html=True)
-        st.markdown(f"**{reason or '当前没有正式风险评估。'}**")
-    with section_frame("我的健康起点", "年度健康基线是当前管理周期的参考起点，不会被后续健康数据自动覆盖。"):
-        if baseline is None:
-            _empty_state("尚未建立健康基线", "上传最近体检报告并经健康管理团队确认后，可在这里形成健康基线。")
-        else:
-            st.markdown(f"**{baseline.cycle_year or baseline.assessed_at.year}年度健康基线 · {'资料已更新' if baseline.status == 'AMENDED' else '已确认'}**")
-            st.caption("查看当时的关键健康事实、参考区间、后续变化与资料依据。")
-            st.button(
-                "查看年度健康基线", key=f"client-health-baseline-open-{baseline.id}", type="primary",
-                on_click=_open_client_baseline, args=(patient.id,),
-            )
-    with section_frame("当前主要问题", "只显示最需要持续关注的三项。"):
-        problems = [item for item in ctx["problems"] if item.status != "CLOSED"]
-        if problems:
-            for item in problems[:3]:
-                st.markdown(f"<div class='next-row'><div class='focus-title'>{html.escape(item.title)}</div><div class='focus-copy'>{html.escape(item.description or '正在由健康管理团队持续跟进。')}</div></div>", unsafe_allow_html=True)
-        else:
-            _empty_state("暂无持续管理问题", "后续已确认的健康问题会在这里显示。")
+def _render_client_health_overview(patient, ctx):
+    member_pages.overview(_ui_adapter(), patient, ctx)
 
 
 def _render_client_checkup_page(patient: Patient) -> None:
@@ -6365,7 +5959,7 @@ def _render_client_medical_archive(patient: Patient) -> None:
             rows = list(session.scalars(select(HealthProblem).where(HealthProblem.patient_id == patient.id).order_by(HealthProblem.opened_at.desc()).limit(20)))
             if rows:
                 for item in rows:
-                    st.markdown(f"<div class='next-row'><div class='focus-title'>{html.escape(item.title)}</div><div class='focus-copy'>{html.escape(item.description or '已确认健康记录')}</div></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='next-row'><div class='focus-title'>{html.escape(item.title)}</div><div class='focus-copy'>{html.escape(ux.business_text(item.description or '已确认健康记录'))}</div></div>", unsafe_allow_html=True)
             else:
                 _empty_state("暂无健康史记录", "既往史、个人史和家族史需要人工确认后才会显示。")
 
@@ -6381,7 +5975,7 @@ def render_client_health_hub(patient: Patient, ctx: dict[str, list[object]]) -> 
     if view == "健康概览":
         _render_client_health_overview(patient, ctx)
     elif view == "健康数据":
-        render_health_data(patient.id)
+        member_pages.health_data(_ui_adapter(), patient.id)
     elif view == "体检":
         _render_client_checkup_page(patient)
     elif view == "医疗档案":
@@ -6390,14 +5984,19 @@ def render_client_health_hub(patient: Patient, ctx: dict[str, list[object]]) -> 
 
 def render_member_client_view(patient: Patient, page: str = "首页") -> None:
     """Development preview only; authentication/authorization is intentionally not implied."""
-    st.caption("成员健康中心")
+    ux.inject_design("member")
+    _, profile_column = st.columns([4, 1])
+    with profile_column.popover("个人设置"):
+        if st.button("查看个人资料", key="member-profile-open-button"):
+            st.session_state["member-profile-open"] = True
+            st.rerun()
     ctx = _member_summary_context(patient.id)
     if page == "首页":
         _render_client_home(patient, ctx)
     elif page in {"健康", "健康档案", "健康数据", "数据"}:
         render_client_health_hub(patient, ctx)
     elif page in {"历程", "健康历程"}:
-        render_longitudinal_timeline(patient, key_scope="member-center-journey", client_view=True)
+        member_pages.timeline(_ui_adapter(), patient)
     elif page == "计划":
         _render_client_plan(patient, ctx)
     elif page in {"服务", "我的服务"}:
@@ -6415,10 +6014,8 @@ def render_global_alert_workspace(members: list[Patient]) -> None:
     render_alerts(member, ctx)
 
 
-def render_global_doctor_workspace(members: list[Patient]) -> None:
-    _page_header("内部医生", "只处理需要医学判断的复核事项。", eyebrow="医疗协同")
-    member = st.selectbox("选择成员", members, format_func=_member_display, key="doctor-member")
-    render_doctor_reviews(member, _member_doctor_context(member.id))
+def render_global_doctor_workspace(members):
+    doctor_pages.workspace(_ui_adapter(), members)
 
 
 def render_external_doctor_workspace(members: list[Patient]) -> None:
@@ -6730,6 +6327,12 @@ def main() -> None:
             return
         patient = st.sidebar.selectbox("查看成员", members, format_func=_member_display, key="member-center-member-select")
         _render_timed("成员健康中心", lambda: render_member_client_view(patient, page))
+        return
+    if surface == "医生工作台":
+        doctor_pages.workspace(_ui_adapter(), _members())
+        return
+    if surface == "系统管理":
+        admin_pages.workspace(_ui_adapter())
         return
     page = _navigation_stage("sidebar", _render_sidebar_navigation)
     focused = st.session_state.get("focused_member_id")

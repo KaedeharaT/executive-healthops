@@ -184,14 +184,15 @@ def test_knowledge_package_requires_source_and_enters_pending_review_only() -> N
 
 
 def test_integration_center_uses_business_copy_and_hides_connection_secrets() -> None:
-    source = Path("streamlit_app.py").read_text(encoding="utf-8")
+    from tests.ui_source import all_ui_source
+    source = all_ui_source()
     shell = Path("src/executive_health_ai/ui/pages/shell.py").read_text(encoding="utf-8")
     center = source.split("def render_integration_center", 1)[1].split("def render_more_workspace", 1)[0]
     for label in ("集成与数据", "数据导入", "AI服务", "专业知识服务", "设备接入", "上传数据包"):
         assert label in source
     assert 'type="password"' in source and "DATABASE_URL" not in center
     assert 'options = ["风险规则", "操作记录", "系统"]' in shell
-    assert "成员端与医生工作视图不提供配置入口" in center
+    assert "admin_pages.integrations(_ui_adapter())" in center
     assert "raw JSON" not in center and "UUID" not in center and "provider code" not in center
 
 

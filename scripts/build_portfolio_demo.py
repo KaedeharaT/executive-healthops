@@ -13,7 +13,7 @@ import runpy
 import sqlite3
 import subprocess
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE = ROOT / "data" / "portfolio_demo.db"
 DEMO_EXTERNAL_ID = "portfolio-demo-executive-a"
-DEMO_DATA_VERSION = "portfolio-demo-baseline-visualization-v2"
+DEMO_DATA_VERSION = "portfolio-demo-role-ux-v3"
 
 
 def _configure_console_encoding() -> None:
@@ -413,7 +413,7 @@ def _customize_portfolio_data() -> dict[str, int]:
                 patient_id=patient.id, program_id=active_program.id if active_program else None,
                 title="完成本周睡眠与活动记录", instruction="本周完成三次睡眠与活动记录；这是一项成员健康管理任务，不是医学风险。",
                 status="PENDING", priority="MEDIUM", assignee="Demo Executive A", responsible_role="member",
-                due_at=datetime(2026, 8, 31, 18, tzinfo=timezone.utc), source="portfolio_member_plan_task",
+                due_at=datetime.now(timezone.utc).replace(hour=18, minute=0, second=0, microsecond=0), source="portfolio_member_plan_task",
             ))
         service_plan = MemberServiceOperations().ensure_demo_plan(session, patient.id)
         first_service = session.scalar(select(ServiceCatalogItem).order_by(ServiceCatalogItem.name))
@@ -426,8 +426,8 @@ def _customize_portfolio_data() -> dict[str, int]:
                 status="SCHEDULED",
                 assigned_manager="演示健康管理师",
                 service_provider="演示服务团队",
-                scheduled_at=datetime(2026, 9, 8, 10, tzinfo=timezone.utc),
-                sla_due_at=datetime(2026, 9, 5, 18, tzinfo=timezone.utc),
+                scheduled_at=datetime.now(timezone.utc) + timedelta(days=3),
+                sla_due_at=datetime.now(timezone.utc) + timedelta(days=2),
                 next_action="服务团队按预约执行，健康管理师跟进结果回写",
             ))
         _add_knowledge_demo(session)

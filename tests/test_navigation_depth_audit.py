@@ -13,7 +13,8 @@ MORE_SHELL = APP.parent / "src" / "executive_health_ai" / "ui" / "pages" / "shel
 
 
 def _source(name: str, next_marker: str) -> str:
-    return APP.read_text(encoding="utf-8").split(f"def {name}", 1)[1].split(next_marker, 1)[0]
+    from tests.ui_source import source
+    return source(name, next_marker)
 
 
 def test_primary_navigation_is_limited_to_five_per_surface() -> None:
@@ -32,7 +33,7 @@ def test_member_plan_service_and_profile_keep_details_in_their_current_page() ->
     plan = _source("_render_client_plan", "def render_member_service_management")
     service = _source("_render_client_service", "def _render_client_profile")
     profile = _source("_render_client_profile", "def _render_client_health_overview")
-    assert 'st.radio("计划内容", ["当前方案", "我的任务", "阶段结果"]' in plan
+    assert 'st.radio("任务分类", ["待完成", "等待他人", "已完成"]' in plan
     assert 'st.radio("服务内容", ["可用服务", "我的申请", "服务记录"]' in service
     assert 'st.radio("个人设置内容", ["资料", "设备与数据", "隐私授权"]' in profile
 
@@ -57,7 +58,7 @@ def test_member_detail_and_more_respect_secondary_navigation_limits() -> None:
     source = APP.read_text(encoding="utf-8")
     detail = _source("render_member_detail", "def render_member_archive")
     more = MORE_SHELL.read_text(encoding="utf-8")
-    assert '["概览", "管理", "健康", "医疗", "历程"]' in detail
+    assert '["概览", "健康", "管理", "医疗", "历程"]' in detail
     assert 'options = ["风险规则", "操作记录", "系统"]' in more
     assert "render_integration_center()" in more
     assert 'with st.expander("AI 质量治理（高级）")' in more

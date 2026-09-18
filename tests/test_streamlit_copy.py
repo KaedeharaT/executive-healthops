@@ -6,16 +6,17 @@ from streamlit.testing.v1 import AppTest
 
 
 def test_streamlit_status_copy_describes_data_not_medical_conclusions() -> None:
-    app_source = Path("streamlit_app.py").read_text(encoding="utf-8")
+    from tests.ui_source import all_ui_source
+    app_source = all_ui_source()
 
     assert '"normal": "数据完整，可进行趋势分析"' in app_source
     assert '"insufficient_data": "数据不足，暂无法判断趋势"' in app_source
     assert "今日跟进" in app_source
     assert '"今日", "成员", "医疗协同", "服务运营", "更多"' in app_source
-    assert '"成员页面", ["概览", "管理", "健康", "医疗", "历程"]' in app_source
+    assert '"成员页面", ["概览", "健康", "管理", "医疗", "历程"]' in app_source
     assert "_render_lifecycle_grid" in app_source
     assert "timeline-spine-" in app_source
-    assert "render_health_data(patient.id)" in app_source
+    assert "member_pages.health_data(_ui_adapter(), patient.id)" in app_source
     assert "健康监测" in app_source
     assert "今天的生活状态" in app_source
     assert "长期健康趋势" in app_source
@@ -60,7 +61,7 @@ def test_streamlit_default_page_smoke_loads() -> None:
     app.run(timeout=30)
 
     assert not app.exception
-    assert [title.value for title in app.title] == ["今日"]
+    assert [title.value for title in app.title] == ["今日待处理"]
 
 
 def test_platform_launcher_uses_fixed_ports_safe_project_restart_and_single_browser_open() -> None:

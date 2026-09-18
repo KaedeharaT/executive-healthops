@@ -7,7 +7,8 @@ APP = Path(__file__).resolve().parents[1] / "streamlit_app.py"
 
 
 def _source(name: str, next_marker: str) -> str:
-    return APP.read_text(encoding="utf-8").split(f"def {name}", 1)[1].split(next_marker, 1)[0]
+    from tests.ui_source import source
+    return source(name, next_marker)
 
 
 def test_shared_design_system_exposes_product_level_helpers() -> None:
@@ -22,11 +23,9 @@ def test_shared_design_system_exposes_product_level_helpers() -> None:
 
 def test_ops_today_has_one_priority_frame_and_compact_work_items() -> None:
     today = _source("render_manager_dashboard", "def _render_member_header")
-    assert "今日健康运营" in today
-    assert "_status_strip(" in today
-    assert 'with section_frame("优先处理"' in today
-    assert "work_item_card(" in today
-    assert "visible_items[:5]" in today
+    assert "今日待处理" in today and "ux.metric_row(" in today
+    assert 'st.subheader("优先处理")' in today and "ux.work_item(" in today
+    assert "ux.sorted_work(" in today and "visible[:12]" in today
 
 
 def test_member_overview_keeps_the_two_column_focus_then_next_step_structure() -> None:
@@ -39,15 +38,10 @@ def test_member_overview_keeps_the_two_column_focus_then_next_step_structure() -
 
 def test_member_home_is_personal_and_limits_today_to_six_health_tiles() -> None:
     home = _source("_render_client_home", "def _render_client_plan")
-    for item in ("我的健康", "我现在怎么样", "今天", "最近变化", "我的下一步"):
-        assert item in home
-    assert 'cards = st.columns(min(3, len(available_cards)))' in home
-    assert "if available_cards" in home
-    assert home.count('("睡眠"') == 1
-    for label in ("深度睡眠", "步数", "活动消耗", "血压", "血糖"):
-        assert label in home
-    assert "work_item_card(" not in home
-    assert all(token not in home for token in ("LLM", "Parser", "AuditLog", "RiskRule"))
+    assert "今天最重要的事情" in home and "tasks[:3]" in home
+    assert "近期变化" in home and "ux.changes(data)" in home
+    assert "render_longitudinal_timeline" not in home
+    assert "render_member_report_upload" not in home
 
 
 def test_report_is_result_first_and_parser_controls_are_in_advanced_details() -> None:
@@ -76,9 +70,8 @@ def test_member_health_has_four_second_level_views_and_timeline_is_primary() -> 
 
 def test_member_plan_uses_three_second_level_views() -> None:
     plan = _source("_render_client_plan", "def render_member_service_management")
-    assert 'st.radio("计划内容", ["当前方案", "我的任务", "阶段结果"]' in plan
-    for label in ("当前方案", "我的任务", "阶段结果"):
-        assert label in plan
+    assert '["待完成", "等待他人", "已完成"]' in plan
+    assert "近期节点" in plan and "阶段结果" in plan and "_complete(task)" in plan
 
 
 def test_member_service_is_category_first() -> None:
@@ -89,7 +82,7 @@ def test_member_service_is_category_first() -> None:
 
 def test_member_detail_has_five_visual_tabs_only() -> None:
     detail = _source("render_member_detail", "def render_member_archive")
-    assert '["概览", "管理", "健康", "医疗", "历程"]' in detail
+    assert '["概览", "健康", "管理", "医疗", "历程"]' in detail
 
 
 def test_risk_colours_are_reserved_for_formal_risk_labels() -> None:

@@ -10,7 +10,8 @@ LEGACY = ROOT / "src" / "executive_health_ai" / "services" / "timeline.py"
 
 
 def _source(name: str, next_marker: str) -> str:
-    return APP.read_text(encoding="utf-8").split(f"def {name}", 1)[1].split(next_marker, 1)[0]
+    from tests.ui_source import source
+    return source(name, next_marker)
 
 
 def test_member_timeline_is_a_primary_destination_not_a_health_subpage() -> None:
@@ -20,13 +21,13 @@ def test_member_timeline_is_a_primary_destination_not_a_health_subpage() -> None
     assert '["首页", "健康", "历程", "计划", "服务"]' in navigation
     assert '"健康历程"' not in health
     assert 'page in {"历程", "健康历程"}' in client
-    assert 'render_longitudinal_timeline(patient, key_scope="member-center-journey", client_view=True)' in client
+    assert 'member_pages.timeline(_ui_adapter(), patient)' in client
 
 
 def test_ops_member_has_first_level_timeline_and_service_stays_in_management_summary() -> None:
     detail = _source("render_member_detail", "def render_member_archive")
-    assert '["概览", "管理", "健康", "医疗", "历程"]' in detail
-    assert 'render_longitudinal_timeline(patient, key_scope="member-journey")' in detail
+    assert '["概览", "健康", "管理", "医疗", "历程"]' in detail
+    assert 'timeline(app, patient, client_view=False)' in detail
     assert 'render_member_service_management(patient)' in detail
 
 

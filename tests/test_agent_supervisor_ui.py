@@ -39,12 +39,14 @@ def test_member_manager_doctor_and_admin_see_business_agent_status_without_techn
         assert "持续管理状态" in _text(member_ui) and not member_ui.exception
 
         doctor = AppTest.from_file(APP); doctor.run(timeout=30)
-        _radio(doctor, "工作区").set_value("医疗协同"); doctor.run(timeout=30)
-        assert "完成年度体检后健康管理" in _text(doctor) and not doctor.exception
+        _radio(doctor, "当前视图").set_value("医生工作台"); doctor.run(timeout=30)
+        assert "待我复核" in _text(doctor) and not doctor.exception
+        assert "AgentGoal" not in _text(doctor)
 
         admin = AppTest.from_file(APP); admin.run(timeout=30)
         _radio(admin, "工作区").set_value("更多"); admin.run(timeout=30)
         next(button for button in admin.button if button.key == "more-open-系统").click(); admin.run(timeout=30)
+        _radio(admin, "系统").set_value("自动化运营"); admin.run(timeout=30)
         visible = _text(admin)
         assert "自动化运营" in visible and "AgentGoal" not in visible
         assert not admin.exception

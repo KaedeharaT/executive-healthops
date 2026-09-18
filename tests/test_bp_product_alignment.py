@@ -81,5 +81,6 @@ def test_product_navigation_hides_quality_governance_and_uses_blue_tokens() -> N
     assert '["今日", "成员", "医疗协同", "服务运营", "更多"]' in app
     assert 'options = ["风险规则", "操作记录", "系统"]' in shell
     assert 'with st.expander("AI 质量治理（高级）")' in shell
-    assert "--blue:#2563eb" in app and "linear-gradient" not in app
+    styles = Path("src/executive_health_ai/ui/experience.py").read_text(encoding="utf-8")
+    assert "#185da8" in styles and "linear-gradient" not in styles
     assert "健管培训助手" not in shell

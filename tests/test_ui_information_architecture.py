@@ -13,15 +13,14 @@ MORE_SHELL = APP.parent / "src" / "executive_health_ai" / "ui" / "pages" / "shel
 
 
 def _source(name: str, next_marker: str) -> str:
-    return APP.read_text(encoding="utf-8").split(f"def {name}", 1)[1].split(next_marker, 1)[0]
+    from tests.ui_source import source
+    return source(name, next_marker)
 
 
 def test_workbench_has_a_light_status_strip_and_a_task_driven_worklist() -> None:
     source = _source("render_manager_dashboard", "def _render_member_header")
-    assert "_status_strip(" in source
-    assert '"优先处理"' in source
-    assert "OperationalWorklistService" in source
-    assert "work_item_card(" in source
+    assert "ux.metric_row(" in source and '"优先处理"' in source
+    assert "OperationalWorklistService" in source and "ux.work_item(" in source
 
 
 def test_member_summary_uses_the_five_business_questions() -> None:
@@ -40,8 +39,8 @@ def test_member_overview_keeps_the_full_timeline_as_a_health_drill_down() -> Non
 
 def test_member_detail_keeps_the_five_product_work_areas() -> None:
     source = _source("render_member_detail", "def render_member_archive")
-    assert '["概览", "管理", "健康", "医疗", "历程"]' in source
-    assert "render_member_management_signals(patient, management_ctx)" in source
+    assert '["概览", "健康", "管理", "医疗", "历程"]' in source
+    assert "management(app, patient)" in source
     archive = _source("render_member_archive", "def _select_archive_timeline")
     assert 'views = ["数据", "体检", "基线", "健康史"]' in archive
 
@@ -82,7 +81,8 @@ def test_client_device_source_uses_human_readable_states_and_a_real_next_step() 
 
 
 def test_visual_system_has_a_constrained_reading_width_and_quiet_cards() -> None:
-    source = APP.read_text(encoding="utf-8")
+    from tests.ui_source import all_ui_source
+    source = all_ui_source()
     assert "max-width:1260px" in source
     assert ".status-strip" in source
     assert ".member-hero" in source and ".client-hero" in source
@@ -92,7 +92,7 @@ def test_visual_system_has_a_constrained_reading_width_and_quiet_cards() -> None
 
 
 def test_primary_surfaces_use_product_facing_page_headers() -> None:
-    assert "_page_header(\"今日\"" in _source("render_manager_dashboard", "def _render_member_header")
+    assert "ux.page_header(\"今日待处理\"" in _source("render_manager_dashboard", "def _render_member_header")
     assert "_page_header(\"成员\"" in _source("render_members_workspace", "KNOWLEDGE_CATEGORIES")
     assert "_page_header(\"医疗协同\"" in _source("render_collaboration_workspace", "def _report_candidate_label")
     assert 'page_header("更多"' in MORE_SHELL.read_text(encoding="utf-8")
@@ -122,7 +122,8 @@ def test_more_root_remains_a_lazy_menu() -> None:
 
 
 def test_primary_navigation_and_collaboration_are_task_and_member_oriented() -> None:
-    source = APP.read_text(encoding="utf-8")
+    from tests.ui_source import all_ui_source
+    source = all_ui_source()
     more = MORE_SHELL.read_text(encoding="utf-8")
     assert '["今日", "成员", "医疗协同", "服务运营", "更多"]' in source
     assert 'options = ["风险规则", "操作记录", "系统"]' in more
@@ -134,7 +135,8 @@ def test_primary_navigation_and_collaboration_are_task_and_member_oriented() -> 
 
 
 def test_surface_switcher_is_global_and_member_center_is_not_a_more_subpage() -> None:
-    source = APP.read_text(encoding="utf-8")
+    from tests.ui_source import all_ui_source
+    source = all_ui_source()
     main = _source("main", "if __name__")
     more = MORE_SHELL.read_text(encoding="utf-8")
     assert '"运营后台", "成员健康中心"' in _source("_render_surface_switcher", "def _render_member_center_navigation")
@@ -148,7 +150,7 @@ def test_member_center_health_keeps_the_timeline_out_of_home() -> None:
     timeline = _source("render_longitudinal_timeline", "def _client_device_status")
     assert "render_longitudinal_timeline" not in home
     client = _source("render_member_client_view", "def render_global_doctor_workspace")
-    assert 'render_longitudinal_timeline(patient, key_scope="member-center-journey", client_view=True)' in client
+    assert 'member_pages.timeline(_ui_adapter(), patient)' in client
     assert "HealthTimelineService().get_timeline" in timeline
     assert "not client_view" in timeline
 

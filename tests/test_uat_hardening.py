@@ -88,7 +88,7 @@ def test_surface_state_is_isolated_between_two_streamlit_sessions() -> None:
     first.run(timeout=30)
     _assert_clean(first); _assert_clean(second)
     assert any(item.label == "成员健康中心导航" for item in first.radio)
-    assert any(item.value == "今日" for item in second.title)
+    assert any(item.value == "今日待处理" for item in second.title)
 
 
 def test_member_overview_timeline_node_is_clickable_without_exception() -> None:

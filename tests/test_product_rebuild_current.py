@@ -8,7 +8,8 @@ SERVICE = Path(__file__).resolve().parents[1] / "src" / "executive_health_ai" / 
 
 
 def _source(name: str, next_marker: str) -> str:
-    return APP.read_text(encoding="utf-8").split(f"def {name}", 1)[1].split(next_marker, 1)[0]
+    from tests.ui_source import source
+    return source(name, next_marker)
 
 
 def test_primary_navigation_is_limited_and_role_specific() -> None:
@@ -53,7 +54,7 @@ def test_timeline_is_primary_and_keeps_a_single_detail_panel_below_the_axis() ->
     archive = _source("render_member_archive", "def _select_archive_timeline")
     assert 'views = ["数据", "体检", "基线", "健康史"]' in archive
     detail = _source("render_member_detail", "def render_member_archive")
-    assert 'render_longitudinal_timeline(patient, key_scope="member-journey")' in detail
+    assert 'timeline(app, patient, client_view=False)' in detail
     timeline = _source("render_longitudinal_timeline", "def _client_device_status")
     assert "lifecycle = st.container()" in timeline and "inspector = st.container()" in timeline
     assert "position:absolute" not in timeline

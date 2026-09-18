@@ -24,6 +24,7 @@ from executive_health_ai.schemas import (
     AppleHealthSyncRequest, AssessmentCreate, BarrierCreate, FileIngestionRequest, IngestionRequest, MedicalReferralCreate, ObservationCreate, OutcomeCreate, ProgramCreate, ProgramOut,
     ReportCandidateReview, ReportUploadRequest, TaskCompletion, TaskOut, TimelineEventOut, WeeklyReviewCreate, YellowAcknowledge, YellowClose, YellowContact, YellowDoctorCompletion, YellowDoctorEscalation, YellowFollowUp, YellowManagementAdjustment, YellowMonitoring,
 )
+from executive_health_ai.services import care_commands
 from executive_health_ai.services.chronic_care import (
     create_assessment, create_program, escalate_to_medical_care, record_execution_barrier,
     record_outcome_evaluation, record_weekly_review,
@@ -265,8 +266,7 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
         if program is None:
             raise HTTPException(status_code=404, detail="Health program not found")
         try:
-            outcome = record_outcome_evaluation(session, program, **payload.model_dump())
-            publish_agent_event(session, event_type="OUTCOME_RECORDED", member_id=program.patient_id, source_type="outcome", source_id=outcome.id, summary="阶段结果已人工回写", actor=payload.evaluator)
+            outcome = care_commands.record_outcome(session, program, **payload.model_dump())
             session.commit()
         except ValueError as error:
             session.rollback()
@@ -598,8 +598,7 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
     @app.post("/yellow-doctor-reviews/{review_id}/complete")
     def complete_yellow_doctor_review(review_id: UUID, payload: YellowDoctorCompletion, session: Session = Depends(get_session)) -> dict[str, str]:
         try:
-            review, task = RiskOperationsService().complete_doctor_review(session, review_id, payload.doctor, payload.department, payload.opinion, payload.follow_up_instruction, payload.due_at)
-            publish_agent_event(session, event_type="DOCTOR_REVIEW_COMPLETED", member_id=review.patient_id, source_type="doctor_review", source_id=review.id, summary="医生已完成人工医学复核", actor=payload.doctor)
+            review, task = care_commands.complete_review(session, session.get(DoctorReview, review_id), payload.doctor, payload.department, payload.opinion, payload.follow_up_instruction, payload.due_at)
             session.commit()
         except ValueError as error:
             session.rollback(); raise HTTPException(status_code=409, detail=str(error)) from error

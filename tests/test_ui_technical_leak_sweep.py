@@ -18,12 +18,13 @@ APP = Path(__file__).resolve().parents[1] / "streamlit_app.py"
 
 
 def _source(name: str, next_marker: str) -> str:
-    return APP.read_text(encoding="utf-8").split(f"def {name}", 1)[1].split(next_marker, 1)[0]
+    from tests.ui_source import source
+    return source(name, next_marker)
 
 
 def test_context_aware_status_and_role_display_never_expose_open_or_doctor_codes() -> None:
     assert get_status_display("OPEN", context="doctor_review") == "等待医生复核"
-    assert get_status_display("OPEN", context="risk_event") == "等待处理"
+    assert get_status_display("OPEN", context="risk_event") == "待处理"
     assert get_status_display("REQUESTED", context="service_request") == "已申请"
     assert get_status_display("INCOMPLETE", context="report_candidate") == "原文不完整，需要人工核对"
     assert get_role_display("doctor") == "内部医生"

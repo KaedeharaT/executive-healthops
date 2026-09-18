@@ -7,11 +7,13 @@ APP = Path(__file__).resolve().parents[1] / "streamlit_app.py"
 
 
 def _source(name: str, next_marker: str) -> str:
-    return APP.read_text(encoding="utf-8").split(f"def {name}", 1)[1].split(next_marker, 1)[0]
+    from tests.ui_source import source
+    return source(name, next_marker)
 
 
 def test_design_system_exposes_shared_surface_helpers_and_tokens() -> None:
-    source = APP.read_text(encoding="utf-8")
+    from tests.ui_source import all_ui_source
+    source = all_ui_source()
     for helper in (
         "page_header", "section_frame", "summary_metric", "status_badge",
         "health_metric_card", "work_item_card", "member_card", "_empty_state",
@@ -25,27 +27,25 @@ def test_design_system_exposes_shared_surface_helpers_and_tokens() -> None:
 
 def test_ops_today_uses_prioritized_work_cards_not_dashboard_metric_cards() -> None:
     source = _source("render_manager_dashboard", "def _render_member_header")
-    assert "今日健康运营" in source
-    assert "高优先级" in source and "到期与随访" in source and "等待医生" in source
-    assert "优先处理" in source and "work_item_card(" in source
-    assert source.count("st.metric(") == 0
+    assert "今日待处理" in source
+    assert all(label in source for label in ("高优先级", "即将逾期", "等待医生", "优先处理"))
+    assert "ux.work_item(" in source and "总成员数" not in source
 
 
 def test_members_and_member_overview_have_distinct_visual_components() -> None:
     members = _source("render_members_workspace", "KNOWLEDGE_CATEGORIES")
     overview = _source("render_simple_member_overview", "def render_simple_health_problems")
-    assert "member_card(" in members
+    assert "ux.work_item(" in members and "最近管理记录" in members
     assert "当前重点" in overview and "最近健康历程" in overview
     assert "section_frame(" in overview
     assert "render_longitudinal_timeline(patient, key_scope=\"overview\")" not in overview
 
 
 def test_member_health_is_second_level_and_client_surface_is_personal() -> None:
-    client_health = _source("render_client_health_hub", "def render_member_client_view")
-    client_home = _source("_render_client_home", "def _render_client_plan")
-    assert 'allowed = ["健康概览", "健康数据", "体检", "医疗档案"]' in client_health
-    assert "client-hero" in client_home and "我的下一步" in client_home
-    assert "work_item_card(" not in client_home
+    health = _source("render_client_health_hub", "def render_member_client_view")
+    home = _source("_render_client_home", "def _render_client_plan")
+    assert '["健康概览", "健康数据", "体检", "医疗档案"]' in health
+    assert "今日健康" in home and "今天最重要的事情" in home and "ux.next_action" in home
 
 
 def test_data_report_service_and_collaboration_use_result_or_action_first_frames() -> None:
