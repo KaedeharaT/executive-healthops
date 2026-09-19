@@ -26,6 +26,29 @@ def record_outcome(session, program, **values):
     return outcome
 
 
+def confirm_report_candidate(session, candidate, actor):
+    """UI/API share the existing confirm → baseline draft → progress path."""
+    from sqlalchemy import func
+    from executive_health_ai.models import ReportExtractionCandidate
+    from executive_health_ai.services.report_parsing import ReportParsingService
+    from executive_health_ai.services.longitudinal import HealthAssessmentService
+    observation = ReportParsingService().confirm_candidate(session, candidate, actor)
+    pending = session.scalar(select(func.count(ReportExtractionCandidate.id)).where(
+        ReportExtractionCandidate.document_id == candidate.document_id,
+        ReportExtractionCandidate.status == "PENDING_REVIEW"))
+    if not pending:
+        try:
+            HealthAssessmentService().create_draft_from_report(session, candidate.patient_id, candidate.document_id, created_by=actor)
+        except ValueError as error:
+            # A frozen baseline is never overwritten when another report arrives.
+            if "正式健康基线" not in str(error):
+                raise
+        publish_progress(session, event_type="REPORT_CONFIRMED", member_id=candidate.patient_id,
+            source_type="document", source_id=candidate.document_id,
+            summary="体检报告候选资料已完成人工确认", actor=actor)
+    return observation
+
+
 def save_program(session, patient_id, *, title, goal, owner, start, end, program_id=None, program_type="NINETY_DAY", reason="", assessment_risk=None):
     if not all(str(v).strip() for v in (title, goal, owner)) or end < start:
         raise ValueError("请填写计划名称、目标和负责人，结束日期不能早于开始日期。")

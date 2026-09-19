@@ -125,26 +125,13 @@ def member_summary(patient, program, next_step):
 
 
 def observations(session, patient_id, metric=None, since=None):
-    query = select(Observation).where(Observation.patient_id == patient_id, Observation.source_deleted.is_(False), Observation.excluded_from_analysis.is_(False), Observation.quality_flag.in_(("valid", "manually_corrected")))
-    if metric:
-        query = query.where(Observation.metric_code == metric)
-    if since:
-        query = query.where(Observation.observed_at >= since)
-    return list(session.scalars(query.order_by(Observation.observed_at)))
+    from executive_health_ai.services.product_projection import observations as project
+    return project(session, patient_id, metric, since)
 
 
 def pending_doctor_work(session, patient_id=None):
-    reviews = select(DoctorReview).where(DoctorReview.status == "PENDING")
-    baselines = select(HealthAssessment).where(HealthAssessment.status == "WAITING_MEDICAL_REVIEW")
-    alerts = select(Alert).where(Alert.status == "WAITING_DOCTOR_REVIEW", Alert.health_problem_id.is_not(None))
-    if patient_id:
-        reviews = reviews.where(DoctorReview.patient_id == patient_id)
-        baselines = baselines.where(HealthAssessment.patient_id == patient_id)
-        alerts = alerts.where(Alert.patient_id == patient_id)
-    rows = list(session.scalars(reviews))
-    # A legacy alert already represented by a review is the same responsibility.
-    linked = {r.health_problem_id for r in rows if r.health_problem_id}
-    return rows + list(session.scalars(baselines)) + [a for a in session.scalars(alerts) if a.health_problem_id not in linked]
+    from executive_health_ai.services.product_projection import pending_doctor_work as project
+    return project(session, patient_id)
 
 
 def sorted_work(items, now=None):

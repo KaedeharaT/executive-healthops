@@ -275,7 +275,8 @@ def _timeline_risk_indicator(event) -> str:
 
 
 def _active_program(ctx: dict[str, list[object]]) -> HealthProgram | None:
-    return next((item for item in ctx["programs"] if item.status == "ACTIVE"), None)  # type: ignore[return-value]
+    from executive_health_ai.services.product_projection import current_program
+    return current_program(ctx["programs"])
 
 
 def _program_day(program: HealthProgram | None) -> int | None:
@@ -1094,8 +1095,8 @@ def apply_pending_navigation() -> None:
             st.session_state[f"member-section-{member_id}"] = {"数据": "健康", "档案": "健康"}.get(pending["member_section"], pending["member_section"])
         if pending.get("archive_view") is not None:
             health_view = {
-                "健康数据": "健康数据", "体检与检查": "体检", "健康基线": "基线", "基线": "基线",
-                "健康史": "医疗档案", "医疗资料": "医疗档案", "用药与医疗": "医疗档案",
+                "健康数据": "健康数据", "数据": "健康数据", "健康概览": "健康概览", "概览": "健康概览", "体检": "体检", "体检与检查": "体检", "健康基线": "基线", "基线": "基线",
+                "健康史": "医疗档案", "健康档案": "医疗档案", "医疗档案": "医疗档案", "医疗资料": "医疗档案", "用药与医疗": "医疗档案",
                 "健康时间轴": "历程", "健康历程": "历程", "报告对比": "体检",
             }.get(str(pending["archive_view"]))
             if health_view:
@@ -1104,7 +1105,7 @@ def apply_pending_navigation() -> None:
                     st.session_state[f"member-section-{member_id}"] = "历程"
                 else:
                     st.session_state[f"client-health-view-{member_id}"] = health_view
-                    st.session_state[f"member-health-view-{member_id}"] = health_view
+                    st.session_state[f"member-health-view-{member_id}"] = {"健康数据": "数据", "医疗档案": "健康史", "健康概览": "概览"}.get(health_view, health_view)
         if pending.get("health_data_window"):
             st.session_state[f"health-data-window-{member_id}"] = pending["health_data_window"]
     if pending.get("report_document_id"):
@@ -1919,8 +1920,7 @@ def _render_legacy_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]
             if submit:
                 try:
                     with SessionLocal() as session:
-                        completed_review, _ = RiskOperationsService().complete_doctor_review(session, review.id, doctor, department, opinion, instruction, datetime.combine(due, time(9, 0), tzinfo=TOKYO_TIMEZONE))
-                        _publish_agent_event(session, event_type="DOCTOR_REVIEW_COMPLETED", member_id=completed_review.patient_id, source_type="doctor_review", source_id=completed_review.id, summary="医生已完成人工医学复核", actor=doctor)
+                        completed_review, _ = care_commands.complete_review(session, session.get(DoctorReview, review.id), doctor, department, opinion, instruction, datetime.combine(due, time(9, 0), tzinfo=TOKYO_TIMEZONE))
                         session.commit()
                     st.success("已保存医生人工复核，并创建关联跟进任务。")
                     st.rerun()
@@ -1946,7 +1946,7 @@ def _render_legacy_doctor_reviews(patient: Patient, ctx: dict[str, list[object]]
             if submit:
                 try:
                     with SessionLocal() as session:
-                        complete_outcome_doctor_review(session, session.get(DoctorReview, review.id), doctor, department, opinion, instruction, datetime.combine(due, time(9, 0), tzinfo=TOKYO_TIMEZONE))
+                        care_commands.complete_review(session, session.get(DoctorReview, review.id), doctor, department, opinion, instruction, datetime.combine(due, time(9, 0), tzinfo=TOKYO_TIMEZONE))
                         session.commit()
                     st.success("已保存医生人工复核，并创建关联跟进任务。")
                     st.rerun()
@@ -3730,11 +3730,8 @@ def render_integration_center():
 
 
 def render_more_workspace():
-    _page_header("更多", "低频资料与系统配置。")
-    if st.button("进入系统", key="more-open-系统"):
-        request_navigation(surface="系统管理")
-    with st.expander("专业资料"):
-        render_knowledge_library_entry()
+    from executive_health_ai.ui.pages.support_navigation import render_support_directory
+    render_support_directory(_ui_adapter())
 
 
 def render_oversight_summary() -> None:
@@ -3789,7 +3786,7 @@ def render_service_operations_workspace() -> None:
         _section_header("服务工作列表", "选择一项后，在右侧直接审核、安排或记录结果。")
         for request in visible[:20]:
             member = members.get(request.patient_id)
-            if member and secondary_action(f"{_member_display(member)} · {service_names.get(request.service_item_id, '会员服务')} · {_label(request.status)}", key=f"service-operations-select-{request.id}"):
+            if member and secondary_action(f"{_member_display(member)} · {service_names.get(request.service_item_id, '会员服务')} · {_label(request.status, context='service_request')}", key=f"service-operations-select-{request.id}"):
                 st.session_state[selected_key] = str(request.id); st.rerun()
     selected = next(item for item in visible if str(item.id) == st.session_state[selected_key])
     with right:
@@ -3797,7 +3794,7 @@ def render_service_operations_workspace() -> None:
         with detail_panel("服务详情", "服务申请不等于自动医疗预约；所有安排均由人工确认。"):
             st.markdown(f"**{service_names.get(selected.service_item_id, '会员服务')} · {_member_display(member)}**")
             st.write(selected.reason or "成员提交服务申请。")
-            st.caption(f"当前状态：{_label(selected.status)} · 负责人：{selected.assigned_manager or '待分配'}")
+            st.caption(f"当前状态：{_label(selected.status, context='service_request')} · 负责人：{selected.assigned_manager or '待分配'}")
             st.caption(f"申请时间：{_fmt_dt(selected.requested_at)} · 预计处理：{_fmt_dt(selected.sla_due_at) if selected.sla_due_at else '待确认'}")
             st.write("下一步：" + (selected.next_action or "健康管理师确认下一步"))
             if selected.status in {"REQUESTED", "REVIEWING"}:
@@ -4239,20 +4236,7 @@ def _render_report_observation_actions(candidate: ReportExtractionCandidate, *, 
         if st.button("确认入档", key=f"{key_scope}-confirm-{candidate.id}", type="primary"):
             with SessionLocal() as session:
                 stored = session.get(ReportExtractionCandidate, candidate.id)
-                ReportParsingService().confirm_candidate(session, stored, "health_manager")
-                pending = session.scalar(select(func.count(ReportExtractionCandidate.id)).where(
-                    ReportExtractionCandidate.document_id == stored.document_id,
-                    ReportExtractionCandidate.status == "PENDING_REVIEW",
-                ))
-                if not pending:
-                    try:
-                        HealthAssessmentService().create_draft_from_report(
-                            session, stored.patient_id, stored.document_id, created_by="health_manager",
-                        )
-                    except ValueError as error:
-                        if "正式健康基线" not in str(error):
-                            raise
-                    _publish_agent_event(session, event_type="REPORT_CONFIRMED", member_id=stored.patient_id, source_type="document", source_id=stored.document_id, summary="体检报告候选资料已完成人工确认", actor="健康管理师")
+                care_commands.confirm_report_candidate(session, stored, "health_manager")
                 session.commit()
             st.rerun()
         with st.expander("其他处理"):
@@ -4398,13 +4382,27 @@ def render_member_detail(patient):
 
 
 def render_member_archive(patient: Patient) -> None:
-    """The member-health tab keeps four inline views; timeline is first-level."""
+    """Health overview plus retained detail views; timeline stays first-level."""
     _section_header("健康")
     key = f"member-health-view-{patient.id}"
-    views = ["数据", "体检", "基线", "健康史"]
+    views = ["概览", "数据", "体检", "基线", "健康史"]
     if st.session_state.get(key) not in views:
-        st.session_state[key] = "数据"
+        st.session_state[key] = "概览"
     view = st.radio("成员健康内容", views, horizontal=True, label_visibility="collapsed", key=key)
+    if view == "概览":
+        from executive_health_ai.services.product_projection import ProductProjectionService
+        from executive_health_ai.ui.pages.baseline_visualization import render_baseline_overview
+        with SessionLocal() as session:
+            health = ProductProjectionService().member(session, patient.id, health=True)
+        if health.baseline:
+            render_baseline_overview(patient, health.baseline, session_factory=SessionLocal,
+                key_prefix=f"manager-health-overview-{patient.id}", view=health.health.baseline)
+        else:
+            ux.empty_state("尚未建立年度基线", "先核对报告，再确认年度参考点。")
+            member_pages.health_data(_ui_adapter(), patient.id)
+        st.button("查看年度健康基线", key=f"manager-health-baseline-{patient.id}",
+            on_click=request_navigation, kwargs={"surface":"运营后台", "ops_page":"成员", "member_id":patient.id, "member_section":"健康", "archive_view":"基线"})
+        return
     if view == "数据":
         member_pages.health_data(_ui_adapter(), patient.id)
         return
@@ -4436,6 +4434,8 @@ def render_member_archive(patient: Patient) -> None:
                     st.markdown(f"<div class='next-row'><div class='focus-title'>{html.escape(item.title)}</div><div class='focus-copy'>{html.escape(ux.business_text(item.description or '已确认健康记录'))}</div></div>", unsafe_allow_html=True)
             else:
                 _empty_state("暂无健康史", "人工确认的既往史和健康问题会在这里长期保留。")
+        with st.expander("完整健康档案 · 用药、过敏与医疗事件"):
+            _render_client_medical_archive(patient)
         return
     _empty_state("请从“历程”查看长期健康变化", "健康数据、体检与医疗事件会统一汇入成员的健康历程。")
 
@@ -4462,11 +4462,7 @@ def render_health_assessments(patient: Patient) -> None:
                 session, patient.id, include_draft=False, cycle_year=int(selected_year),
             )
     if baseline is not None:
-        status_label = {
-            "DRAFT": "资料收集中", "NEEDS_REVIEW": "待健康管理师确认",
-            "WAITING_MEDICAL_REVIEW": "等待医生复核", "CONFIRMED": "已建立",
-            "AMENDED": "已完成资料修订", "SUPERSEDED": "历史版本",
-        }.get(baseline.status, "待确认")
+        status_label = _label(baseline.status)
         label = f"{baseline.cycle_year or baseline.assessed_at.year}年度健康基线 · {status_label}"
         st.markdown(f"### {label}")
         st.caption(baseline.summary)
@@ -4550,8 +4546,7 @@ def render_health_assessments(patient: Patient) -> None:
                         st.error(str(error))
         if assessments:
             with st.expander("查看健康评估历史"):
-                status_labels = {"DRAFT": "资料收集中", "NEEDS_REVIEW": "待确认", "WAITING_MEDICAL_REVIEW": "等待医生", "CONFIRMED": "已确认", "AMENDED": "已修订", "SUPERSEDED": "历史版本"}
-                st.dataframe(pd.DataFrame([{"管理周期": item.cycle_year or item.assessed_at.year, "版本": item.version, "类型": {"BASELINE": "健康基线", "REASSESSMENT": "阶段复评", "ANNUAL": "年度评估"}.get(item.assessment_type, item.assessment_type), "状态": status_labels.get(item.status, "待确认"), "时间": _fmt_dt(item.confirmed_at or item.assessed_at), "摘要": item.summary, "创建人": item.created_by} for item in assessments]), hide_index=True, width="stretch")
+                st.dataframe(pd.DataFrame([{"管理周期": item.cycle_year or item.assessed_at.year, "版本": item.version, "类型": {"BASELINE": "健康基线", "REASSESSMENT": "阶段复评", "ANNUAL": "年度评估"}.get(item.assessment_type, item.assessment_type), "状态": _label(item.status), "时间": _fmt_dt(item.confirmed_at or item.assessed_at), "摘要": item.summary, "创建人": item.created_by} for item in assessments]), hide_index=True, width="stretch")
     else:
         _empty_state("尚未建立健康基线", "成员上传最近一次体检报告并完成人工确认后，可生成健康基线初稿。")
     with st.expander("建立年度健康基线初稿或阶段复评"):
@@ -5705,7 +5700,7 @@ def render_member_service_management(patient: Patient) -> None:
         st.markdown("**服务申请与执行**")
         for request in requests:
             with st.container(border=True):
-                st.markdown(f"**{names.get(request.service_item_id, '会员服务')}** · {_label(request.status)}")
+                st.markdown(f"**{names.get(request.service_item_id, '会员服务')}** · {_label(request.status, context='service_request')}")
                 st.caption(f"申请原因：{request.reason} · 负责人：{request.assigned_manager or '待分配'} · SLA：{_fmt_dt(request.sla_due_at) if request.sla_due_at else '待确认'} · 安排时间：{_fmt_dt(request.scheduled_at) if request.scheduled_at else '待安排'}")
                 st.write("下一步：" + (request.next_action or "健康管理师确认下一步"))
                 if request.status == "REQUESTED" and st.button("审核服务申请", key=f"service-approve-{request.id}", type="primary"):
@@ -5750,7 +5745,7 @@ def render_member_service_management(patient: Patient) -> None:
                     st.caption("完成依据：" + (request.completion_evidence or "人工确认的服务完成记录"))
                     st.caption("下一步：" + (request.next_action or "健康管理师确认后续安排"))
                     _render_evidence_action(
-                        {"source_name": "服务执行记录", "location": "服务结果记录", "evidence_type": "TEXT", "raw_evidence": request.result_summary or "当前未保存结果摘要。", "structured_interpretation": "服务完成结果由健康管理团队记录。", "confirmation_status": _label(request.status), "evidence_status": "PARTIAL", "show_no_knowledge": True},
+                        {"source_name": "服务执行记录", "location": "服务结果记录", "evidence_type": "TEXT", "raw_evidence": request.result_summary or "当前未保存结果摘要。", "structured_interpretation": "服务完成结果由健康管理团队记录。", "confirmation_status": _label(request.status, context='service_request'), "evidence_status": "PARTIAL", "show_no_knowledge": True},
                         key_scope=f"ops-service-evidence-{request.id}",
                     )
 
@@ -5775,7 +5770,7 @@ def _render_client_service(patient: Patient, ctx: dict[str, list[object]]) -> No
             left, right = st.columns([1, 1.3], gap="large")
             with left:
                 for request in rows[:12]:
-                    if secondary_action(f"{names.get(request.service_item_id, '会员服务')} · {_label(request.status)}", key=f"client-service-select-{request.id}"):
+                    if secondary_action(f"{names.get(request.service_item_id, '会员服务')} · {_label(request.status, context='service_request')}", key=f"client-service-select-{request.id}"):
                         st.session_state[selected_key] = str(request.id); st.rerun()
             selected = next(item for item in rows if str(item.id) == st.session_state[selected_key])
             with right:
@@ -5784,7 +5779,7 @@ def _render_client_service(patient: Patient, ctx: dict[str, list[object]]) -> No
                     phase = {"REQUESTED": "申请", "REVIEWING": "审核", "APPROVED": "安排", "SCHEDULED": "安排", "IN_PROGRESS": "执行", "IN_SERVICE": "执行", "COMPLETED": "完成", "CANCELLED": "已取消"}.get(selected.status, "待确认")
                     workflow(["申请", "审核", "安排", "执行", "完成"] + ([phase] if phase in {"已取消", "待确认"} else []), phase)
                     st.write(selected.reason or "成员服务申请")
-                    st.caption(f"当前状态：{_label(selected.status)} · 申请时间：{_fmt_dt(selected.requested_at)}")
+                    st.caption(f"当前状态：{_label(selected.status, context='service_request')} · 申请时间：{_fmt_dt(selected.requested_at)}")
                     if selected.scheduled_at:
                         st.write(f"已安排：{_fmt_dt(selected.scheduled_at)}")
                     next_member_action = {
@@ -5996,7 +5991,7 @@ def render_client_health_hub(patient: Patient, ctx: dict[str, list[object]]) -> 
     allowed = ["健康概览", "健康数据", "体检", "医疗档案"]
     if st.session_state.get(key) not in allowed:
         st.session_state[key] = "健康概览"
-    view = st.radio("健康内容", allowed, horizontal=True, label_visibility="collapsed", key=key)
+    view = st.radio("健康内容", allowed, horizontal=True, label_visibility="collapsed", key=key, format_func=lambda x: {"体检":"体检与检查", "医疗档案":"健康档案"}.get(x, x))
     if view == "健康概览":
         _render_client_health_overview(patient, ctx)
     elif view == "健康数据":

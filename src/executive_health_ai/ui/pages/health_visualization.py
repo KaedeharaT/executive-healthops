@@ -14,8 +14,8 @@ def load_series(patient_id):
         return HealthVisualizationService().build(session, patient_id)
 
 
-def render_previews(patient_id, *, key, open_trend, maximum=2):
-    previews = HealthVisualizationService().previews(load_series(patient_id), maximum)
+def render_previews(patient_id, *, key, open_trend, maximum=2, series=None):
+    previews = HealthVisualizationService().previews(load_series(patient_id) if series is None else series, maximum)
     if not previews:
         st.caption("暂无足够数据形成趋势。")
         return
@@ -58,6 +58,8 @@ def render_health_explorer(patient_id, *, key=None):
         visible = filter_period(group, period)
     latest = max(p.at for s in group for p in s.points)
     st.caption(f"最后记录：{latest:%Y/%m/%d} · 历史数据可用不代表设备当前已连接")
+    from executive_health_ai.ui.components import summary_strip
+    summary_strip([(s.label + " · 当前有效记录", f"{s.points[-1].value:g} {s.unit}") for s in group if s.points])
     renderer = render_blood_pressure_trend if code == "blood_pressure" else render_sleep_trend if "sleep" in code else render_activity_trend if code in {"steps", "exercise_minutes", "active_calories"} else render_metric_trend
     renderer(visible, key=f"{key}-chart")
     for item in visible:

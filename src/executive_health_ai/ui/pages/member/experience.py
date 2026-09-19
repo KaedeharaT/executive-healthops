@@ -13,6 +13,7 @@ from executive_health_ai.services.task_transitions import TaskTransitionService
 from executive_health_ai.services.member_services import MemberServiceOperations
 from executive_health_ai.ui import experience as ux
 from executive_health_ai.ui import components as c
+from executive_health_ai.services.product_projection import ProductProjectionService
 from executive_health_ai.ui.view_models import care_team_context
 from executive_health_ai.ui.pages.health_visualization import render_previews, render_health_explorer
 
@@ -45,15 +46,13 @@ def home(app, patient, ctx):
     ux.page_header("今日健康", f"{patient.display_name}，你的行动与进展。", "持续健康管理")
     if message := st.session_state.pop("ux-flash", None):
         st.success(message)
-    rows = _tasks(patient.id)
-    tasks = [r for r in rows if r.status not in {"COMPLETED", "CANCELLED"} and r.responsible_role == "member"]
     with SessionLocal() as session:
-        program = session.scalar(select(HealthProgram).where(HealthProgram.patient_id == patient.id, HealthProgram.status.in_(("ACTIVE", "PLANNED", "PAUSED"))).order_by(HealthProgram.created_at.desc()))
-        requests = list(session.scalars(select(ServiceRequest).where(ServiceRequest.patient_id == patient.id)))
+        view = ProductProjectionService().member(session, patient.id, health=True)
         goal = app._active_agent_goal(session, patient.id)
         people = care_team_context(session, patient.id)
-    action, team = st.columns([2, 1], gap="large")
-    with action:
+    program, requests = view.program, view.services
+    tasks = [r for r in view.tasks if r.status not in {"COMPLETED", "CANCELLED"} and r.responsible_role == "member"]
+    with st.container():
         with c.section("今天最重要的事情", key="member-action", emphasis=True):
             if tasks:
                 task = tasks[0]
@@ -66,16 +65,21 @@ def home(app, patient, ctx):
                     st.write(ux.business_text(task.instruction))
             else:
                 ux.empty_state("今天没有待完成任务", "健康管理师会在这里更新下一步。")
-    with team:
-        with st.container(key="v2-context-care-team"):
-            c.care_team(people)
     upcoming = ux.upcoming_service(requests)
     c.summary_strip([("当前周期", f"{datetime.now(ux.LOCAL).year}年度健康管理"),
         ("管理阶段", app.display_program_phase(program.current_phase) if program else "待建立计划"),
-        ("下次服务", ux.when(upcoming.scheduled_at) if upcoming else "暂无新的预约")])
+        ("负责人", ux.business_text(view.owner))])
     with c.section("近期变化", key="home-trends"):
-        render_previews(patient.id, key=f"home-trends-{patient.id}", maximum=2,
+        render_previews(patient.id, key=f"home-trends-{patient.id}", maximum=2, series=view.health.series,
             open_trend=lambda: app.request_navigation(surface="成员健康中心", member_page="健康", member_id=patient.id, archive_view="健康数据"))
+    with st.container(key="v2-context-care-team"):
+        c.care_team(people)
+    with st.expander("下一服务与重要节点", expanded=bool(upcoming)):
+        if upcoming:
+            ux.next_action(upcoming.next_action or "按约定时间参加服务", upcoming.assigned_manager)
+            st.caption("下次服务 · 已预约：" + ux.when(upcoming.scheduled_at))
+        else:
+            st.caption("暂无已安排的未来服务；复查与随访节点在计划中查看。")
     if len(tasks) > 1:
         with st.expander("其他今日行动"):
             for task in tasks[:3][1:]:
@@ -108,11 +112,11 @@ def overview(app, patient, ctx):
         app._render_member_baseline_center(patient)
         return
     with SessionLocal() as session:
-        baseline = HealthAssessmentService().latest_baseline(session, patient.id)
-        data = ux.observations(session, patient.id)
+        view = ProductProjectionService().member(session, patient.id, health=True)
+        baseline, data = view.baseline, view.observations
     if baseline:
         from executive_health_ai.ui.pages.baseline_visualization import render_baseline_overview
-        render_baseline_overview(patient, baseline, session_factory=SessionLocal, key_prefix=f"member-overview-{patient.id}")
+        render_baseline_overview(patient, baseline, session_factory=SessionLocal, key_prefix=f"member-overview-{patient.id}", view=view.health.baseline)
     else:
         ux.baseline_summary(baseline, data)
     if baseline:
@@ -140,8 +144,10 @@ def health_data(app, patient_id):
 
 def plan(app, patient, ctx):
     ux.page_header("接下来我要做什么", "当前行动、近期节点和阶段结果放在同一处。", "健康计划")
-    program = app._active_program(ctx)
-    tasks = _tasks(patient.id)
+    with SessionLocal() as session:
+        view = ProductProjectionService().member(session, patient.id)
+    program, tasks = view.program, list(view.tasks)
+    program_names = {p.id: ux.business_text(p.title) for p in view.programs}
     if program:
         st.subheader(ux.business_text(program.title))
         st.write(ux.business_text(program.main_goal))
@@ -159,6 +165,7 @@ def plan(app, patient, ctx):
                 st.success("已记录，健康管理师将跟进您的选择。")
     else:
         ux.empty_state("暂无当前计划", "健康管理师会和您确认目标及行动。")
+    st.caption("管理顺序：目标 → 当前计划 → 执行任务 → 复查节点 → 阶段结果")
     actions, progress = st.columns([1.7, 1], gap="large")
     with actions:
         view = st.radio("任务分类", ["待完成", "等待他人", "已完成"], horizontal=True, key=f"client-plan-view-{patient.id}")
@@ -188,7 +195,7 @@ def plan(app, patient, ctx):
             with SessionLocal() as session:
                 outcomes = list(session.scalars(select(OutcomeEvaluation).where(OutcomeEvaluation.patient_id == patient.id).order_by(OutcomeEvaluation.evaluation_date.desc()).limit(5)))
             for outcome in outcomes:
-                ux.work_item(ux.metric_name(outcome.metric), f"{outcome.baseline_value} → {outcome.current_value} {outcome.unit}", f"{ux.when(outcome.evaluation_date)} · {app._label(outcome.result)}")
+                ux.work_item(ux.metric_name(outcome.metric), f"{outcome.baseline_value} → {outcome.current_value} {outcome.unit}", f"{ux.when(outcome.evaluation_date)} · {app._label(outcome.result)} · {'当前计划' if program and outcome.program_id == program.id else program_names.get(outcome.program_id, '历史计划')}")
             if not outcomes:
                 st.caption("阶段复盘后，确认的结果会显示在这里。")
 

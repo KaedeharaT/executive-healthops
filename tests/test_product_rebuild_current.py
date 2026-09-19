@@ -52,7 +52,7 @@ def test_health_data_separates_daily_activity_medical_monitoring_and_period_summ
 
 def test_timeline_is_primary_and_keeps_a_single_detail_panel_below_the_axis() -> None:
     archive = _source("render_member_archive", "def _select_archive_timeline")
-    assert 'views = ["数据", "体检", "基线", "健康史"]' in archive
+    assert 'views = ["概览", "数据", "体检", "基线", "健康史"]' in archive
     detail = _source("render_member_detail", "def render_member_archive")
     assert 'timeline(app, patient, client_view=False)' in detail
     timeline = _source("render_longitudinal_timeline", "def _client_device_status")

@@ -37,7 +37,10 @@ def test_dashboard_context_never_queries_observations_and_is_bounded() -> None:
 def test_more_root_routes_before_loading_its_selected_module() -> None:
     root_source = _function_source("render_more_workspace", "def render_collaboration_workspace")
     shell_source = MORE_SHELL.read_text(encoding="utf-8")
-    assert 'request_navigation(surface="系统管理")' in root_source
+    assert "render_support_directory(_ui_adapter())" in root_source
+    directory = (MORE_SHELL.parent / "support_navigation.py").read_text(encoding="utf8")
+    assert 'request_navigation(surface="系统管理")' in directory
+    assert 'pop("more-navigation", None)' in directory
     assert 'st.session_state.get("more-navigation")' in shell_source
     assert shell_source.index('else:\n        render_integration_center()') > shell_source.index('elif more == "操作记录"')
     assert "render_data_gateway(load_members())" not in shell_source

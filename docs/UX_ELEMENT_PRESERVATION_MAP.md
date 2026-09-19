@@ -1330,3 +1330,8 @@
 |UI-1223|src/executive_health_ai/ui/pages/shell.py:80 `render_more_workspace_shell`|expander|'AI 质量治理（高级）'|KEEP / 继承所属要素组迁移|
 |UI-1224|src/executive_health_ai/ui/pages/shell.py:63 `render_more_workspace_shell`|caption|description|KEEP / 继承所属要素组迁移|
 |UI-1225|src/executive_health_ai/ui/pages/shell.py:64 `render_more_workspace_shell`|button|'查看'|KEEP / 继承所属要素组迁移|
+
+
+## Product Logic V3 后续整理
+
+本表保留UX V2的94组历史口径。本轮以 `3ba46b2` 冻结当前全部102组业务要素及1390个底层UI调用点，见 [Product Logic Preservation Map](PRODUCT_LOGIC_PRESERVATION_MAP.md)。新的归属与位置以该表为准；V2能力与高级兼容入口全部保留。

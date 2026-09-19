@@ -20,7 +20,9 @@ def _source(name: str, next_marker: str) -> str:
 def test_workbench_has_a_light_status_strip_and_a_task_driven_worklist() -> None:
     source = _source("render_manager_dashboard", "def _render_member_header")
     assert "ux.metric_row(" in source and '"优先处理"' in source
-    assert "OperationalWorklistService" in source and "ux.work_item(" in source
+    assert "ProductProjectionService" in source and "ux.work_item(" in source
+    projection = (APP.parent / "src/executive_health_ai/services/product_projection.py").read_text(encoding="utf8")
+    assert "OperationalWorklistService().list_items" in projection
 
 
 def test_member_summary_uses_the_five_business_questions() -> None:
@@ -42,7 +44,7 @@ def test_member_detail_keeps_the_five_product_work_areas() -> None:
     assert '["概览", "健康", "管理", "医疗", "历程"]' in source
     assert "management(app, patient)" in source
     archive = _source("render_member_archive", "def _select_archive_timeline")
-    assert 'views = ["数据", "体检", "基线", "健康史"]' in archive
+    assert 'views = ["概览", "数据", "体检", "基线", "健康史"]' in archive
 
 
 def test_report_review_hides_technical_parse_details_by_default() -> None:

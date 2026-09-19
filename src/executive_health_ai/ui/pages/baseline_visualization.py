@@ -138,16 +138,25 @@ def render_baseline_progress(view, *, key_prefix: str) -> None:
     _render_comparison_details(view)
 
 
-def render_baseline_overview(patient, baseline, *, session_factory, key_prefix):
+def render_baseline_overview(patient, baseline, *, session_factory, key_prefix, view=None):
     st.subheader(f"{baseline.cycle_year or baseline.assessed_at.year}年度健康基线")
     if baseline.status not in {"CONFIRMED", "AMENDED"}:
         st.caption("基线尚待人工确认，确认后可比较当前变化。")
         return
-    with session_factory() as session:
-        view = BaselineVisualizationService().build(session, patient.id, cycle_year=baseline.cycle_year)
+    if view is None:
+        with session_factory() as session:
+            view = BaselineVisualizationService().build(session, patient.id, cycle_year=baseline.cycle_year)
     confirmed = view.assessment.confirmed_at or view.assessment.assessed_at
     st.caption(f"已确认 · 建立时间：{confirmed:%Y/%m/%d} · 已记录 {len(view.metrics)} 项指标；缺失资料不推断为正常。")
+    st.markdown("**当前健康状态**")
+    latest = max((p.observed_at for trend in view.trends for p in trend.points if p.point_type != "BASELINE"), default=None)
+    st.caption((f"最近有效记录：{latest:%Y/%m/%d}。" if latest else "暂无基线后的有效记录。") + "年度基线是固定参考点；当前记录独立更新，不覆盖基线。")
     render_baseline_progress(view, key_prefix=key_prefix)
+    with st.expander("资料覆盖与查看依据"):
+        st.caption(f"已覆盖 {view.covered_count} / {len(view.coverage)} 类资料；未覆盖不代表正常。")
+        for item in view.coverage:
+            st.caption(item.label + " · " + item.status)
+        st.caption("通过“查看年度健康基线”进入每项指标的原始依据与确认记录。")
 
 
 def _render_comparison_details(view):

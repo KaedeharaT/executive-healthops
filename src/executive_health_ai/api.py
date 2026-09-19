@@ -484,10 +484,7 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
         candidate = session.get(ReportExtractionCandidate, candidate_id)
         if candidate is None: raise HTTPException(status_code=404, detail="未找到报告候选资料")
         try:
-            observation = ReportParsingService().confirm_candidate(session, candidate, payload.actor)
-            pending = session.scalar(select(func.count(ReportExtractionCandidate.id)).where(ReportExtractionCandidate.document_id == candidate.document_id, ReportExtractionCandidate.status == "PENDING_REVIEW"))
-            if not pending:
-                publish_agent_event(session, event_type="REPORT_CONFIRMED", member_id=candidate.patient_id, source_type="document", source_id=candidate.document_id, summary="体检报告已完成人工确认", actor=payload.actor)
+            observation = care_commands.confirm_report_candidate(session, candidate, payload.actor)
             session.commit()
         except ValueError as error:
             session.rollback(); raise HTTPException(status_code=422, detail=str(error)) from error

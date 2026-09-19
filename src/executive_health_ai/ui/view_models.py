@@ -5,7 +5,8 @@ from executive_health_ai.ui.experience import business_text
 
 
 def care_team_context(session, patient_id):
-    program = session.scalar(select(HealthProgram).where(HealthProgram.patient_id == patient_id, HealthProgram.status.in_(("ACTIVE", "PLANNED", "PAUSED"))).order_by(HealthProgram.created_at.desc()))
+    from executive_health_ai.services.product_projection import current_program
+    program = current_program(session.scalars(select(HealthProgram).where(HealthProgram.patient_id == patient_id)))
     review = session.scalar(select(DoctorReview).where(DoctorReview.patient_id == patient_id, DoctorReview.doctor_name.not_in(("", "待分配医生"))).order_by(DoctorReview.reviewed_at.desc(), DoctorReview.created_at.desc()))
     request = session.scalar(select(ServiceRequest).where(ServiceRequest.patient_id == patient_id, ServiceRequest.assigned_manager.is_not(None), ServiceRequest.status.not_in(("COMPLETED", "CANCELLED"))).order_by(ServiceRequest.requested_at.desc()))
     people = [("健康管理师", business_text(program.owner) if program and program.owner else "尚待确认负责人", "统筹当前计划与后续行动")]

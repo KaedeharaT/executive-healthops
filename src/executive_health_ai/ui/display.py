@@ -8,36 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-_STATUS = {
-    "OVERDUE": "已逾期", "PLANNED": "已规划", "PAUSED": "已暂停",
-    "IMPROVED": "观察改善", "STABLE": "观察稳定", "WORSENED": "观察变差",
-    "INSUFFICIENT_DATA": "数据不足", "NEEDS_MEDICAL_REVIEW": "需要医生复核",
-    "AMENDED": "已修订", "WAITING_MEDICAL_REVIEW": "等待医生", "ADJUSTED": "已调整",
-    "CONTINUE": "继续当前管理", "ADJUST": "调整管理安排", "STABILIZE": "进入稳定期", "DOCTOR_REVIEW": "医生复核",
-    "NEW": "新建", "OPEN": "待处理", "CLOSED": "已完成", "PENDING": "待处理",
-    "PENDING_REVIEW": "等待审核", "WAITING_REVIEW": "等待人工复核",
-    "WAITING_MANAGER_REVIEW": "等待健康管理师核实", "WAITING_DOCTOR_REVIEW": "等待医生复核",
-    "NEEDS_REVIEW": "等待人工确认", "NEEDS_MANUAL_REVIEW": "需要人工核对",
-    "INCOMPLETE": "原文不完整，需要人工核对", "EVIDENCE_MISMATCH": "提取内容与原始依据不一致",
-    "AMBIGUOUS": "内容存在歧义，需要人工判断", "IN_PROGRESS": "处理中", "TAKEN": "处理中", "IN_REVIEW": "处理中", "WAITING_DOCTOR": "等待医生",
-    "ACTIVE": "执行中", "INACTIVE": "未启用", "DRAFT": "草稿", "CONFIRMED": "已确认",
-    "SUPERSEDED": "已由新记录替代", "APPROVED": "已通过", "REQUESTED": "已申请",
-    "REVIEWING": "审核中", "SCHEDULED": "已安排", "WAITING_FEEDBACK": "等待反馈",
-    "COMPLETED": "已完成", "CANCELLED": "已取消", "DECLINED": "未通过",
-    "REJECTED": "已忽略", "CORRECTED": "已修正", "PROCESSING": "处理中",
-    "ACKNOWLEDGED": "处理中", "MONITORING": "处理中", "FOLLOW_UP": "待随访",
-    "ESCALATED_TO_DOCTOR": "等待医生", "WAITING_MEMBER": "等待成员", "ESCALATED": "处理中", "IN_SERVICE": "服务中",
-    "PARTIAL_SUCCESS": "部分完成", "SUCCESS": "已完成", "FAILED": "处理失败",
-    "UNKNOWN": "暂无正式风险评估", "OTHER": "其他", "NONE": "未记录", "NULL": "未记录",
-}
-
-_CONTEXT_STATUS = {
-    "doctor_review": {"OPEN": "等待医生复核", "PENDING": "等待医生复核", "CONFIRMED": "已完成医生复核"},
-    "risk_event": {"OPEN": "待处理", "PENDING": "待处理", "NEW": "待处理", "ACKNOWLEDGED": "处理中", "IN_REVIEW": "处理中", "MONITORING": "处理中", "ESCALATED_TO_DOCTOR": "等待医生", "WAITING_MEMBER": "等待成员", "FOLLOW_UP": "待随访", "ESCALATED": "处理中", "CLOSED": "已完成"},
-    "service_request": {"OPEN": "待处理", "PENDING": "待处理", "APPROVED": "已通过"},
-    "health_problem": {"OPEN": "待处理", "CLOSED": "已完成"},
-    "report_candidate": {"PENDING_REVIEW": "等待人工确认", "NEEDS_MANUAL_REVIEW": "原文不完整，需要人工核对"},
-}
+from executive_health_ai.ui.status_dictionary import STATUS as _STATUS, CONTEXT_STATUS as _CONTEXT_STATUS, status_label
 
 _ROLE = {
     "doctor": "内部医生", "internal_doctor": "内部医生", "external_doctor": "外部医生",
@@ -98,10 +69,7 @@ _AUDIT_ACTION = {
 
 
 def get_status_display(value: str | None, *, context: str | None = None) -> str:
-    code = (value or "").strip().upper()
-    if context and code in _CONTEXT_STATUS.get(context, {}):
-        return _CONTEXT_STATUS[context][code]
-    return _STATUS.get(code, "待确认" if code else "未记录")
+    return status_label(value, context=context)
 
 
 def get_role_display(value: str | None, *, name: str | None = None) -> str:
