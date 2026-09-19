@@ -93,11 +93,12 @@ def render_baseline_visualization(
                 st.caption(f"依据：{amendment.evidence}")
 
 
-def render_baseline_progress(view, *, key_prefix: str) -> None:
+def render_baseline_progress(view, *, key_prefix: str, layout: str = "default") -> None:
     """The same comparable projection and chart for members and managers."""
     from executive_health_ai.ui.components import comparison_rows
-    comparison_rows(view.comparisons)
-    st.markdown("**从基线到现在**")
+    if layout == "default":
+        comparison_rows(view.comparisons)
+        st.markdown("**从基线到现在**")
     by_code = {trend.code: trend for trend in view.trends}
     options = {}
     for code in ("weight", "bmi", "ldl_c", "hba1c"):
@@ -111,7 +112,8 @@ def render_baseline_progress(view, *, key_prefix: str) -> None:
             options[trend.label] = (trend,)
     if not options:
         st.caption("目前还没有足够的后续数据形成趋势。请由健康管理师核对并补充基线指标。")
-        _render_comparison_details(view)
+        if layout == "default":
+            _render_comparison_details(view)
         return
     columns = st.columns([2, 1])
     selected_label = columns[0].selectbox("选择指标", list(options), key=f"{key_prefix}-trend-metric")
@@ -121,6 +123,10 @@ def render_baseline_progress(view, *, key_prefix: str) -> None:
         cutoff = datetime.now(TOKYO_TIMEZONE) - timedelta(days={"7天":7,"30天":30,"3个月":90,"6个月":180,"1年":365}[window])
         selected = tuple(replace(trend, points=tuple(p for p in trend.points if p.point_type == "BASELINE" or p.observed_at >= cutoff)) for trend in selected)
         st.caption("保留年度基线作为起点；后续记录按所选时间范围展示。")
+    if layout == "member_overview":
+        latest = max((p.observed_at for t in selected for p in t.points if p.point_type != "BASELINE"), default=None)
+        st.caption("当前健康状态 · " + (f"所选指标最近记录：{latest:%Y/%m/%d}" if latest else "所选范围暂无后续记录"))
+        comparison_rows(selected_comparisons(view, selected), maximum=len(selected))
     chart = baseline_trend_chart(selected)
     if chart is None:
         st.caption("目前还没有足够的后续数据形成趋势。")
@@ -130,7 +136,23 @@ def render_baseline_progress(view, *, key_prefix: str) -> None:
         st.altair_chart(chart, width="stretch", theme=None, key=f"{key_prefix}-trend-chart")
         st.caption("虚线 / 菱形：年度基线；末端圆点：当前有效记录。悬停查看日期、数值、单位和来源。")
 
-    _render_comparison_details(view)
+    if layout == "default":
+        _render_comparison_details(view)
+
+
+def selected_comparisons(view, selected):
+    """Use the displayed window, so the current label never references a hidden point."""
+    from executive_health_ai.services.baseline_visualization import comparison_change
+    comparisons = {item.code: item for item in view.comparisons}
+    rows = []
+    for trend in selected:
+        item = comparisons.get(trend.code)
+        if item is None:
+            continue
+        latest = max((p for p in trend.points if p.point_type != "BASELINE"), key=lambda p: p.observed_at, default=None)
+        delta, percentage, direction = comparison_change(trend.baseline_value, latest.value if latest else None, trend.code, trend.unit)
+        rows.append(replace(item, current=str(latest.value) if latest else item.baseline, delta=delta, percentage=percentage, direction=direction))
+    return rows
 
 
 def render_baseline_overview(patient, baseline, *, session_factory, key_prefix, view=None):
@@ -153,8 +175,8 @@ def render_baseline_overview(patient, baseline, *, session_factory, key_prefix, 
         st.caption("通过“查看年度健康基线”进入每项指标的原始依据与确认记录。")
 
 
-def _render_comparison_details(view):
-    with st.expander("所有指标 · 基线与当前对比"):
+def _render_comparison_details(view, *, label="所有指标 · 基线与当前对比"):
+    with st.expander(label):
         st.markdown("**基线与当前**")
         if view.comparisons:
             rows = []

@@ -186,7 +186,9 @@ def test_chart_inventory_regression_new_role_routes_keep_shared_renderers():
     from executive_health_ai.ui.pages.manager import experience as manager
     from executive_health_ai.ui.pages.doctor import experience as doctor
     assert "render_previews(" in inspect.getsource(member.home)
-    assert "render_baseline_overview(" in inspect.getsource(member.overview)
+    from executive_health_ai.ui.pages.member.health_overview import render_member_health_overview
+    assert "render_member_health_overview(" in inspect.getsource(member.overview)
+    assert "render_baseline_progress(" in inspect.getsource(render_member_health_overview)
     assert "render_health_explorer(" in inspect.getsource(member.health_data)
     assert "render_previews(" in inspect.getsource(manager)
     assert "render_doctor_trend(" in inspect.getsource(doctor.detail)

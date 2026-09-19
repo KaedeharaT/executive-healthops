@@ -111,28 +111,8 @@ def overview(app, patient, ctx):
         return
     with SessionLocal() as session:
         view = ProductProjectionService().member(session, patient.id, health=True)
-        baseline, data = view.baseline, view.observations
-    if baseline:
-        from executive_health_ai.ui.pages.baseline_visualization import render_baseline_overview
-        render_baseline_overview(patient, baseline, session_factory=SessionLocal, key_prefix=f"member-overview-{patient.id}", view=view.health.baseline)
-    else:
-        ux.baseline_summary(baseline, data)
-    if baseline:
-        st.button("查看年度健康基线", key=f"client-health-baseline-open-{baseline.id}", type="primary", on_click=app._open_client_baseline, args=(patient.id,))
-    if not baseline or baseline.status not in {"CONFIRMED", "AMENDED"}:
-        st.subheader("当前健康变化")
-        render_health_explorer(patient.id, key=f"overview-metric-{patient.id}")
-    else:
-        st.caption("当前健康变化已呈现在上方基线趋势中；其他指标可进入健康数据查看。")
-    st.subheader("持续关注事项")
-    problems = [p for p in ctx["problems"] if p.status != "CLOSED"]
-    for problem in problems[:3]:
-        ux.work_item(problem.title, problem.description or "健康管理师正在跟进。", ux.owner(problem.owner))
-    if not problems:
-        st.caption("暂无已确认的持续关注事项。")
-    with st.expander("重要健康背景"):
-        st.caption("用药、重大病史和手术住院记录统一保存在医疗档案。")
-        app._render_client_medical_archive(patient)
+    from executive_health_ai.ui.pages.member.health_overview import render_member_health_overview
+    render_member_health_overview(app, patient, ctx, view, session_factory=SessionLocal)
 
 
 def health_data(app, patient_id):
