@@ -36,21 +36,20 @@ def approvals(app, patient_id, role="HEALTH_MANAGER"):
 
 
 def today(app):
-    ux.inject_design("manager")
-    ux.page_header("今日待处理", "先处理逾期和高优先级事项，再完成今天的安排。", "健康管理师工作台")
+    c.page_shell("manager", "今日待处理", "先处理逾期和高优先级事项，再完成今天的安排。", "健康管理师工作台")
     now = datetime.now(ux.LOCAL)
     patients = app._patient_map()
     with SessionLocal() as session:
         work = ProductProjectionService().manager(session, now)
         items = ux.sorted_work(work.items, now)
         doctor_count = len(work.pending_doctor)
-    ux.metric_row([("今天待处理", sum(i.status not in {"等待成员", "等待医生"} for i in items)), ("已逾期", sum(bool(i.due_at and ux.local_time(i.due_at) < now) for i in items)), ("等待医生", doctor_count), ("等待成员", sum(i.status == "等待成员" for i in items)), ("高优先级", sum(i.priority <= 1 for i in items))])
+    c.summary_strip(work.counts(now))
     categories = {"全部事项": None, "体检": "report_review", "风险": "risk_event", "医生": "doctor_review", "计划 / 复查": "task", "服务": "service_request", "自动跟进": "automation_approval"}
     selected = st.radio("今日事项筛选", list(categories), horizontal=True, key="manager-today-filter", label_visibility="collapsed")
     visible = [i for i in items if selected == "全部事项" or i.source_type == categories[selected] or selected == "医生" and i.status == "等待医生"]
     search = st.text_input("查找待办", placeholder="输入成员、事项或原因", key="v2-work-search")
-    visible = [i for i in visible if not search or search.lower() in (app._member_display(patients.get(i.member_id)) + i.title + i.reason).lower()]
-    st.caption("同一事项在此处理；成员详情显示依赖，完成记录进入历程。即将逾期：" + str(sum(bool(i.due_at and now <= ux.local_time(i.due_at) < now + timedelta(days=1)) for i in items)))
+    visible = [i for i in visible if not search or search.lower() in (app._member_display(patients.get(i.member_id)) + i.title + i.reason + i.next_action).lower()]
+    st.caption("今天待处理按本地日期统计；未设截止日期的事项仍保留在队列。即将逾期：" + str(sum(bool(i.due_at and now <= ux.local_time(i.due_at) < now + timedelta(days=1)) for i in items)))
     st.subheader("优先处理")
     if not visible:
         ux.empty_state("当前筛选下暂无事项", "切换类型或调整搜索查看其他待办。")
@@ -61,20 +60,18 @@ def today(app):
             st.session_state[selected_key] = next(iter(options))
         queue, inspector = st.columns([1, 1.3], gap="large")
         with queue:
-            with st.container(key="v2-list-today", height=540, border=False):
-                for item in visible[:12]:
+            with st.container(key="v2-list-today", border=False):
+                for item in visible[:6]:
                     member = patients.get(item.member_id)
                     item_key = f"{item.source_type}-{item.source_id}"
-                    title = ux.business_text(item.title)
-                    title = title[:42] + "…" if len(title) > 42 else title
-                    state = status_label(item.status, context="service_request") if item.source_type == "service_request" else status_label(item.status) if item.status in {"逾期", "今日跟进"} else item.status
-                    label = f"{app._member_display(member)} · {item.source_label}\n{title}\n{state} · {ux.due_date(item.due_at)} · {ux.business_text(item.owner)}"
-                    if st.button(label, key=f"today-select-{item_key}", width="stretch", icon=":material/arrow_right:" if item_key == st.session_state[selected_key] else ":material/subject:"):
+                    state = status_label(item.status, context="service_request") if item.source_type == "service_request" else status_label(item.status)
+                    if c.work_item_row(app._member_display(member), item.title, item.source_label + (" · 高优先级" if item.priority <= 1 else ""), state,
+                                       ux.due_date(item.due_at), key=f"today-select-{item_key}", selected=item_key == st.session_state[selected_key]):
                         st.session_state[selected_key] = item_key
                         st.rerun()
-                if len(visible) > 12:
-                    with st.expander(f"其他 {len(visible)-12} 项"):
-                        for item in visible[12:]:
+                if len(visible) > 6:
+                    with st.expander(f"其他 {len(visible)-6} 项"):
+                        for item in visible[6:]:
                             item_key = f"{item.source_type}-{item.source_id}"
                             if st.button(f"{app._member_display(patients.get(item.member_id))} · {ux.business_text(item.title)}", key=f"today-select-{item_key}", width="stretch"):
                                 st.session_state[selected_key] = item_key
@@ -84,8 +81,10 @@ def today(app):
         with inspector:
             with c.detail_panel(app._member_display(member) + " · " + item.source_label, key="today-detail"):
                 ux.status_badge(status_label(item.status, context="service_request") if item.source_type == "service_request" else status_label(item.status) if item.status in {"逾期", "今日跟进"} else item.status)
-                ux.work_item(item.title, item.reason)
+                st.markdown("### " + ux.business_text(item.title))
                 c.summary_strip([("负责人", ux.business_text(item.owner)), ("截止", ux.due_date(item.due_at)), ("优先级", "高" if item.priority <= 1 else "常规")])
+                st.markdown("**为什么需要处理**")
+                st.write(ux.business_text(item.reason))
                 ux.next_action(item.next_action, item.owner)
                 callback, args = app._open_member, (item.member_id,)
                 if item.source_type == "report_review" and item.document_id:
@@ -96,18 +95,29 @@ def today(app):
                     callback = app._open_member_service
                 elif item.route_target == "doctor_review":
                     callback, args = app.request_navigation, ()
+                action_label = {"report_review":"确认体检资料", "task":"处理当前任务", "service_request":"跟进服务", "risk_event":"处理关注事项", "automation_approval":"确认后续安排"}.get(item.source_type, "查看成员详情")
                 if item.route_target == "doctor_review":
-                    st.button("处理", key=f"today-{item.source_type}-{item.source_id}", on_click=callback,
+                    st.button("查看医生协同", key=f"today-{item.source_type}-{item.source_id}", on_click=callback,
                         kwargs={"surface": "运营后台", "ops_page": "成员", "member_id": item.member_id, "member_section": "医疗"}, type="primary")
                 else:
-                    st.button("处理", key=f"today-{item.source_type}-{item.source_id}", on_click=callback, args=args, type="primary", icon=":material/arrow_forward:")
+                    st.button(action_label, key=f"today-{item.source_type}-{item.source_id}", on_click=callback, args=args, type="primary", icon=":material/arrow_forward:")
                 if member:
                     with st.expander("成员健康背景与依据入口"):
                         with SessionLocal() as session:
-                            baseline = HealthAssessmentService().latest_baseline(session, member.id)
-                            data = ux.observations(session, member.id)
-                        ux.baseline_summary(baseline, data, compact=True)
-                        st.caption("处理后可在成员健康、体检和医疗中核对完整依据。")
+                            context = ProductProjectionService().member(session, member.id)
+                            evidence = app._risk_evidence_payload(session, member.id, item.source_id) if item.source_type == "risk_event" else None
+                        ux.baseline_summary(context.baseline, context.observations, compact=True)
+                        if evidence:
+                            ux.evidence_summary(evidence)
+                            app._render_evidence_action(evidence, key_scope=f"today-evidence-{item.source_id}")
+                        else:
+                            st.caption("原始依据随事项进入成员健康、体检或医疗详情；未展示原文不代表依据完整。")
+                        st.markdown("**之前已完成的行动**")
+                        completed = [t for t in context.tasks if t.status == "COMPLETED"]
+                        for task in completed[-3:]:
+                            st.caption(ux.business_text(task.title))
+                        if not completed:
+                            st.caption("暂无已完成行动记录。")
     with SessionLocal() as session:
         goals = list(session.scalars(select(AgentGoal).where(AgentGoal.status.in_(("ACTIVE", "WAITING", "BLOCKED"))).order_by(AgentGoal.started_at.desc()).limit(10)))
     if goals:
@@ -220,11 +230,13 @@ def member_detail(app, patient):
     with SessionLocal() as session:
         view = ProductProjectionService().member(session, patient.id, health=True)
     program, pending, baseline, rows = view.program, view.pending_doctor, view.baseline, view.observations
-    tasks = [t for t in view.tasks if t.status not in {"COMPLETED", "CANCELLED"}]
-    ux.member_summary(patient, program, tasks[0].title if tasks else "核对健康资料，确认下一阶段安排")
-    st.caption("当前周期：" + (str(baseline.cycle_year or baseline.assessed_at.year) + "年度" if baseline else "待建立年度基线") + " · 主要关注：" + ("；".join(ux.business_text(p.title) for p in ctx["problems"] if p.status != "CLOSED") or "暂无已确认关注事项"))
-    c.summary_strip([("当前阶段", app.display_program_phase(program.current_phase) if program else "待建立计划"),
-        ("医生待复核", len(pending)), ("资料更新", ux.when(rows[-1].observed_at) if rows else "暂无健康数据")])
+    tasks = view.active_tasks
+    ux.page_header(patient.display_name, "", "成员360")
+    c.summary_strip([("当前周期", view.cycle), ("当前阶段", app.display_program_phase(program.current_phase) if program else "待建立计划"),
+                     ("负责人", ux.business_text(view.owner)), ("资料更新", ux.when(max(r.observed_at for r in rows)) if rows else "暂无健康数据")])
+    focus = "；".join(ux.business_text(p.title) for p in ctx["problems"] if p.status != "CLOSED") or "暂无已确认关注事项"
+    st.caption("主要关注：" + (focus[:70] + "…" if len(focus) > 70 else focus) + f" · 医生待复核：{len(pending)}")
+    st.markdown("**下一步：** " + ux.business_text(tasks[0].title if tasks else "核对健康资料，确认下一阶段安排"))
     section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}")
     if section == "概览":
         problems = [p for p in ctx["problems"] if p.status != "CLOSED"]
@@ -237,7 +249,7 @@ def member_detail(app, patient):
         with right:
             with c.section("当前管理", key="360-status"):
                 st.write(ux.business_text(program.main_goal) if program else "尚未建立计划")
-                st.caption("主要关注：" + ("；".join(ux.business_text(p.title) for p in problems[:3]) or "暂无已确认关注事项"))
+                st.caption("开放事项：" + str(len(tasks)) + " · 医生待复核：" + str(len(pending)))
                 with SessionLocal() as session:
                     recent = session.execute(select(ServiceRequest, ServiceCatalogItem).join(ServiceCatalogItem, ServiceRequest.service_item_id == ServiceCatalogItem.id).where(ServiceRequest.patient_id == patient.id).order_by(ServiceRequest.requested_at.desc()).limit(1)).first()
                 st.markdown("**近期服务**")
@@ -249,18 +261,21 @@ def member_detail(app, patient):
                     st.caption("暂无服务安排；可从服务工作台安排。")
         with st.expander("年度健康基线摘要"):
             ux.baseline_summary(baseline, rows, compact=True)
-        cols = st.columns(3)
-        for col, label, target in zip(cols, ["查看完整健康历程", "建立 / 调整计划", "医生协同"], ["历程", "管理", "医疗"]):
-            col.button(label, key=f"ux-overview-{target}-{patient.id}", on_click=app.request_navigation, kwargs={"surface": "运营后台", "ops_page": "成员", "member_id": patient.id, "member_section": target})
+        if st.button("处理下一步", key=f"360-next-{patient.id}", type="primary"):
+            app.request_navigation(surface="运营后台", ops_page="成员", member_id=patient.id, member_section="管理")
+        with c.secondary_details("管理快捷操作"):
+            cols = st.columns(3)
+            for col, label, target in zip(cols, ["查看完整健康历程", "建立 / 调整计划", "医生协同"], ["历程", "管理", "医疗"]):
+                col.button(label, key=f"ux-overview-{target}-{patient.id}", on_click=app.request_navigation, kwargs={"surface": "运营后台", "ops_page": "成员", "member_id": patient.id, "member_section": target})
+            quick = st.columns(2)
+            for col, label in zip(quick, ["安排随访", "记录阶段结果"]):
+                if col.button(label, key=f"360-quick-{label}-{patient.id}"):
+                    st.session_state[f"ux-management-{patient.id}"] = label
+                    app.request_navigation(surface="运营后台", ops_page="成员", member_id=patient.id, member_section="管理")
         with st.expander("处理开放中的健康关注事项"):
             app._render_current_risk_actions(patient)
         with st.expander("近期服务"):
             app.render_member_service_management(patient)
-        quick = st.columns(2)
-        for col, label in zip(quick, ["安排随访", "记录阶段结果"]):
-            if col.button(label, key=f"360-quick-{label}-{patient.id}"):
-                st.session_state[f"ux-management-{patient.id}"] = label
-                app.request_navigation(surface="运营后台", ops_page="成员", member_id=patient.id, member_section="管理")
     elif section == "健康":
         app.render_member_archive(patient)
     elif section == "管理":

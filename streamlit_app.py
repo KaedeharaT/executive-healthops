@@ -3655,33 +3655,34 @@ def _render_knowledge_service_integration() -> None:
     columns[0].caption(f"{local_count} 份已审核资料")
     columns[1].metric("合作方知识服务", "已配置，待测试" if partner_ready else "未配置")
     columns[1].caption("必须返回标题、来源、机构和版本")
-    with st.form("integration-knowledge-form"):
-        partner_address = st.text_input("服务地址", value=os.getenv("KNOWLEDGE_API_BASE", ""))
-        partner_key = st.text_input(
-            "API Key", value="", type="password",
-            placeholder="已配置" if os.getenv("KNOWLEDGE_API_KEY") else "未配置",
-        )
-        test_partner = st.form_submit_button("测试连接")
-    if test_partner:
-        st.session_state["integration-tested-专业知识服务"] = ux.when(datetime.now(TOKYO_TIMEZONE)) + " · 已测试，结果见下方"
-        if not partner_address.strip():
-            st.warning("专业知识服务暂不可用；内部规范仍可使用。")
-        else:
-            try:
-                results = ExternalPartnerKnowledgeAdapter(
-                    api_base=partner_address.strip(),
-                    api_key=partner_key or os.getenv("KNOWLEDGE_API_KEY", ""),
-                ).search("高血压健康教育", category="PATIENT_EDUCATION", audience="MEMBER", top_k=1)
-                if results:
-                    result = results[0]
-                    st.success("连接正常。")
-                    st.write(f"{result.title} · {result.organization} · {result.version}")
-                    st.caption(result.source_name)
-                else:
-                    st.warning("服务已连接，但固定测试查询没有返回可引用资料。")
-            except KnowledgeAdapterError:
-                LOGGER.exception("partner knowledge health check failed")
+    with st.expander("合作方连接设置", expanded=False):
+        with st.form("integration-knowledge-form"):
+            partner_address = st.text_input("服务地址", value=os.getenv("KNOWLEDGE_API_BASE", ""))
+            partner_key = st.text_input(
+                "API Key", value="", type="password",
+                placeholder="已配置" if os.getenv("KNOWLEDGE_API_KEY") else "未配置",
+            )
+            test_partner = st.form_submit_button("测试连接")
+        if test_partner:
+            st.session_state["integration-tested-专业知识服务"] = ux.when(datetime.now(TOKYO_TIMEZONE)) + " · 已测试，结果见下方"
+            if not partner_address.strip():
                 st.warning("专业知识服务暂不可用；内部规范仍可使用。")
+            else:
+                try:
+                    results = ExternalPartnerKnowledgeAdapter(
+                        api_base=partner_address.strip(),
+                        api_key=partner_key or os.getenv("KNOWLEDGE_API_KEY", ""),
+                    ).search("高血压健康教育", category="PATIENT_EDUCATION", audience="MEMBER", top_k=1)
+                    if results:
+                        result = results[0]
+                        st.success("连接正常。")
+                        st.write(f"{result.title} · {result.organization} · {result.version}")
+                        st.caption(result.source_name)
+                    else:
+                        st.warning("服务已连接，但固定测试查询没有返回可引用资料。")
+                except KnowledgeAdapterError:
+                    LOGGER.exception("partner knowledge health check failed")
+                    st.warning("专业知识服务暂不可用；内部规范仍可使用。")
     st.caption("知识数据包需包含资料名称、来源机构、版本或日期以及内容；缺少来源的资料不能正式启用。")
     knowledge_package = st.file_uploader("上传知识包（可选）", type=["zip"], key="integration-knowledge-package")
     if knowledge_package and st.button("检查知识包", key="integration-knowledge-package-inspect"):
@@ -4383,12 +4384,12 @@ def render_member_detail(patient):
 
 def render_member_archive(patient: Patient) -> None:
     """Health overview plus retained detail views; timeline stays first-level."""
-    _section_header("健康")
     key = f"member-health-view-{patient.id}"
     views = ["概览", "数据", "体检", "基线", "健康史"]
     if st.session_state.get(key) not in views:
         st.session_state[key] = "概览"
-    view = st.radio("成员健康内容", views, horizontal=True, label_visibility="collapsed", key=key)
+    with st.popover("健康资料与其他视图"):
+        view = st.radio("成员健康内容", views, key=key, format_func=lambda x: {"概览":"健康概览", "数据":"健康数据", "体检":"体检与检查", "基线":"年度基线详情", "健康史":"健康档案"}.get(x, x))
     if view == "概览":
         from executive_health_ai.services.product_projection import ProductProjectionService
         from executive_health_ai.ui.pages.baseline_visualization import render_baseline_overview
@@ -5756,7 +5757,7 @@ def _render_client_service(patient: Patient, ctx: dict[str, list[object]]) -> No
         operations = MemberServiceOperations(); plan = operations.ensure_demo_plan(session, patient.id); session.commit()
         services = operations.member_services(session, patient.id)
         requests = list(session.scalars(select(ServiceRequest).where(ServiceRequest.patient_id == patient.id).order_by(ServiceRequest.requested_at.desc()).limit(30)))
-    view = st.radio("服务内容", ["我的申请", "可用服务", "服务记录"], horizontal=True, label_visibility="collapsed", key=f"client-service-view-{patient.id}")
+    view = st.radio("服务内容", ["我的申请", "可用服务", "服务记录"], horizontal=True, label_visibility="collapsed", key=f"client-service-view-{patient.id}", format_func=lambda x: {"我的申请":"正在进行", "服务记录":"历史服务"}.get(x, x))
     names = {item.id: item.name for item, _ in services}
     if view != "可用服务":
         rows = [item for item in requests if item.status not in {"COMPLETED", "CANCELLED"}] if view == "我的申请" else [item for item in requests if item.status in {"COMPLETED", "CANCELLED"}]
@@ -5769,7 +5770,7 @@ def _render_client_service(patient: Patient, ctx: dict[str, list[object]]) -> No
                 st.session_state[selected_key] = str(rows[0].id)
             left, right = st.columns([1, 1.3], gap="large")
             with left:
-                for request in rows[:12]:
+                for request in rows:
                     if secondary_action(f"{names.get(request.service_item_id, '会员服务')} · {_label(request.status, context='service_request')}", key=f"client-service-select-{request.id}"):
                         st.session_state[selected_key] = str(request.id); st.rerun()
             selected = next(item for item in rows if str(item.id) == st.session_state[selected_key])
@@ -5919,10 +5920,13 @@ def _render_client_health_overview(patient, ctx):
 def _render_client_checkup_page(patient: Patient) -> None:
     """Report list and selected report live on the same second-level health page."""
     from executive_health_ai.ui.pages.health_visualization import render_report_trends
-    render_report_trends(patient.id, key=f"member-report-trend-{patient.id}")
-    left, right = st.columns([1, 1.7], gap="large")
     with SessionLocal() as session:
         documents = list(session.scalars(select(Document).where(Document.patient_id == patient.id).order_by(Document.created_at.desc()).limit(20)))
+    if documents:
+        st.markdown("**最近报告 · " + _source_display_name(documents[0], "体检报告") + "**")
+        st.caption("选择报告查看重要发现、人工确认进度与原文依据。")
+    render_report_trends(patient.id, key=f"member-report-trend-{patient.id}")
+    left, right = st.columns([1, 1.7], gap="large")
     with left:
         with section_frame("体检报告", "上传、选择历史报告或比较变化。"):
             if not documents:

@@ -173,8 +173,9 @@ def test_key_role_actions_reachable_in_at_most_three_activations():
         click(app,'去完成')  # 2
         assert any(b.label=='确认完成' for b in app.button)  # 3 would submit
     radio(app,'当前视图','运营后台');radio(app,'工作区','今日')  # 1
-    if any(b.label=='处理' for b in app.button):
-        click(app,'处理')  # 2
+    action = next((b for b in app.button if str(b.key).startswith('today-') and not str(b.key).startswith('today-select-')), None)
+    if action:
+        click(app,action.label)  # 2
         assert not app.exception
     radio(app,'当前视图','医生工作台')
     assert any(r.label=='复核工作' for r in app.radio)

@@ -3,11 +3,13 @@
 Build once per page run/session, never cache detached ORM instances across runs.
 """
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from sqlalchemy import select
 
 from executive_health_ai.models import (
     Alert, AgentApprovalRequest, AgentGoal, DoctorReview, HealthAssessment,
-    HealthProgram, Observation, ServiceRequest, Task,
+    HealthProgram, Observation, ServiceRequest, Task, OutcomeEvaluation, HealthProblem, MedicationPlan,
 )
 from executive_health_ai.services.longitudinal import HealthAssessmentService
 from executive_health_ai.services.health_visualization import HealthVisualizationService
@@ -60,16 +62,58 @@ class Member360View:
     baseline: object
     observations: tuple
     health: HealthStatusView | None
+    outcomes: tuple = ()
 
     @property
     def owner(self):
         return self.program.owner if self.program and self.program.owner else "待确认"
+
+    @property
+    def active_tasks(self):
+        return tuple(t for t in self.tasks if t.status not in {"COMPLETED", "CANCELLED"})
+
+    @property
+    def member_actions(self):
+        return tuple(t for t in self.active_tasks if t.responsible_role == "member")
+
+    @property
+    def current_outcomes(self):
+        return tuple(o for o in self.outcomes if self.program and o.program_id == self.program.id)
+
+    @property
+    def historical_outcomes(self):
+        return tuple(o for o in self.outcomes if not self.program or o.program_id != self.program.id)
+
+    @property
+    def cycle(self):
+        return f"{self.baseline.cycle_year or self.baseline.assessed_at.year}年度健康管理" if self.baseline else "年度周期待确认"
 
 
 @dataclass(frozen=True)
 class ManagerWorkView:
     items: tuple
     pending_doctor: tuple
+
+    def counts(self, now):
+        local = ZoneInfo("Asia/Tokyo")
+        now = now.astimezone(local)
+        def due(item):
+            at = item.due_at
+            return (at.replace(tzinfo=timezone.utc) if at and at.tzinfo is None else at).astimezone(local) if at else None
+        waiting = {"等待成员", "等待医生", "WAITING_MEMBER", "WAITING_DOCTOR"}
+        return (("今天待处理", sum(i.status not in waiting and due(i) is not None and due(i).date() == now.date() for i in self.items)),
+                ("已逾期", sum(due(i) is not None and due(i) < now for i in self.items)),
+                ("等待医生", len(self.pending_doctor)),
+                ("等待成员", sum(i.status in {"等待成员", "WAITING_MEMBER"} for i in self.items)),
+                ("高优先级", sum(i.priority <= 1 for i in self.items)))
+
+
+@dataclass(frozen=True)
+class DoctorReviewView:
+    member: Member360View
+    problem: object
+    medications: tuple
+    completed_actions: tuple
 
 
 class ProductProjectionService:
@@ -85,7 +129,14 @@ class ProductProjectionService:
             tuple(session.scalars(select(ServiceRequest).where(ServiceRequest.patient_id == patient_id).order_by(ServiceRequest.requested_at.desc()))),
             tuple(pending_doctor_work(session, patient_id)), baseline,
             tuple(observations(session, patient_id)),
-            self.health(session, patient_id, cycle_year=baseline.cycle_year if baseline else None) if health else None)
+            self.health(session, patient_id, cycle_year=baseline.cycle_year if baseline else None) if health else None,
+            tuple(session.scalars(select(OutcomeEvaluation).where(OutcomeEvaluation.patient_id == patient_id).order_by(OutcomeEvaluation.evaluation_date.desc()))))
+
+    def doctor(self, session, review):
+        member = self.member(session, review.patient_id)
+        return DoctorReviewView(member, session.get(HealthProblem, review.health_problem_id) if review.health_problem_id else None,
+            tuple(session.scalars(select(MedicationPlan).where(MedicationPlan.patient_id == review.patient_id))),
+            tuple(sorted((t for t in member.tasks if t.status == "COMPLETED"), key=lambda t: t.created_at, reverse=True)))
 
     def manager(self, session, now):
         items = OperationalWorklistService().list_items(session, now)

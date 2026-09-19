@@ -73,11 +73,11 @@ def test_manager_selection_changes_inspector_and_keeps_processing_entry():
     entries[-1].click(); app.run(timeout=30)
     assert not app.exception
     selected = app.session_state["v2-work-selected"]
-    assert any(b.key == "today-" + selected and b.label == "处理" for b in app.button)
+    assert any(b.key == "today-" + selected and b.label in {"确认体检资料", "处理当前任务", "跟进服务", "处理关注事项", "确认后续安排", "查看成员详情", "查看医生协同"} for b in app.button)
     next(x for x in app.text_input if x.label == "查找待办").set_value("__no_matching_member__")
     app.run(timeout=30)
     assert any("当前筛选下暂无事项" in c.value for c in app.caption)
-    assert not any(b.label == "处理" for b in app.button)
+    assert not any(str(b.key).startswith("today-") for b in app.button)
 
 
 def test_360_quick_actions_open_original_management_forms():
@@ -94,6 +94,7 @@ def test_360_quick_actions_open_original_management_forms():
 def test_admin_all_integrations_rules_system_and_legacy_tools_are_accessible():
     app = AppTest.from_file(APP).run(timeout=30)
     radio(app, "当前视图", "系统管理")
+    radio(app, "系统", "集成与数据")
     for key in ["integration-open-ai", "integration-open-knowledge", "integration-open-device", "integration-open-data"]:
         next(b for b in app.button if b.key == key).click(); app.run(timeout=30)
         assert not app.exception

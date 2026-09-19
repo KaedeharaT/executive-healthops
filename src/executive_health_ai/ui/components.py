@@ -4,6 +4,50 @@ from html import escape
 import streamlit as st
 
 
+def page_shell(role, title, description="", eyebrow=""):
+    """One role density and heading contract; no page-local CSS."""
+    from executive_health_ai.ui import experience as ux
+    ux.inject_design(role)
+    ux.page_header(title, description, eyebrow)
+
+
+def section_header(title, description=""):
+    st.subheader(title)
+    if description:
+        st.caption(description)
+
+
+def secondary_details(title):
+    return st.expander(title, expanded=False)
+
+
+def advanced_details(title="高级信息"):
+    return st.expander(title, expanded=False)
+
+
+def comparison_rows(comparisons, maximum=3):
+    """Compact baseline/current facts above selectors, with full detail retained."""
+    from executive_health_ai.services.baseline_visualization import number_text
+    rows = []
+    priority = {code: i for i, code in enumerate(("weight", "ldl_c", "hba1c", "systolic_bp", "diastolic_bp", "bmi"))}
+    ordered = sorted(comparisons, key=lambda item: priority.get(item.code, 99))
+    for item in ordered[:maximum]:
+        values = (item.label, f"{number_text(item.baseline)} {item.unit}",
+                  f"{number_text(item.current)} {item.unit}" if item.delta is not None else "暂无后续数据", item.delta_text)
+        rows.append("<tr>" + "".join(f"<td>{escape(str(v))}</td>" for v in values) + "</tr>")
+    if rows:
+        st.markdown("<div class='v3-comparison'><table><thead><tr><th>指标</th><th>年度基线</th><th>当前</th><th>数值变化</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>", unsafe_allow_html=True)
+
+
+def work_item_row(member, title, kind, state, due, *, key, selected=False):
+    """Selection only. The business command lives in the adjacent detail panel."""
+    from executive_health_ai.ui.experience import business_text
+    title = business_text(title)
+    short = title[:28] + "…" if len(title) > 28 else title
+    label = f"{member} · {kind}\n{short}\n{state} · {due}"
+    return st.button(label, key=key, width="stretch", icon=":material/arrow_right:" if selected else ":material/subject:")
+
+
 @contextmanager
 def section(title, *, key, description="", emphasis=False):
     with st.container(key=f"v2-{'hero' if emphasis else 'panel'}-{key}"):

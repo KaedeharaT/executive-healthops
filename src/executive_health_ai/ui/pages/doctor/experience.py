@@ -16,20 +16,27 @@ def detail(app, patient, review, *, read_only=False):
     st.subheader("需要医生判断的问题")
     st.write(ux.business_text(review.question_for_doctor or "请核实本次健康变化是否需要进一步医学评估。"))
     st.caption(f"{patient.display_name} · 提交于 {ux.when(review.created_at)} · {'已完成' if review.status != 'PENDING' else '待我复核'}")
-    clinical, decision = st.columns([1.55, 1], gap="large")
+    st.caption("为什么现在：这项医学问题已由健康管理团队提交，需要人工判断后才能继续安排。")
+    clinical, decision = st.container(), st.container()
     with clinical:
         with st.container(key="v2-context-doctor"):
             with SessionLocal() as session:
-                problem = session.get(HealthProblem, review.health_problem_id)
-                context = ProductProjectionService().member(session, patient.id)
+                review_view = ProductProjectionService().doctor(session, review)
+                problem, context = review_view.problem, review_view.member
                 baseline = HealthAssessmentService().latest_baseline(session, patient.id, include_draft=False)
                 data = context.observations
-                meds = list(session.scalars(select(MedicationPlan).where(MedicationPlan.patient_id == patient.id)))
-                tasks = list(session.scalars(select(Task).where(Task.patient_id == patient.id, Task.status == "COMPLETED").order_by(Task.created_at.desc()).limit(3)))
+                meds, tasks = review_view.medications, review_view.completed_actions
                 payload = app._risk_evidence_payload(session, patient.id, review.risk_event_id) if review.risk_event_id else {"raw_evidence": None, "source_name": "阶段结果提交资料"}
+            c.section_header("关键背景与趋势")
             if problem:
                 st.caption("关联关注事项：" + ux.business_text(problem.title))
-            with st.expander("关键成员背景与提交摘要", expanded=True):
+            brief = ux.business_text(review.doctor_brief or "资料待补充，请联系健康管理师。")
+            st.write(brief[:120] + ("…" if len(brief) > 120 else ""))
+            from executive_health_ai.ui.pages.health_visualization import render_doctor_trend
+            render_doctor_trend(patient.id, review)
+            c.section_header("本次判断的依据")
+            ux.evidence_summary(payload)
+            with c.secondary_details("关键成员背景与提交摘要"):
                 st.write(ux.business_text(review.doctor_brief or "资料待补充，请联系健康管理师。"))
             with st.expander("重要健康背景与年度基线"):
                 if baseline:
@@ -42,17 +49,16 @@ def detail(app, patient, review, *, read_only=False):
                     st.caption("手术 / 住院：" + ("；".join(events) or "暂无已确认资料"))
                 else:
                     st.caption("尚无已确认年度基线；缺少记录不代表没有既往病史。")
-            with st.expander("关键指标", expanded=True):
+            with c.secondary_details("全部关键指标记录"):
                 latest = {row.metric_code: row for row in data}
                 priority = ["systolic_bp", "diastolic_bp", "hba1c", "ldl_c", "weight"]
                 ordered = [latest[code] for code in priority if code in latest] + [r for code, r in latest.items() if code not in priority]
-                ux.metric_row([(ux.metric_name(r.metric_code), f"{float(r.value_numeric):g} {r.unit}") for r in ordered[:4]])
-            from executive_health_ai.ui.pages.health_visualization import render_doctor_trend
-            render_doctor_trend(patient.id, review)
-            ux.evidence_summary(payload)
+                st.dataframe([{"指标": ux.metric_name(r.metric_code), "当前记录": float(r.value_numeric), "单位": r.unit, "记录时间": ux.when(r.observed_at)} for r in ordered], hide_index=True, width="stretch")
             with st.expander("完整资料位置与核对信息"):
                 app._render_evidence_action(payload, key_scope=f"ux-doctor-evidence-{review.id}")
-            with st.expander("当前用药", expanded=True):
+            with c.secondary_details("用药与健康问题摘要"):
+                if problem:
+                    st.write(ux.business_text(problem.title))
                 st.caption("当前用药：" + ("；".join(f"{r.drug_name} {r.dose or ''}{r.dose_unit or ''}" for r in meds if r.status.lower() == "active") or "暂无已确认记录"))
             with st.expander("已采取行动"):
                 for task in tasks:
@@ -64,7 +70,7 @@ def detail(app, patient, review, *, read_only=False):
             if review.status != "PENDING":
                 st.subheader("医生结论")
                 st.write(ux.business_text(review.opinion or "已完成复核，意见待补充。"))
-                ux.next_action("健康管理师执行医生建议，并记录随访结果", "健康管理师")
+                ux.next_action("健康管理师执行医生建议，并记录随访结果", context.owner)
                 return
             if read_only:
                 ux.next_action("等待医生完成医学复核，之后由健康管理师跟进", review.doctor_name if review.doctor_name != "待分配医生" else "内部医生")
@@ -92,8 +98,7 @@ def detail(app, patient, review, *, read_only=False):
 
 
 def workspace(app, members, *, patient=None, read_only=False):
-    ux.inject_design("doctor")
-    ux.page_header("医学复核" if read_only else "待我复核", "明确问题、核对依据，判断后由健康管理师执行。", "医疗协同" if read_only else "医生工作台")
+    c.page_shell("doctor", "医学复核" if read_only else "待我复核", "明确问题、核对依据，判断后由健康管理师执行。", "医疗协同" if read_only else "医生工作台")
     if message := st.session_state.pop("doctor-flash", None):
         st.success(message)
     with SessionLocal() as session:
@@ -108,7 +113,7 @@ def workspace(app, members, *, patient=None, read_only=False):
         approval_members = list(dict.fromkeys(session.scalars(approval_query)))
     c.summary_strip([("待复核", len(pending)), ("已完成", len(completed)), ("执行交接", "医生判断 → 健管跟进")])
     queue_filter, queue_selection = st.columns([1, 2.8])
-    mode = queue_filter.radio("复核工作", ["待复核", "已完成"], horizontal=True, key=f"ux-doctor-mode-{patient.id if patient else 'all'}")
+    mode = queue_filter.radio("复核工作", ["待复核", "已完成"], horizontal=True, format_func=lambda value: "待我复核" if value == "待复核" else "历史", key=f"ux-doctor-mode-{patient.id if patient else 'all'}")
     rows = pending if mode == "待复核" else completed
     people = {m.id: m for m in members}
     if patient:

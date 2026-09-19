@@ -42,68 +42,66 @@ def _complete(task):
 
 
 def home(app, patient, ctx):
-    ux.inject_design("member")
-    ux.page_header("今日健康", f"{patient.display_name}，你的行动与进展。", "持续健康管理")
+    c.page_shell("member", "今日健康", f"{patient.display_name}，今天先处理最重要的一件事。", "持续健康管理")
     if message := st.session_state.pop("ux-flash", None):
         st.success(message)
     with SessionLocal() as session:
         view = ProductProjectionService().member(session, patient.id, health=True)
         goal = app._active_agent_goal(session, patient.id)
         people = care_team_context(session, patient.id)
-    program, requests = view.program, view.services
-    tasks = [r for r in view.tasks if r.status not in {"COMPLETED", "CANCELLED"} and r.responsible_role == "member"]
-    with st.container():
-        with c.section("今天最重要的事情", key="member-action", emphasis=True):
-            if tasks:
-                task = tasks[0]
-                st.markdown("### " + ux.business_text(task.title))
-                st.caption(f"{ux.due_date(task.due_at)} · {ux.owner(task.assignee or '成员本人')}")
-                if st.button("去完成", key=f"client-home-complete-{task.id}", type="primary", icon=":material/arrow_forward:"):
-                    st.session_state[f"ux-task-{patient.id}"] = str(task.id)
-                    app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
-                with st.expander("查看原因与完成说明"):
-                    st.write(ux.business_text(task.instruction))
-            else:
-                ux.empty_state("今天没有待完成任务", "健康管理师会在这里更新下一步。")
-    upcoming = ux.upcoming_service(requests)
-    c.summary_strip([("当前周期", f"{datetime.now(ux.LOCAL).year}年度健康管理"),
-        ("管理阶段", app.display_program_phase(program.current_phase) if program else "待建立计划"),
-        ("负责人", ux.business_text(view.owner))])
-    with c.section("近期变化", key="home-trends"):
-        render_previews(patient.id, key=f"home-trends-{patient.id}", maximum=2, series=view.health.series,
+    program, tasks = view.program, view.member_actions
+    upcoming = ux.upcoming_service(view.services)
+    with c.section("今天需要你完成", key="member-action", emphasis=True):
+        if tasks:
+            task = tasks[0]
+            st.markdown("### " + ux.business_text(task.title))
+            reason = ux.business_text(task.instruction or "完成后由健康管理师核对，并安排下一步。")
+            st.write(reason[:70] + ("…" if len(reason) > 70 else ""))
+            st.caption(f"{ux.due_date(task.due_at)} · {ux.owner(task.assignee or '成员本人')}")
+            if st.button("去完成", key=f"client-home-complete-{task.id}", type="primary", icon=":material/arrow_forward:"):
+                st.session_state[f"ux-task-{patient.id}"] = str(task.id)
+                app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
+            with c.secondary_details("查看原因与完成说明"):
+                st.write(reason)
+            if len(tasks) > 1:
+                with c.secondary_details("其他今日行动"):
+                    for task in tasks[1:3]:
+                        ux.work_item(task.title, "", ux.due_date(task.due_at))
+                        if st.button("去完成", key=f"client-home-complete-{task.id}"):
+                            st.session_state[f"ux-task-{patient.id}"] = str(task.id)
+                            app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
+        else:
+            ux.empty_state("目前无需你操作", f"下一步由{ux.business_text(view.owner)}跟进。")
+            if not view.baseline and st.button("上传体检报告", key=f"client-home-report-empty-{patient.id}", type="primary"):
+                app._open_member_report_upload(patient.id)
+    with c.section("当前管理", key="member-management"):
+        c.summary_strip([("管理周期", view.cycle), ("当前阶段", app.display_program_phase(program.current_phase) if program else "待建立计划"),
+                         ("负责人", ux.business_text(view.owner))])
+        next_task = next((t for t in view.active_tasks if t.due_at and ux.local_time(t.due_at) >= datetime.now(ux.LOCAL)), None)
+        st.caption((app._label(program.status) + " · " if program else "") + "下一节点：" + (ux.when(next_task.due_at) + " · " + ux.business_text(next_task.title) if next_task else "由负责人确认下一次安排"))
+        with c.secondary_details("当前管理进展与下一步"):
+            ux.next_action(tasks[0].title if tasks else "等待健康管理师更新下次复盘安排", view.owner)
+            if goal:
+                st.caption("持续管理状态：" + ux.business_text(goal.current_stage) + " · " + ux.business_text(goal.next_action or "负责人将更新下一步"))
+            if st.button("查看健康计划", key=f"client-home-plan-{patient.id}"):
+                app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
+            if st.button("上传体检报告", key=f"client-home-report-{patient.id}"):
+                app._open_member_report_upload(patient.id)
+    with c.section("最近变化", key="home-trends"):
+        render_previews(patient.id, key=f"home-trends-{patient.id}", maximum=2, series=view.health.series, shared_action=True,
             open_trend=lambda: app.request_navigation(surface="成员健康中心", member_page="健康", member_id=patient.id, archive_view="健康数据"))
-    with st.container(key="v2-context-care-team"):
-        c.care_team(people)
-    with st.expander("下一服务与重要节点", expanded=bool(upcoming)):
+        with c.secondary_details("其他健康数据"):
+            if st.button("查看健康数据", key=f"client-home-data-{patient.id}"):
+                app.request_navigation(surface="成员健康中心", member_page="健康", member_id=patient.id, archive_view="健康数据")
+    with c.section("近期安排与健康团队", key="home-team"):
         if upcoming:
             ux.next_action(upcoming.next_action or "按约定时间参加服务", upcoming.assigned_manager)
             st.caption("下次服务 · 已预约：" + ux.when(upcoming.scheduled_at))
         else:
             st.caption("暂无已安排的未来服务；复查与随访节点在计划中查看。")
-    if len(tasks) > 1:
-        with st.expander("其他今日行动"):
-            for task in tasks[:3][1:]:
-                ux.work_item(task.title, task.instruction, f"{ux.due_date(task.due_at)} · {ux.owner(task.assignee or '成员本人')}")
-                if st.button("去完成", key=f"client-home-complete-{task.id}"):
-                    st.session_state[f"ux-task-{patient.id}"] = str(task.id)
-                    app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
-    with st.expander("当前管理进展与下一步"):
-        if program:
-            st.write(f"**{ux.business_text(program.title)}** · {app._label(program.status)}")
-            ux.next_action(tasks[0].title if tasks else "等待健康管理师更新下次复盘安排", program.owner)
-        else:
-            ux.next_action("上传最近体检报告，建立年度健康基线", "健康管理团队")
-        if goal:
-            st.caption("持续管理状态：" + ux.business_text(goal.current_stage) + " · " + ux.business_text(goal.next_action or "负责人将更新下一步"))
-        if upcoming:
-            st.caption(f"下次服务：{ux.when(upcoming.scheduled_at)} · {ux.owner(upcoming.assigned_manager)}")
-    cols = st.columns(3)
-    if cols[0].button("查看健康计划", key=f"client-home-plan-{patient.id}"):
-        app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
-    if cols[1].button("查看健康数据", key=f"client-home-data-{patient.id}"):
-        app.request_navigation(surface="成员健康中心", member_page="健康", member_id=patient.id, archive_view="健康数据")
-    if cols[2].button("上传体检报告", key=f"client-home-report-{patient.id}"):
-        app._open_member_report_upload(patient.id)
+        if st.button("查看服务安排", key=f"client-home-service-{patient.id}"):
+            app.request_navigation(surface="成员健康中心", member_page="服务", member_id=patient.id)
+        c.care_team(people)
 
 
 def overview(app, patient, ctx):
@@ -138,7 +136,7 @@ def overview(app, patient, ctx):
 
 
 def health_data(app, patient_id):
-    ux.page_header("健康数据", "选择指标与时间范围，查看记录来源和变化。")
+    c.section_header("健康数据", "选择指标与时间范围，查看记录来源和变化。")
     render_health_explorer(patient_id)
 
 
@@ -147,6 +145,7 @@ def plan(app, patient, ctx):
     with SessionLocal() as session:
         view = ProductProjectionService().member(session, patient.id)
     program, tasks = view.program, list(view.tasks)
+    current_outcomes, historical_outcomes = view.current_outcomes, view.historical_outcomes
     program_names = {p.id: ux.business_text(p.title) for p in view.programs}
     if program:
         st.subheader(ux.business_text(program.title))
@@ -165,7 +164,8 @@ def plan(app, patient, ctx):
                 st.success("已记录，健康管理师将跟进您的选择。")
     else:
         ux.empty_state("暂无当前计划", "健康管理师会和您确认目标及行动。")
-    st.caption("管理顺序：目标 → 当前计划 → 执行任务 → 复查节点 → 阶段结果")
+    phase = app.display_program_phase(program.current_phase) if program else "待建立计划"
+    c.workflow(list(dict.fromkeys(["建立基线", phase, "阶段复盘"])), phase)
     actions, progress = st.columns([1.7, 1], gap="large")
     with actions:
         view = st.radio("任务分类", ["待完成", "等待他人", "已完成"], horizontal=True, key=f"client-plan-view-{patient.id}")
@@ -192,12 +192,15 @@ def plan(app, patient, ctx):
             st.caption(" · ".join(f"{ux.when(t.due_at)} {ux.business_text(t.title)}" for t in future[:3]) or "暂无新的未来节点；逾期事项请联系负责人重新安排。")
             st.subheader("阶段结果")
             st.caption("仅记录观察到的前后变化，不将变化归因于某项干预。")
-            with SessionLocal() as session:
-                outcomes = list(session.scalars(select(OutcomeEvaluation).where(OutcomeEvaluation.patient_id == patient.id).order_by(OutcomeEvaluation.evaluation_date.desc()).limit(5)))
-            for outcome in outcomes:
+            for outcome in current_outcomes:
                 ux.work_item(ux.metric_name(outcome.metric), f"{outcome.baseline_value} → {outcome.current_value} {outcome.unit}", f"{ux.when(outcome.evaluation_date)} · {app._label(outcome.result)} · {'当前计划' if program and outcome.program_id == program.id else program_names.get(outcome.program_id, '历史计划')}")
-            if not outcomes:
-                st.caption("阶段复盘后，确认的结果会显示在这里。")
+            if not current_outcomes:
+                st.caption("当前计划尚未记录阶段结果。完成复盘后会显示在这里。")
+            with c.secondary_details("历史计划与阶段结果"):
+                for outcome in historical_outcomes:
+                    ux.work_item(program_names.get(outcome.program_id, "历史计划") + " · " + ux.metric_name(outcome.metric), f"{outcome.baseline_value} → {outcome.current_value} {outcome.unit}", ux.when(outcome.evaluation_date))
+                if not historical_outcomes:
+                    st.caption("暂无历史阶段结果。")
 
 
 def timeline(app: TimelineAdapter, patient, *, client_view=True):

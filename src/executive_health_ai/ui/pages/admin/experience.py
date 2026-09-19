@@ -8,8 +8,7 @@ from executive_health_ai.ui import experience as ux
 from executive_health_ai.ui import components as c
 
 
-def integrations(app):
-    ux.page_header("集成与数据", "先确认连接状态，再检查或测试；配置不等于连接成功。", "系统")
+def integration_statuses():
     settings = LocalLLMSettings.from_environment()
     rows = [
         ("数据导入", "可用", "检查 → 预览 → 人工确认 → 正式写入", "数据导入"),
@@ -17,6 +16,12 @@ def integrations(app):
         ("专业知识服务", "合作方已配置，待测试" if os.getenv("KNOWLEDGE_API_BASE") else "未连接合作方", "已审核内部规范可单独使用", "专业知识服务"),
         ("设备接入", "3个模拟适配器 / 0个已验证真实连接", "批量导入可用；接口不代表真实连接", "设备接入"),
     ]
+    return rows
+
+
+def integrations(app):
+    ux.page_header("集成与数据", "先确认连接状态，再检查或测试；配置不等于连接成功。", "系统")
+    rows = integration_statuses()
     c.summary_strip([("数据导入", "可用"), ("AI服务", rows[1][1]), ("专业知识", rows[2][1]), ("真实设备连接", "0个已验证")])
     catalog, config = st.columns([1, 1.8], gap="large")
     with catalog:
@@ -28,8 +33,13 @@ def integrations(app):
                 if action.button("检查", key={"数据导入":"integration-open-data", "AI服务":"integration-open-ai", "专业知识服务":"integration-open-knowledge", "设备接入":"integration-open-device"}[mode]):
                     st.session_state["integration-center-mode"] = mode
                 st.caption("最后测试：" + st.session_state.get(f"integration-tested-{mode}", "暂无本次会话测试"))
-    mode = st.session_state.get("integration-center-mode", "数据导入")
+    mode = st.session_state.get("integration-center-mode")
     with config:
+        if not mode:
+            with c.section("选择需要检查的连接", key="integration-config-empty"):
+                st.write("先看左侧状态，选择“检查”后再配置或测试。")
+                st.caption("配置存在不代表连接成功；测试结果和最后同步在对应详情中查看。")
+            return
         with c.section(mode, key="integration-config", description=next(row[2] for row in rows if row[3] == mode) + "。配置不等于已连接。"):
             if mode == "数据导入":
                 app._render_data_package_import(key_prefix="integration-data")
@@ -44,7 +54,7 @@ def integrations(app):
 def workspace(app):
     ux.inject_design("admin")
     st.sidebar.caption("系统配置与运行保障")
-    section = st.sidebar.radio("系统", ["集成与数据", "自动化运营", "规则与知识", "系统状态"], key="ux-admin-navigation")
+    section = st.sidebar.radio("系统", ["系统状态", "集成与数据", "自动化运营", "规则与知识"], key="ux-admin-navigation")
     if section == "集成与数据":
         integrations(app)
     elif section == "自动化运营":
@@ -52,9 +62,15 @@ def workspace(app):
         app._render_admin_automation()
     elif section == "规则与知识":
         mode = st.radio("配置内容", ["规则", "专业知识", "设备"], horizontal=True)
-        {"规则": app.render_risk_rules, "专业知识": app._render_knowledge_service_integration, "设备": app._render_device_integration}[mode]()
+        if mode == "设备":
+            st.info("设备配置已归入集成与数据；此兼容入口打开同一份配置。")
+            st.button("打开设备接入", on_click=_open_device, type="primary")
+        else:
+            if mode == "专业知识":
+                st.caption("内部规范、已审核资料与知识治理；合作方连接沿用集成中心的同一配置。")
+            {"规则": app.render_risk_rules, "专业知识": app._render_knowledge_service_integration}[mode]()
     else:
-        ux.page_header("系统状态", "运行信息与操作记录。")
+        c.page_shell("admin", "系统状态", "先查看需要处理的问题，再进入连接与配置。")
         try:
             with app.SessionLocal() as session:
                 session.execute(select(1))
@@ -63,7 +79,12 @@ def workspace(app):
             st.caption("数据访问为本次页面查询结果；自动化异常请到自动化运营查看负责人和下一步。")
         except SQLAlchemyError:
             st.error("暂时无法访问数据，请由管理员检查本机服务。")
-        st.info("当前为演示角色预览；角色切换不等于登录或权限认证。")
+        with c.section("集成状态", key="system-connections"):
+            for title, state, summary, mode in integration_statuses():
+                st.markdown(f"**{title}** · {state}")
+            st.button("检查集成与数据", key="system-open-integrations", type="primary", on_click=_open_integrations)
+        with c.secondary_details("运行方式与责任边界"):
+            st.info("当前为演示角色预览；角色切换不等于登录或权限认证。")
         with st.expander("操作记录"):
             members = app._members()
             if members:
@@ -109,3 +130,12 @@ def legacy_tools(app):
                 "阶段结果详情": lambda: app.render_outcomes(ctx),
                 "历史时间轴": lambda: app.render_timeline(member, ctx)}
             renderers[selected]()
+
+
+def _open_integrations():
+    st.session_state["ux-admin-navigation"] = "集成与数据"
+
+
+def _open_device():
+    st.session_state["integration-center-mode"] = "设备接入"
+    _open_integrations()

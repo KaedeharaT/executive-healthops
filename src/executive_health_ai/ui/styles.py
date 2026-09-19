@@ -4,7 +4,7 @@ TOKENS = {"blue": "#185da8", "ink": "#20354c", "muted": "#52677d", "border": "#d
 
 
 def role_styles(role="manager"):
-    width = "1120px" if role == "member" else "1440px"
+    width = "1120px" if role == "member" else "1180px" if role == "doctor" else "1440px"
     return ROLE_STYLES.replace("__CONTENT_WIDTH__", width)
 
 
@@ -16,7 +16,7 @@ ROLE_STYLES = """<style>
 [data-testid="stVerticalBlock"] {gap:.7rem}
 [data-testid="stMain"] h2 {font-size:1.22rem!important;line-height:1.4;margin:1rem 0 .35rem!important}
 [data-testid="stMain"] h3 {font-size:1.04rem!important;line-height:1.45;margin:.25rem 0!important}
-[data-testid="stMain"] p {font-size:.94rem;line-height:1.65}
+[data-testid="stMain"] p {font-size:1rem;line-height:1.65}
 [data-testid="stCaptionContainer"],[data-testid="stCaptionContainer"] p {color:var(--muted)!important;font-size:.81rem!important;line-height:1.55}
 [data-testid="stCaption"],[data-testid="stCaption"] p {color:#52677d!important;font-size:.81rem!important;line-height:1.55}
 [data-testid="stMain"] h2,[data-testid="stMain"] h3 {padding:.1rem 0!important}
@@ -28,7 +28,7 @@ ROLE_STYLES = """<style>
 [data-testid="stMain"] [data-testid="stRadio"] label {min-height:40px;padding:.45rem .75rem;border-radius:6px 6px 0 0}
 [data-testid="stMain"] [data-testid="stRadio"] label:has(input:checked) {background:#eaf2fb;box-shadow:inset 0 -2px var(--blue);color:var(--blue)}
 [data-testid="stDivider"] {margin:.6rem 0!important}
-.stButton>button,[data-testid="stFormSubmitButton"] button {min-height:40px;border-radius:8px;font-size:.9rem;border-color:#c5d2df}
+.stButton>button,[data-testid="stFormSubmitButton"] button {min-height:44px;border-radius:8px;font-size:.9rem;border-color:#c5d2df}
 button[kind="primary"] {background:var(--blue)!important;border-color:var(--blue)!important;color:white!important}
 [data-testid="stExpander"] {border:1px solid var(--line)!important;background:#fff;border-radius:10px!important;margin:.3rem 0}
 [data-testid="stMetric"] {background:none;border:0;padding:.2rem 0}
@@ -40,6 +40,13 @@ button[kind="primary"] {background:var(--blue)!important;border-color:var(--blue
 [class*="st-key-v2-list"] {background:#fff;border:1px solid var(--line);border-radius:10px;padding:.3rem .65rem!important}
 [class*="st-key-v2-list"] [data-testid="stButton"] button {text-align:left;justify-content:flex-start;width:100%;background:#fff;min-height:52px;white-space:pre-line;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:.65rem .35rem}
 [class*="st-key-v2-list"] [data-testid="stButton"] button:hover {background:#eaf2fb}
+[class*="st-key-v2-panel"],[class*="st-key-v2-hero"],[class*="st-key-v2-context"] {margin-bottom:24px}
+[data-testid="stCaptionContainer"] p,.ux-row small,.v2-summary small,.v2-team span {font-size:14px!important}
+.v3-comparison {overflow-x:auto;margin:12px 0 20px;background:white;border-bottom:1px solid var(--line)}
+.v3-comparison table {width:100%;border-collapse:collapse;font-size:14px}
+.v3-comparison th {color:var(--muted);font-weight:500;text-align:left;background:#edf3f9}
+.v3-comparison th,.v3-comparison td {padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.v3-comparison td:first-child {font-weight:650}.v3-comparison td:last-child {color:var(--blue)}
 [data-testid="stProgress"] [role="progressbar"] {background:#d6e2ee}
 .ux-eyebrow {font-size:.73rem;font-weight:650;letter-spacing:.08em;color:var(--blue);margin-bottom:.25rem}
 .ux-row {padding:.75rem 0;border-bottom:1px solid var(--line);line-height:1.55;overflow-wrap:anywhere}

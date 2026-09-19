@@ -39,6 +39,9 @@ def _knowledge_library() -> AppTest:
     app.run(timeout=30)
     next(item for item in app.button if item.key == "more-open-系统").click()
     app.run(timeout=30)
+    assert next(item for item in app.radio if item.label == "系统").value == "系统状态"
+    next(item for item in app.radio if item.label == "系统").set_value("集成与数据")
+    app.run(timeout=30)
     next(item for item in app.button if item.key == "integration-open-knowledge").click()
     app.run(timeout=30)
     assert not app.exception

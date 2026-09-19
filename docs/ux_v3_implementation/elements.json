@@ -1,0 +1,1212 @@
+[
+  {
+    "id": "MEM-001",
+    "name": "首页今日行动",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "home",
+    "destination": "首页 → 今日行动与管理摘要",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-002",
+    "name": "管理周期与阶段",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "home",
+    "destination": "首页 → 今日行动与管理摘要",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-003",
+    "name": "负责人及下一步",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "home",
+    "destination": "首页 → 今日行动与管理摘要",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-004",
+    "name": "自动跟进状态",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "home",
+    "destination": "首页 → 管理进展详情",
+    "visibility": "DETAIL",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MEM-005",
+    "name": "下次服务",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "home",
+    "destination": "首页 → 近期安排；服务 → 当前服务",
+    "visibility": "SECONDARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-006",
+    "name": "近期趋势与下钻",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "home",
+    "destination": "首页 → 最近变化（两张预览/一个下钻入口）",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MEM-007",
+    "name": "上传报告快捷入口",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "home",
+    "destination": "健康 → 体检与检查 → 上传；无资料首页主行动",
+    "visibility": "SECONDARY",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-008",
+    "name": "年度健康基线",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "overview",
+    "destination": "健康概览 P2 → 年度基线/当前比较/主趋势",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MEM-009",
+    "name": "基线与当前对比",
+    "source": "src/executive_health_ai/ui/pages/baseline_visualization.py",
+    "renderer": "render_baseline_progress",
+    "destination": "健康概览 P2 → 年度基线/当前比较/主趋势",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MEM-010",
+    "name": "基线趋势与指标选择",
+    "source": "src/executive_health_ai/ui/pages/baseline_visualization.py",
+    "renderer": "render_baseline_progress",
+    "destination": "健康概览 P2 → 年度基线/当前比较/主趋势",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MEM-011",
+    "name": "基线详细依据与范围",
+    "source": "src/executive_health_ai/ui/pages/baseline_visualization.py",
+    "renderer": "render_baseline_visualization",
+    "destination": "健康概览 → 年度基线详情 → 依据/参考范围/修订",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-012",
+    "name": "基线修订记录",
+    "source": "src/executive_health_ai/ui/pages/baseline_visualization.py",
+    "renderer": "render_baseline_visualization",
+    "destination": "健康概览 → 年度基线详情 → 依据/参考范围/修订",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-013",
+    "name": "持续关注事项",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "overview",
+    "destination": "健康概览 → 当前关注",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MEM-014",
+    "name": "重要健康背景",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "overview",
+    "destination": "健康 → 健康档案 → 问题/用药/病史/医疗事件",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-015",
+    "name": "健康数据与范围",
+    "source": "src/executive_health_ai/ui/pages/health_visualization.py",
+    "renderer": "render_health_explorer",
+    "destination": "健康 → 健康数据 → 指标与时间范围",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MEM-016",
+    "name": "数据来源与记录",
+    "source": "src/executive_health_ai/ui/pages/health_visualization.py",
+    "renderer": "render_health_explorer",
+    "destination": "健康数据 → 数据来源/详细记录/查看依据",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-017",
+    "name": "体检报告与上传",
+    "source": "streamlit_app.py",
+    "renderer": "_render_client_checkup_page",
+    "destination": "健康 → 体检与检查 → 最近报告/历史比较/上传",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-018",
+    "name": "跨报告指标趋势",
+    "source": "src/executive_health_ai/ui/pages/health_visualization.py",
+    "renderer": "render_report_trends",
+    "destination": "健康 → 体检与检查 → 最近报告/历史比较/上传",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-019",
+    "name": "医疗档案用药病史",
+    "source": "streamlit_app.py",
+    "renderer": "_render_client_medical_archive",
+    "destination": "健康 → 健康档案 → 问题/用药/病史/医疗事件",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-020",
+    "name": "计划目标与负责人",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "plan",
+    "destination": "计划 → 当前目标/任务/执行进度/下个节点",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-021",
+    "name": "计划进度",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "plan",
+    "destination": "计划 → 当前目标/任务/执行进度/下个节点",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-022",
+    "name": "接受调整暂缓方案",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "plan",
+    "destination": "计划 → 当前方案 → 接受/调整/暂缓",
+    "visibility": "SECONDARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-023",
+    "name": "任务分类与完成",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "plan",
+    "destination": "计划 → 当前目标/任务/执行进度/下个节点",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-024",
+    "name": "近期节点",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "plan",
+    "destination": "计划 → 当前目标/任务/执行进度/下个节点",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-025",
+    "name": "阶段结果",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "plan",
+    "destination": "计划 → 本计划阶段结果；历程 → 对应结果事件",
+    "visibility": "DETAIL",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MEM-026",
+    "name": "可用服务与权益",
+    "source": "streamlit_app.py",
+    "renderer": "_render_client_service",
+    "destination": "服务 → 可用服务/申请表",
+    "visibility": "SECONDARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-027",
+    "name": "服务申请",
+    "source": "streamlit_app.py",
+    "renderer": "_render_client_service",
+    "destination": "服务 → 可用服务/申请表",
+    "visibility": "SECONDARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-028",
+    "name": "当前申请与安排",
+    "source": "streamlit_app.py",
+    "renderer": "_render_client_service",
+    "destination": "服务 → 进行中的申请/安排/下一步",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MEM-029",
+    "name": "取消申请",
+    "source": "streamlit_app.py",
+    "renderer": "_render_client_service",
+    "destination": "服务 → 对应申请详情/取消/历史结果",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-030",
+    "name": "服务历史结果依据",
+    "source": "streamlit_app.py",
+    "renderer": "_render_client_service",
+    "destination": "服务 → 对应申请详情/取消/历史结果",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-031",
+    "name": "重要健康事件",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "_timeline_content",
+    "destination": "历程 → 重要事件",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MEM-032",
+    "name": "完整时间轴与筛选",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "render_longitudinal_timeline",
+    "destination": "历程 → 完整历程/筛选/事件详情",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-033",
+    "name": "个人资料",
+    "source": "streamlit_app.py",
+    "renderer": "_render_client_profile",
+    "destination": "个人设置 → 资料/设备与数据/隐私授权；健康数据来源链接同一设置",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-034",
+    "name": "设备Apple健康来源",
+    "source": "streamlit_app.py",
+    "renderer": "_render_client_profile",
+    "destination": "个人设置 → 资料/设备与数据/隐私授权；健康数据来源链接同一设置",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MEM-035",
+    "name": "隐私授权撤回",
+    "source": "streamlit_app.py",
+    "renderer": "_render_client_profile",
+    "destination": "个人设置 → 资料/设备与数据/隐私授权；健康数据来源链接同一设置",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MGR-001",
+    "name": "今日行动数字",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "today",
+    "destination": "今日 P3 → 工作摘要/短队列/选中事项处理",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-002",
+    "name": "工作队列及类型筛选",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "today",
+    "destination": "今日 P3 → 工作摘要/短队列/选中事项处理",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-003",
+    "name": "原因责任截止下一步",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "today",
+    "destination": "今日 P3 → 工作摘要/短队列/选中事项处理",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-004",
+    "name": "处理工作入口",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "today",
+    "destination": "今日 P3 → 工作摘要/短队列/选中事项处理",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-005",
+    "name": "超过12项的工作",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "today",
+    "destination": "今日 → 完整队列（保留分页/展开后续事项）",
+    "visibility": "SECONDARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-006",
+    "name": "自动跟进及审批",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "approvals",
+    "destination": "今日待确认事项/成员360管理 → 自动跟进确认",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-007",
+    "name": "成员列表",
+    "source": "streamlit_app.py",
+    "renderer": "render_members_workspace",
+    "destination": "成员 → 成员列表",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-008",
+    "name": "成员360摘要",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "member_detail",
+    "destination": "成员360 P4 → 抬头/基线摘要/趋势/当前安排",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MGR-009",
+    "name": "成员360基线摘要",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "member_detail",
+    "destination": "成员360 P4 → 抬头/基线摘要/趋势/当前安排",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MGR-010",
+    "name": "成员360最近趋势",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "member_detail",
+    "destination": "成员360 P4 → 抬头/基线摘要/趋势/当前安排",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MGR-011",
+    "name": "当前计划与服务摘要",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "member_detail",
+    "destination": "成员360 P4 → 抬头/基线摘要/趋势/当前安排",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MGR-012",
+    "name": "开放关注事项处理",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "member_detail",
+    "destination": "成员360 → 开放事项摘要；选中进入唯一处理详情",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-013",
+    "name": "成员服务操作",
+    "source": "streamlit_app.py",
+    "renderer": "render_member_service_management",
+    "destination": "服务运营/成员360管理 → 服务详情",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-014",
+    "name": "健康数据",
+    "source": "streamlit_app.py",
+    "renderer": "render_member_archive",
+    "destination": "成员360健康 → 主趋势/数据记录",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MGR-015",
+    "name": "报告列表上传确认",
+    "source": "streamlit_app.py",
+    "renderer": "render_report_upload",
+    "destination": "成员360健康 → 报告详情 → 上传/确认/解析详情",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MGR-016",
+    "name": "报告候选人工核对",
+    "source": "streamlit_app.py",
+    "renderer": "render_report_review",
+    "destination": "成员360健康 → 报告详情 → 上传/确认/解析详情",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MGR-017",
+    "name": "报告解析与重跑",
+    "source": "streamlit_app.py",
+    "renderer": "render_report_review",
+    "destination": "成员360健康 → 报告详情 → 上传/确认/解析详情",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MGR-018",
+    "name": "年度基线建立确认冻结",
+    "source": "streamlit_app.py",
+    "renderer": "render_health_assessments",
+    "destination": "成员360健康 → 年度基线详情 → 建立/确认/修订/年度",
+    "visibility": "DETAIL",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MGR-019",
+    "name": "基线修订年度切换",
+    "source": "streamlit_app.py",
+    "renderer": "render_health_assessments",
+    "destination": "成员360健康 → 年度基线详情 → 建立/确认/修订/年度",
+    "visibility": "DETAIL",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "MGR-020",
+    "name": "健康史",
+    "source": "streamlit_app.py",
+    "renderer": "render_member_archive",
+    "destination": "成员360健康 → 健康档案/健康史",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "MGR-021",
+    "name": "当前管理计划选择",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "management",
+    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-022",
+    "name": "建立调整计划",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "management",
+    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-023",
+    "name": "安排随访",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "management",
+    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-024",
+    "name": "阶段结果录入与下一步",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "management",
+    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-025",
+    "name": "执行任务",
+    "source": "streamlit_app.py",
+    "renderer": "render_tasks",
+    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-026",
+    "name": "计划详情阶段结果",
+    "source": "streamlit_app.py",
+    "renderer": "render_programs",
+    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-027",
+    "name": "自动跟进健康管理信号",
+    "source": "streamlit_app.py",
+    "renderer": "render_member_management_signals",
+    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-028",
+    "name": "成员医疗上下文",
+    "source": "streamlit_app.py",
+    "renderer": "render_member_medical_workspace",
+    "destination": "医疗协同/成员360医疗 → 同源复核/转诊/医学依据",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-029",
+    "name": "内部医生协同",
+    "source": "streamlit_app.py",
+    "renderer": "render_collaboration_workspace",
+    "destination": "医疗协同/成员360医疗 → 同源复核/转诊/医学依据",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-030",
+    "name": "外部医生转诊",
+    "source": "streamlit_app.py",
+    "renderer": "render_external_doctor_workspace",
+    "destination": "医疗协同/成员360医疗 → 同源复核/转诊/医学依据",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-031",
+    "name": "服务运营队列",
+    "source": "streamlit_app.py",
+    "renderer": "render_service_operations_workspace",
+    "destination": "服务运营/成员360管理 → 服务详情",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-032",
+    "name": "服务审核安排完成",
+    "source": "streamlit_app.py",
+    "renderer": "render_member_service_management",
+    "destination": "服务运营/成员360管理 → 服务详情",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "MGR-033",
+    "name": "知识检索与资料",
+    "source": "streamlit_app.py",
+    "renderer": "render_knowledge_library_entry",
+    "destination": "更多 → 专业资料；事项旁查看引用",
+    "visibility": "SECONDARY",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "DOC-001",
+    "name": "复核队列与已完成",
+    "source": "src/executive_health_ai/ui/pages/doctor/experience.py",
+    "renderer": "workspace",
+    "destination": "待我复核/历史 → 问题队列",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "DOC-002",
+    "name": "医学问题与提交信息",
+    "source": "src/executive_health_ai/ui/pages/doctor/experience.py",
+    "renderer": "detail",
+    "destination": "医生复核 P5 → 问题/背景趋势/依据/人工结论与交接",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "DOC-003",
+    "name": "成员背景年度基线",
+    "source": "src/executive_health_ai/ui/pages/doctor/experience.py",
+    "renderer": "detail",
+    "destination": "医生复核 P5 → 问题/背景趋势/依据/人工结论与交接",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "DOC-004",
+    "name": "关键指标用药",
+    "source": "src/executive_health_ai/ui/pages/doctor/experience.py",
+    "renderer": "detail",
+    "destination": "医生复核 P5 → 问题/背景趋势/依据/人工结论与交接",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "DOC-005",
+    "name": "相关趋势",
+    "source": "src/executive_health_ai/ui/pages/health_visualization.py",
+    "renderer": "render_doctor_trend",
+    "destination": "医生复核 P5 → 问题/背景趋势/依据/人工结论与交接",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "DOC-006",
+    "name": "证据完整性与原文",
+    "source": "src/executive_health_ai/ui/experience.py",
+    "renderer": "evidence_summary",
+    "destination": "医生复核 P5 → 问题/背景趋势/依据/人工结论与交接",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "DOC-007",
+    "name": "完整资料位置核对",
+    "source": "src/executive_health_ai/ui/pages/doctor/experience.py",
+    "renderer": "detail",
+    "destination": "医生复核 → 完整资料/既有行动展开",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "DOC-008",
+    "name": "已采取行动",
+    "source": "src/executive_health_ai/ui/pages/doctor/experience.py",
+    "renderer": "detail",
+    "destination": "医生复核 → 完整资料/既有行动展开",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "DOC-009",
+    "name": "人工意见与交回",
+    "source": "src/executive_health_ai/ui/pages/doctor/experience.py",
+    "renderer": "detail",
+    "destination": "医生复核 P5 → 问题/背景趋势/依据/人工结论与交接",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "DOC-010",
+    "name": "旧警报基线医学确认",
+    "source": "src/executive_health_ai/ui/pages/doctor/experience.py",
+    "renderer": "workspace",
+    "destination": "待我复核 → 年度基线/旧警报/后续安排确认，分别说明任务性质",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "DOC-011",
+    "name": "医生审批",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "approvals",
+    "destination": "待我复核 → 年度基线/旧警报/后续安排确认，分别说明任务性质",
+    "visibility": "DETAIL",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "ADM-001",
+    "name": "集成状态与检查",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "integrations",
+    "destination": "系统状态 P6 → 集成与运行状态概况",
+    "visibility": "PRIMARY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-002",
+    "name": "数据包模板上传检查",
+    "source": "streamlit_app.py",
+    "renderer": "_render_data_package_import",
+    "destination": "集成与数据 → 选中服务 → 配置/检查/测试/预览/确认",
+    "visibility": "DETAIL",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-003",
+    "name": "预览确认正式写入",
+    "source": "streamlit_app.py",
+    "renderer": "_render_data_package_import",
+    "destination": "集成与数据 → 选中服务 → 配置/检查/测试/预览/确认",
+    "visibility": "DETAIL",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-004",
+    "name": "AI配置测试",
+    "source": "streamlit_app.py",
+    "renderer": "_render_ai_service_integration",
+    "destination": "集成与数据 → 选中服务 → 配置/检查/测试/预览/确认",
+    "visibility": "DETAIL",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-005",
+    "name": "专业知识Adapter与审核",
+    "source": "streamlit_app.py",
+    "renderer": "_render_knowledge_service_integration",
+    "destination": "集成与数据 → 选中服务 → 配置/检查/测试/预览/确认",
+    "visibility": "DETAIL",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-006",
+    "name": "设备测试导入",
+    "source": "streamlit_app.py",
+    "renderer": "_render_device_integration",
+    "destination": "集成与数据 → 选中服务 → 配置/检查/测试/预览/确认",
+    "visibility": "DETAIL",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-007",
+    "name": "自动化目标等待状态",
+    "source": "streamlit_app.py",
+    "renderer": "_render_admin_automation",
+    "destination": "自动化运营 → 选中过程 → 等待/异常/人工操作",
+    "visibility": "DETAIL",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-008",
+    "name": "人工接手恢复取消",
+    "source": "streamlit_app.py",
+    "renderer": "_render_admin_automation",
+    "destination": "自动化运营 → 选中过程 → 等待/异常/人工操作",
+    "visibility": "DETAIL",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-009",
+    "name": "Trace技术诊断",
+    "source": "streamlit_app.py",
+    "renderer": "_render_admin_automation",
+    "destination": "自动化运营 → 对应过程 → 高级诊断/Trace",
+    "visibility": "ADVANCED",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-010",
+    "name": "风险规则配置",
+    "source": "streamlit_app.py",
+    "renderer": "render_risk_rules",
+    "destination": "规则与知识 → 风险规则",
+    "visibility": "DETAIL",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-011",
+    "name": "系统连接状态",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "workspace",
+    "destination": "系统状态 P6 → 集成与运行状态概况",
+    "visibility": "PRIMARY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-012",
+    "name": "审计记录",
+    "source": "streamlit_app.py",
+    "renderer": "render_audit",
+    "destination": "系统状态 → 操作记录",
+    "visibility": "DETAIL",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-013",
+    "name": "反馈质量治理",
+    "source": "src/executive_health_ai/ui/pages/ai_improvement.py",
+    "renderer": "render_ai_improvement",
+    "destination": "系统状态 → AI质量治理（高级）",
+    "visibility": "ADVANCED",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-014",
+    "name": "旧健康图表与数据网关",
+    "source": "streamlit_app.py",
+    "renderer": "render_health_data",
+    "destination": "系统状态 → 兼容工具 → 同名原工具",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "ADM-015",
+    "name": "监管及演示旧详情",
+    "source": "streamlit_app.py",
+    "renderer": "render_oversight_summary",
+    "destination": "系统状态 → 兼容工具 → 同名原工具",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "V2-001",
+    "name": "健康团队只读摘要",
+    "source": "src/executive_health_ai/ui/components.py",
+    "renderer": "care_team",
+    "destination": "首页管理摘要及近期安排 → 健康团队",
+    "visibility": "PRIMARY",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "V2-002",
+    "name": "演示角色切换",
+    "source": "streamlit_app.py",
+    "renderer": "_render_surface_switcher",
+    "destination": "演示入口/角色预览菜单",
+    "visibility": "SECONDARY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "V2-003",
+    "name": "全指标比较表",
+    "source": "src/executive_health_ai/ui/pages/baseline_visualization.py",
+    "renderer": "_render_comparison_details",
+    "destination": "健康概览 → 全指标基线与当前对比",
+    "visibility": "DETAIL",
+    "layer": "L2",
+    "preserved": true
+  },
+  {
+    "id": "V2-004",
+    "name": "健管查找与事项选择",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "today",
+    "destination": "今日 → 队列筛选与选中事项",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "V2-005",
+    "name": "360随访与结果快捷入口",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "member_detail",
+    "destination": "成员360 → 当前下一步主动作/管理详情",
+    "visibility": "SECONDARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "V2-006",
+    "name": "十五项历史兼容工具",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具目录（15个子项逐项见LEG）",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "V2-007",
+    "name": "所有自动化目标明细",
+    "source": "streamlit_app.py",
+    "renderer": "_render_admin_automation",
+    "destination": "自动化运营 → 全部目标详情",
+    "visibility": "ADVANCED",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "V2-008",
+    "name": "近期与完整历程展开",
+    "source": "src/executive_health_ai/ui/pages/member/experience.py",
+    "renderer": "_timeline_content",
+    "destination": "历程 → 更多重要事件/完整历程",
+    "visibility": "DETAIL",
+    "layer": "L3",
+    "preserved": true
+  },
+  {
+    "id": "LEG-001",
+    "name": "健康数据完整视图",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 健康数据完整视图",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-002",
+    "name": "报告比较",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 报告比较",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-003",
+    "name": "干预前后比较",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 干预前后比较",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-004",
+    "name": "风险监管摘要",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 风险监管摘要",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-005",
+    "name": "数据接入网关",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 数据接入网关",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-006",
+    "name": "成员设备分配",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 成员设备分配",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-007",
+    "name": "演示路径",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 演示路径",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-008",
+    "name": "完整成员摘要",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 完整成员摘要",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-009",
+    "name": "历史健康问题",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 历史健康问题",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-010",
+    "name": "历史医疗记录",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 历史医疗记录",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-011",
+    "name": "全部异常处理",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 全部异常处理",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-012",
+    "name": "原始观测详情",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 原始观测详情",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-013",
+    "name": "数据来源详情",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 数据来源详情",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-014",
+    "name": "阶段结果详情",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 阶段结果详情",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "LEG-015",
+    "name": "历史时间轴",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "legacy_tools",
+    "destination": "系统状态 → 兼容工具 → 历史时间轴",
+    "visibility": "LEGACY",
+    "layer": "L4",
+    "preserved": true
+  },
+  {
+    "id": "NAV-001",
+    "name": "Member主导航/健康四视图",
+    "source": "streamlit_app.py",
+    "renderer": "render_member_client_view",
+    "destination": "成员：首页/健康/计划/服务/历程",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "NAV-002",
+    "name": "Manager主导航/360五视图",
+    "source": "src/executive_health_ai/ui/pages/manager/experience.py",
+    "renderer": "member_detail",
+    "destination": "健管：今日/成员/医疗协同/服务/更多",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "NAV-003",
+    "name": "Doctor队列筛选",
+    "source": "src/executive_health_ai/ui/pages/doctor/experience.py",
+    "renderer": "workspace",
+    "destination": "医生：待我复核/历史",
+    "visibility": "PRIMARY",
+    "layer": "L1",
+    "preserved": true
+  },
+  {
+    "id": "NAV-004",
+    "name": "Admin系统四分区",
+    "source": "src/executive_health_ai/ui/pages/admin/experience.py",
+    "renderer": "workspace",
+    "destination": "管理员：系统状态/集成与数据/自动化运营/规则与知识",
+    "visibility": "PRIMARY",
+    "layer": "L4",
+    "preserved": true
+  }
+]

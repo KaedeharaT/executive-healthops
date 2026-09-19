@@ -45,7 +45,7 @@ def test_member_health_is_second_level_and_client_surface_is_personal() -> None:
     health = _source("render_client_health_hub", "def render_member_client_view")
     home = _source("_render_client_home", "def _render_client_plan")
     assert '["健康概览", "健康数据", "体检", "医疗档案"]' in health
-    assert "今日健康" in home and "今天最重要的事情" in home and "ux.next_action" in home
+    assert "今日健康" in home and "今天需要你完成" in home and "ux.next_action" in home
 
 
 def test_data_report_service_and_collaboration_use_result_or_action_first_frames() -> None:

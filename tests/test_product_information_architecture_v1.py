@@ -14,7 +14,7 @@ def _source(name: str, next_marker: str) -> str:
 
 def test_member_home_has_four_decision_sections_and_no_full_record() -> None:
     home = _source("_render_client_home", "def _render_client_plan")
-    for heading in ("今日健康", "今天最重要的事情", "近期变化", "年度健康管理"):
+    for heading in ("今日健康", "今天需要你完成", "最近变化", "view.cycle"):
         assert heading in home
     assert "render_longitudinal_timeline" not in home and "render_member_report_upload" not in home
 
@@ -52,7 +52,7 @@ def test_member_and_ops_primary_navigation_have_at_most_five_destinations() -> N
 def test_ops_today_is_kpis_plus_worklist_and_member_detail_has_five_tabs() -> None:
     today = _source("render_manager_dashboard", "def _render_member_header")
     member = _source("render_member_detail", "def render_member_archive")
-    assert "ux.metric_row(" in today and '"优先处理"' in today
+    assert "c.summary_strip(work.counts(now))" in today and '"优先处理"' in today
     assert '["概览", "健康", "管理", "医疗", "历程"]' in member
 
 

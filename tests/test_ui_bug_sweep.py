@@ -126,5 +126,5 @@ def test_timeline_health_data_action_routes_without_mutating_live_widgets() -> N
     action.click()
     app.run(timeout=30)
     _assert_clean(app)
-    assert any(item.value == "健康数据" for item in app.title)
+    assert any(item.value == "健康数据" for item in app.subheader)
     assert any("时间轴选择的时间段" in str(item.value) for item in app.info)

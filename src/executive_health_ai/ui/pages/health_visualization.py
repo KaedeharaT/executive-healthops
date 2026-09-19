@@ -14,7 +14,7 @@ def load_series(patient_id):
         return HealthVisualizationService().build(session, patient_id)
 
 
-def render_previews(patient_id, *, key, open_trend, maximum=2, series=None):
+def render_previews(patient_id, *, key, open_trend, maximum=2, series=None, shared_action=False):
     previews = HealthVisualizationService().previews(load_series(patient_id) if series is None else series, maximum)
     if not previews:
         st.caption("暂无足够数据形成趋势。")
@@ -24,9 +24,12 @@ def render_previews(patient_id, *, key, open_trend, maximum=2, series=None):
         with col:
             render_compact_sparkline(code, group, key=f"{key}-{code}")
             st.caption(f"{group[0].points[0].at:%Y/%m/%d} — {group[0].points[-1].at:%Y/%m/%d} · 仅表示观察变化")
-            if st.button("查看趋势", key=f"{key}-open-{code}"):
+            if not shared_action and st.button("查看趋势", key=f"{key}-open-{code}"):
                 st.session_state[f"health-metric-pending-{patient_id}"] = code
                 open_trend()
+
+    if shared_action and st.button("查看健康变化", key=f"{key}-open"):
+        open_trend()
 
 
 def render_health_explorer(patient_id, *, key=None):
@@ -40,8 +43,12 @@ def render_health_explorer(patient_id, *, key=None):
         st.session_state[key] = pending
     if st.session_state.get(key) not in options:
         st.session_state[key] = next(iter(options))
-    code = st.selectbox("选择健康指标", list(options), format_func=lambda c: option_label(c, options[c]), key=key)
+    code = st.session_state[key]
     group = options[code]
+    from executive_health_ai.ui.components import summary_strip
+    summary_strip([(s.label + " · 当前有效记录", f"{s.points[-1].value:g} {s.unit}") for s in group if s.points])
+    st.caption("；".join(s.comparison for s in group if s.points))
+    st.selectbox("选择健康指标", list(options), format_func=lambda c: option_label(c, options[c]), key=key)
     window = st.session_state.get(f"health-data-window-{patient_id}")
     periods = (["时间轴范围"] if window else []) + list(PERIODS)
     period = st.radio("时间范围", periods, index=0 if window else periods.index(default_period(group)), horizontal=True, key=f"ux-period-{patient_id}-{code}")
@@ -58,8 +65,6 @@ def render_health_explorer(patient_id, *, key=None):
         visible = filter_period(group, period)
     latest = max(p.at for s in group for p in s.points)
     st.caption(f"最后记录：{latest:%Y/%m/%d} · 历史数据可用不代表设备当前已连接")
-    from executive_health_ai.ui.components import summary_strip
-    summary_strip([(s.label + " · 当前有效记录", f"{s.points[-1].value:g} {s.unit}") for s in group if s.points])
     renderer = render_blood_pressure_trend if code == "blood_pressure" else render_sleep_trend if "sleep" in code else render_activity_trend if code in {"steps", "exercise_minutes", "active_calories"} else render_metric_trend
     renderer(visible, key=f"{key}-chart")
     for item in visible:

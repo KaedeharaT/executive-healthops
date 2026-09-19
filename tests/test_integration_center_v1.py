@@ -203,6 +203,9 @@ def test_all_four_integration_modes_render_in_the_same_system_page() -> None:
     app.run(timeout=30)
     next(item for item in app.button if item.key == "more-open-系统").click()
     app.run(timeout=30)
+    assert next(item for item in app.radio if item.label == "系统").value == "系统状态"
+    next(item for item in app.radio if item.label == "系统").set_value("集成与数据")
+    app.run(timeout=30)
     assert not app.exception
     for key in ("integration-open-data", "integration-open-ai", "integration-open-knowledge", "integration-open-device"):
         next(item for item in app.button if item.key == key).click()
@@ -234,6 +237,9 @@ def test_portfolio_admin_can_reach_and_use_integration_controls(monkeypatch, tmp
     next(item for item in app.radio if item.label == "工作区").set_value("更多")
     app.run(timeout=30)
     next(item for item in app.button if item.key == "more-open-系统").click()
+    app.run(timeout=30)
+    assert next(item for item in app.radio if item.label == "系统").value == "系统状态"
+    next(item for item in app.radio if item.label == "系统").set_value("集成与数据")
     app.run(timeout=30)
 
     assert "集成与数据" in "\n".join(str(item.value) for item in app.title)

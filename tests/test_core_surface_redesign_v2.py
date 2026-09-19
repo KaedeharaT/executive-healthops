@@ -23,9 +23,9 @@ def test_shared_design_system_exposes_product_level_helpers() -> None:
 
 def test_ops_today_has_one_priority_frame_and_compact_work_items() -> None:
     today = _source("render_manager_dashboard", "def _render_member_header")
-    assert "今日待处理" in today and "ux.metric_row(" in today
+    assert "今日待处理" in today and "c.summary_strip(work.counts(now))" in today
     assert 'st.subheader("优先处理")' in today and "ux.work_item(" in today
-    assert "ux.sorted_work(" in today and "visible[:12]" in today
+    assert "ux.sorted_work(" in today and "visible[:6]" in today
 
 
 def test_member_overview_keeps_the_two_column_focus_then_next_step_structure() -> None:
@@ -38,8 +38,8 @@ def test_member_overview_keeps_the_two_column_focus_then_next_step_structure() -
 
 def test_member_home_is_personal_and_limits_today_to_six_health_tiles() -> None:
     home = _source("_render_client_home", "def _render_client_plan")
-    assert "今天最重要的事情" in home and "tasks[:3]" in home
-    assert "近期变化" in home and "render_previews(" in home and "maximum=2" in home
+    assert "今天需要你完成" in home and "tasks[1:3]" in home
+    assert "最近变化" in home and "render_previews(" in home and "maximum=2" in home
     assert "render_longitudinal_timeline" not in home
     assert "render_member_report_upload" not in home
 
