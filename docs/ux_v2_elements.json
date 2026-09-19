@@ -1,0 +1,754 @@
+[
+  {
+    "id": "MEM-001",
+    "name": "首页今日行动",
+    "old": "首页",
+    "new": "首页主行动与其他今日行动",
+    "action": "MOVE",
+    "function": "home"
+  },
+  {
+    "id": "MEM-002",
+    "name": "管理周期与阶段",
+    "old": "首页",
+    "new": "首页管理摘要与详情",
+    "action": "MERGE",
+    "function": "home"
+  },
+  {
+    "id": "MEM-003",
+    "name": "负责人及下一步",
+    "old": "首页",
+    "new": "首页照护团队与行动区",
+    "action": "MOVE",
+    "function": "home"
+  },
+  {
+    "id": "MEM-004",
+    "name": "自动跟进状态",
+    "old": "首页",
+    "new": "首页管理进展详情",
+    "action": "COLLAPSE",
+    "function": "home"
+  },
+  {
+    "id": "MEM-005",
+    "name": "下次服务",
+    "old": "首页",
+    "new": "首页近期事项",
+    "action": "KEEP",
+    "function": "home"
+  },
+  {
+    "id": "MEM-006",
+    "name": "近期趋势与下钻",
+    "old": "首页",
+    "new": "首页双趋势与查看趋势",
+    "action": "KEEP",
+    "function": "home"
+  },
+  {
+    "id": "MEM-007",
+    "name": "上传报告快捷入口",
+    "old": "首页",
+    "new": "首页常用入口",
+    "action": "SECONDARY",
+    "function": "home"
+  },
+  {
+    "id": "MEM-008",
+    "name": "年度健康基线",
+    "old": "健康概览",
+    "new": "健康概览顶部",
+    "action": "KEEP",
+    "function": "overview"
+  },
+  {
+    "id": "MEM-009",
+    "name": "基线与当前对比",
+    "old": "健康概览",
+    "new": "主趋势下方完整比较",
+    "action": "COLLAPSE",
+    "function": "render_baseline_progress"
+  },
+  {
+    "id": "MEM-010",
+    "name": "基线趋势与指标选择",
+    "old": "健康概览",
+    "new": "健康概览主视觉",
+    "action": "MOVE",
+    "function": "render_baseline_progress"
+  },
+  {
+    "id": "MEM-011",
+    "name": "基线详细依据与范围",
+    "old": "年度基线",
+    "new": "年度基线详情",
+    "action": "KEEP",
+    "function": "render_baseline_visualization"
+  },
+  {
+    "id": "MEM-012",
+    "name": "基线修订记录",
+    "old": "年度基线",
+    "new": "年度基线详情",
+    "action": "KEEP",
+    "function": "render_baseline_visualization"
+  },
+  {
+    "id": "MEM-013",
+    "name": "持续关注事项",
+    "old": "健康概览",
+    "new": "趋势后关注列表",
+    "action": "KEEP",
+    "function": "overview"
+  },
+  {
+    "id": "MEM-014",
+    "name": "重要健康背景",
+    "old": "健康概览",
+    "new": "健康背景展开区",
+    "action": "COLLAPSE",
+    "function": "overview"
+  },
+  {
+    "id": "MEM-015",
+    "name": "健康数据与范围",
+    "old": "健康数据",
+    "new": "健康数据指标工作区",
+    "action": "KEEP",
+    "function": "render_health_explorer"
+  },
+  {
+    "id": "MEM-016",
+    "name": "数据来源与记录",
+    "old": "健康数据",
+    "new": "图下来源展开区",
+    "action": "KEEP",
+    "function": "render_health_explorer"
+  },
+  {
+    "id": "MEM-017",
+    "name": "体检报告与上传",
+    "old": "健康体检",
+    "new": "健康体检最近结果与上传",
+    "action": "KEEP",
+    "function": "_render_client_checkup_page"
+  },
+  {
+    "id": "MEM-018",
+    "name": "跨报告指标趋势",
+    "old": "健康体检",
+    "new": "健康体检历史比较",
+    "action": "KEEP",
+    "function": "render_report_trends"
+  },
+  {
+    "id": "MEM-019",
+    "name": "医疗档案用药病史",
+    "old": "健康医疗档案",
+    "new": "健康医疗档案",
+    "action": "KEEP",
+    "function": "_render_client_medical_archive"
+  },
+  {
+    "id": "MEM-020",
+    "name": "计划目标与负责人",
+    "old": "计划",
+    "new": "计划目标摘要带",
+    "action": "MERGE",
+    "function": "plan"
+  },
+  {
+    "id": "MEM-021",
+    "name": "计划进度",
+    "old": "计划",
+    "new": "计划执行进度",
+    "action": "KEEP",
+    "function": "plan"
+  },
+  {
+    "id": "MEM-022",
+    "name": "接受调整暂缓方案",
+    "old": "计划",
+    "new": "方案选择展开区",
+    "action": "KEEP",
+    "function": "plan"
+  },
+  {
+    "id": "MEM-023",
+    "name": "任务分类与完成",
+    "old": "计划",
+    "new": "当前任务列表",
+    "action": "KEEP",
+    "function": "plan"
+  },
+  {
+    "id": "MEM-024",
+    "name": "近期节点",
+    "old": "计划",
+    "new": "任务旁近期节点",
+    "action": "MOVE",
+    "function": "plan"
+  },
+  {
+    "id": "MEM-025",
+    "name": "阶段结果",
+    "old": "计划",
+    "new": "任务旁阶段复盘",
+    "action": "MOVE",
+    "function": "plan"
+  },
+  {
+    "id": "MEM-026",
+    "name": "可用服务与权益",
+    "old": "服务默认",
+    "new": "服务可用服务页签",
+    "action": "SECONDARY",
+    "function": "_render_client_service"
+  },
+  {
+    "id": "MEM-027",
+    "name": "服务申请",
+    "old": "服务",
+    "new": "服务可用服务详情",
+    "action": "KEEP",
+    "function": "_render_client_service"
+  },
+  {
+    "id": "MEM-028",
+    "name": "当前申请与安排",
+    "old": "服务我的申请",
+    "new": "服务默认当前申请",
+    "action": "MOVE",
+    "function": "_render_client_service"
+  },
+  {
+    "id": "MEM-029",
+    "name": "取消申请",
+    "old": "服务详情",
+    "new": "当前申请详情",
+    "action": "KEEP",
+    "function": "_render_client_service"
+  },
+  {
+    "id": "MEM-030",
+    "name": "服务历史结果依据",
+    "old": "服务记录",
+    "new": "服务记录页签",
+    "action": "KEEP",
+    "function": "_render_client_service"
+  },
+  {
+    "id": "MEM-031",
+    "name": "重要健康事件",
+    "old": "历程",
+    "new": "日期轨道列表",
+    "action": "MERGE",
+    "function": "_timeline_content"
+  },
+  {
+    "id": "MEM-032",
+    "name": "完整时间轴与筛选",
+    "old": "历程详情",
+    "new": "查看完整历程与依据",
+    "action": "KEEP",
+    "function": "render_longitudinal_timeline"
+  },
+  {
+    "id": "MEM-033",
+    "name": "个人资料",
+    "old": "个人设置",
+    "new": "右上个人设置",
+    "action": "KEEP",
+    "function": "_render_client_profile"
+  },
+  {
+    "id": "MEM-034",
+    "name": "设备Apple健康来源",
+    "old": "个人设置",
+    "new": "个人设置设备与数据",
+    "action": "KEEP",
+    "function": "_render_client_profile"
+  },
+  {
+    "id": "MEM-035",
+    "name": "隐私授权撤回",
+    "old": "个人设置",
+    "new": "个人设置隐私授权",
+    "action": "KEEP",
+    "function": "_render_client_profile"
+  },
+  {
+    "id": "MGR-001",
+    "name": "今日行动数字",
+    "old": "今日",
+    "new": "今日摘要带",
+    "action": "MERGE",
+    "function": "today"
+  },
+  {
+    "id": "MGR-002",
+    "name": "工作队列及类型筛选",
+    "old": "今日",
+    "new": "左列表与筛选",
+    "action": "MOVE",
+    "function": "today"
+  },
+  {
+    "id": "MGR-003",
+    "name": "原因责任截止下一步",
+    "old": "今日每行",
+    "new": "右侧事项详情",
+    "action": "MOVE",
+    "function": "today"
+  },
+  {
+    "id": "MGR-004",
+    "name": "处理工作入口",
+    "old": "今日",
+    "new": "选中事项处理",
+    "action": "KEEP",
+    "function": "today"
+  },
+  {
+    "id": "MGR-005",
+    "name": "超过12项的工作",
+    "old": "今日其他事项",
+    "new": "队列其他事项分页/展开",
+    "action": "KEEP",
+    "function": "today"
+  },
+  {
+    "id": "MGR-006",
+    "name": "自动跟进及审批",
+    "old": "今日与管理",
+    "new": "今日详情展开与管理审批",
+    "action": "KEEP",
+    "function": "approvals"
+  },
+  {
+    "id": "MGR-007",
+    "name": "成员列表",
+    "old": "成员",
+    "new": "成员列表",
+    "action": "KEEP",
+    "function": "render_members_workspace"
+  },
+  {
+    "id": "MGR-008",
+    "name": "成员360摘要",
+    "old": "成员详情",
+    "new": "成员360上下文头",
+    "action": "MERGE",
+    "function": "member_detail"
+  },
+  {
+    "id": "MGR-009",
+    "name": "成员360基线摘要",
+    "old": "概览",
+    "new": "概览完整基线展开",
+    "action": "COLLAPSE",
+    "function": "member_detail"
+  },
+  {
+    "id": "MGR-010",
+    "name": "成员360最近趋势",
+    "old": "概览底部",
+    "new": "概览主要区域",
+    "action": "MOVE",
+    "function": "member_detail"
+  },
+  {
+    "id": "MGR-011",
+    "name": "当前计划与服务摘要",
+    "old": "概览",
+    "new": "趋势旁管理摘要",
+    "action": "MOVE",
+    "function": "member_detail"
+  },
+  {
+    "id": "MGR-012",
+    "name": "开放关注事项处理",
+    "old": "概览",
+    "new": "概览关注处理展开",
+    "action": "KEEP",
+    "function": "member_detail"
+  },
+  {
+    "id": "MGR-013",
+    "name": "成员服务操作",
+    "old": "概览",
+    "new": "概览服务展开与管理快捷入口",
+    "action": "KEEP",
+    "function": "render_member_service_management"
+  },
+  {
+    "id": "MGR-014",
+    "name": "健康数据",
+    "old": "成员健康",
+    "new": "成员健康数据",
+    "action": "KEEP",
+    "function": "render_member_archive"
+  },
+  {
+    "id": "MGR-015",
+    "name": "报告列表上传确认",
+    "old": "成员体检",
+    "new": "成员健康体检",
+    "action": "KEEP",
+    "function": "render_report_upload"
+  },
+  {
+    "id": "MGR-016",
+    "name": "报告候选人工核对",
+    "old": "报告详情",
+    "new": "体检审核详情",
+    "action": "KEEP",
+    "function": "render_report_review"
+  },
+  {
+    "id": "MGR-017",
+    "name": "报告解析与重跑",
+    "old": "报告高级",
+    "new": "报告高级信息",
+    "action": "ADVANCED",
+    "function": "render_report_review"
+  },
+  {
+    "id": "MGR-018",
+    "name": "年度基线建立确认冻结",
+    "old": "成员基线",
+    "new": "成员健康基线",
+    "action": "KEEP",
+    "function": "render_health_assessments"
+  },
+  {
+    "id": "MGR-019",
+    "name": "基线修订年度切换",
+    "old": "成员基线",
+    "new": "基线详情与修订",
+    "action": "KEEP",
+    "function": "render_health_assessments"
+  },
+  {
+    "id": "MGR-020",
+    "name": "健康史",
+    "old": "成员健康",
+    "new": "成员健康史",
+    "action": "KEEP",
+    "function": "render_member_archive"
+  },
+  {
+    "id": "MGR-021",
+    "name": "当前管理计划选择",
+    "old": "成员管理",
+    "new": "管理摘要与计划选择",
+    "action": "KEEP",
+    "function": "management"
+  },
+  {
+    "id": "MGR-022",
+    "name": "建立调整计划",
+    "old": "成员管理",
+    "new": "管理表单与360快捷入口",
+    "action": "KEEP",
+    "function": "management"
+  },
+  {
+    "id": "MGR-023",
+    "name": "安排随访",
+    "old": "成员管理",
+    "new": "管理随访表单与快捷入口",
+    "action": "KEEP",
+    "function": "management"
+  },
+  {
+    "id": "MGR-024",
+    "name": "阶段结果录入与下一步",
+    "old": "成员管理",
+    "new": "管理结果表单与快捷入口",
+    "action": "KEEP",
+    "function": "management"
+  },
+  {
+    "id": "MGR-025",
+    "name": "执行任务",
+    "old": "成员管理",
+    "new": "管理工作进展",
+    "action": "KEEP",
+    "function": "render_tasks"
+  },
+  {
+    "id": "MGR-026",
+    "name": "计划详情阶段结果",
+    "old": "成员管理",
+    "new": "工作进展详情展开",
+    "action": "KEEP",
+    "function": "render_programs"
+  },
+  {
+    "id": "MGR-027",
+    "name": "自动跟进健康管理信号",
+    "old": "成员管理",
+    "new": "管理记录展开",
+    "action": "KEEP",
+    "function": "render_member_management_signals"
+  },
+  {
+    "id": "MGR-028",
+    "name": "成员医疗上下文",
+    "old": "成员医疗",
+    "new": "成员医疗",
+    "action": "KEEP",
+    "function": "render_member_medical_workspace"
+  },
+  {
+    "id": "MGR-029",
+    "name": "内部医生协同",
+    "old": "医疗协同",
+    "new": "统一医生队列只读",
+    "action": "KEEP",
+    "function": "render_collaboration_workspace"
+  },
+  {
+    "id": "MGR-030",
+    "name": "外部医生转诊",
+    "old": "医疗协同",
+    "new": "外部医疗",
+    "action": "KEEP",
+    "function": "render_external_doctor_workspace"
+  },
+  {
+    "id": "MGR-031",
+    "name": "服务运营队列",
+    "old": "服务运营",
+    "new": "服务工作台",
+    "action": "KEEP",
+    "function": "render_service_operations_workspace"
+  },
+  {
+    "id": "MGR-032",
+    "name": "服务审核安排完成",
+    "old": "服务详情",
+    "new": "原上下文服务操作",
+    "action": "KEEP",
+    "function": "render_member_service_management"
+  },
+  {
+    "id": "MGR-033",
+    "name": "知识检索与资料",
+    "old": "更多",
+    "new": "更多专业资料",
+    "action": "KEEP",
+    "function": "render_knowledge_library_entry"
+  },
+  {
+    "id": "DOC-001",
+    "name": "复核队列与已完成",
+    "old": "医生工作台",
+    "new": "队列筛选与选择",
+    "action": "KEEP",
+    "function": "workspace"
+  },
+  {
+    "id": "DOC-002",
+    "name": "医学问题与提交信息",
+    "old": "复核详情",
+    "new": "详情首屏问题带",
+    "action": "MOVE",
+    "function": "detail"
+  },
+  {
+    "id": "DOC-003",
+    "name": "成员背景年度基线",
+    "old": "复核详情",
+    "new": "临床上下文展开区",
+    "action": "COLLAPSE",
+    "function": "detail"
+  },
+  {
+    "id": "DOC-004",
+    "name": "关键指标用药",
+    "old": "复核详情",
+    "new": "左侧临床上下文",
+    "action": "MOVE",
+    "function": "detail"
+  },
+  {
+    "id": "DOC-005",
+    "name": "相关趋势",
+    "old": "复核详情",
+    "new": "左侧主要图表",
+    "action": "KEEP",
+    "function": "render_doctor_trend"
+  },
+  {
+    "id": "DOC-006",
+    "name": "证据完整性与原文",
+    "old": "复核详情",
+    "new": "左侧报告依据",
+    "action": "KEEP",
+    "function": "evidence_summary"
+  },
+  {
+    "id": "DOC-007",
+    "name": "完整资料位置核对",
+    "old": "复核详情",
+    "new": "依据高级展开",
+    "action": "KEEP",
+    "function": "detail"
+  },
+  {
+    "id": "DOC-008",
+    "name": "已采取行动",
+    "old": "复核详情",
+    "new": "临床背景展开",
+    "action": "KEEP",
+    "function": "detail"
+  },
+  {
+    "id": "DOC-009",
+    "name": "人工意见与交回",
+    "old": "复核详情底部",
+    "new": "右侧结论与执行交接",
+    "action": "MOVE",
+    "function": "detail"
+  },
+  {
+    "id": "DOC-010",
+    "name": "旧警报基线医学确认",
+    "old": "复核队列",
+    "new": "原兼容复核分支",
+    "action": "KEEP",
+    "function": "workspace"
+  },
+  {
+    "id": "DOC-011",
+    "name": "医生审批",
+    "old": "复核详情",
+    "new": "选中成员审批区",
+    "action": "KEEP",
+    "function": "approvals"
+  },
+  {
+    "id": "ADM-001",
+    "name": "集成状态与检查",
+    "old": "集成中心",
+    "new": "左连接列表右操作",
+    "action": "MERGE",
+    "function": "integrations"
+  },
+  {
+    "id": "ADM-002",
+    "name": "数据包模板上传检查",
+    "old": "集成数据",
+    "new": "集成数据导入",
+    "action": "KEEP",
+    "function": "_render_data_package_import"
+  },
+  {
+    "id": "ADM-003",
+    "name": "预览确认正式写入",
+    "old": "集成数据",
+    "new": "集成数据导入确认",
+    "action": "KEEP",
+    "function": "_render_data_package_import"
+  },
+  {
+    "id": "ADM-004",
+    "name": "AI配置测试",
+    "old": "集成AI",
+    "new": "集成AI操作区",
+    "action": "KEEP",
+    "function": "_render_ai_service_integration"
+  },
+  {
+    "id": "ADM-005",
+    "name": "专业知识Adapter与审核",
+    "old": "集成知识",
+    "new": "集成专业知识与规则知识",
+    "action": "KEEP",
+    "function": "_render_knowledge_service_integration"
+  },
+  {
+    "id": "ADM-006",
+    "name": "设备测试导入",
+    "old": "集成设备",
+    "new": "集成设备与规则知识",
+    "action": "KEEP",
+    "function": "_render_device_integration"
+  },
+  {
+    "id": "ADM-007",
+    "name": "自动化目标等待状态",
+    "old": "自动化运营",
+    "new": "自动化状态与选中目标",
+    "action": "MERGE",
+    "function": "_render_admin_automation"
+  },
+  {
+    "id": "ADM-008",
+    "name": "人工接手恢复取消",
+    "old": "自动化运营",
+    "new": "目标详情操作",
+    "action": "KEEP",
+    "function": "_render_admin_automation"
+  },
+  {
+    "id": "ADM-009",
+    "name": "Trace技术诊断",
+    "old": "自动化高级",
+    "new": "自动化高级信息",
+    "action": "ADVANCED",
+    "function": "_render_admin_automation"
+  },
+  {
+    "id": "ADM-010",
+    "name": "风险规则配置",
+    "old": "规则知识",
+    "new": "规则与知识规则页",
+    "action": "KEEP",
+    "function": "render_risk_rules"
+  },
+  {
+    "id": "ADM-011",
+    "name": "系统连接状态",
+    "old": "系统状态",
+    "new": "系统状态摘要",
+    "action": "KEEP",
+    "function": "workspace"
+  },
+  {
+    "id": "ADM-012",
+    "name": "审计记录",
+    "old": "系统状态",
+    "new": "系统操作记录展开",
+    "action": "KEEP",
+    "function": "render_audit"
+  },
+  {
+    "id": "ADM-013",
+    "name": "反馈质量治理",
+    "old": "系统高级",
+    "new": "AI质量治理高级",
+    "action": "ADVANCED",
+    "function": "render_ai_improvement"
+  },
+  {
+    "id": "ADM-014",
+    "name": "旧健康图表与数据网关",
+    "old": "旧函数兼容层",
+    "new": "系统高级兼容工具",
+    "action": "ADVANCED",
+    "function": "render_health_data"
+  },
+  {
+    "id": "ADM-015",
+    "name": "监管及演示旧详情",
+    "old": "旧函数兼容层",
+    "new": "系统高级兼容工具",
+    "action": "ADVANCED",
+    "function": "render_oversight_summary"
+  }
+]

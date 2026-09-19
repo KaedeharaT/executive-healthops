@@ -68,7 +68,7 @@ def test_member_center_excludes_internal_technical_records() -> None:
 
 def test_member_center_uses_a_simple_personal_health_information_architecture() -> None:
     navigation = _source("_render_member_center_navigation", "def _render_sidebar_navigation")
-    assert '["首页", "健康", "历程", "计划", "服务"]' in navigation
+    assert '["首页", "健康", "计划", "服务", "历程"]' in navigation
     health = _source("render_client_health_hub", "def render_member_client_view")
     assert 'allowed = ["健康概览", "健康数据", "体检", "医疗档案"]' in health
 
@@ -139,7 +139,7 @@ def test_surface_switcher_is_global_and_member_center_is_not_a_more_subpage() ->
     source = all_ui_source()
     main = _source("main", "if __name__")
     more = MORE_SHELL.read_text(encoding="utf-8")
-    assert '"运营后台", "成员健康中心"' in _source("_render_surface_switcher", "def _render_member_center_navigation")
+    assert all(label in _source("_render_surface_switcher", "def _render_member_center_navigation") for label in ("运营后台", "成员健康中心", "切换演示角色", "不代表登录鉴权"))
     assert "_render_surface_switcher" in main and 'if surface == "成员健康中心"' in main
     assert "客户视图预览" not in more and "client-preview-open" not in more
 

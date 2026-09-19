@@ -19,7 +19,7 @@ def _source(name: str, next_marker: str) -> str:
 
 def test_primary_navigation_is_limited_to_five_per_surface() -> None:
     source = APP.read_text(encoding="utf-8")
-    assert '["首页", "健康", "历程", "计划", "服务"]' in source
+    assert '["首页", "健康", "计划", "服务", "历程"]' in source
     assert '["今日", "成员", "医疗协同", "服务运营", "更多"]' in source
 
 
@@ -34,7 +34,7 @@ def test_member_plan_service_and_profile_keep_details_in_their_current_page() ->
     service = _source("_render_client_service", "def _render_client_profile")
     profile = _source("_render_client_profile", "def _render_client_health_overview")
     assert 'st.radio("任务分类", ["待完成", "等待他人", "已完成"]' in plan
-    assert 'st.radio("服务内容", ["可用服务", "我的申请", "服务记录"]' in service
+    assert 'st.radio("服务内容", ["我的申请", "可用服务", "服务记录"]' in service
     assert 'st.radio("个人设置内容", ["资料", "设备与数据", "隐私授权"]' in profile
 
 

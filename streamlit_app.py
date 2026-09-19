@@ -320,7 +320,7 @@ def _render_admin_automation() -> None:
         goals = list(session.scalars(select(AgentGoal).where(AgentGoal.status.in_(("ACTIVE", "WAITING", "BLOCKED", "FAILED"))).order_by(AgentGoal.started_at.desc()).limit(100)))
         members = {item.id: item for item in session.scalars(select(Patient).where(Patient.id.in_({goal.member_id for goal in goals})))} if goals else {}
         pending_approvals = list(session.scalars(select(AgentApprovalRequest).where(AgentApprovalRequest.status == "PENDING").order_by(AgentApprovalRequest.requested_at)))
-    with section_frame("自动化运营", "查看长期目标的当前等待状态；待办仍统一进入今日工作台。"):
+    with section_frame("长期管理目标", "查看长期目标的当前等待状态；待办仍统一进入今日工作台。"):
         _status_strip(
             ("进行中", sum(goal.status == "ACTIVE" for goal in goals), "action"),
             ("等待成员", sum("成员" in goal.current_stage for goal in goals), "neutral"),
@@ -332,12 +332,6 @@ def _render_admin_automation() -> None:
         if not goals:
             _empty_state("暂无进行中的长期目标", "新体检报告进入人工确认后，自动跟进状态会显示在这里。")
         else:
-            st.dataframe(pd.DataFrame([{
-                "成员": _member_display(members.get(goal.member_id)), "目标": goal.title,
-                "当前阶段": goal.current_stage, "状态": GOAL_LABELS.get(goal.status, "进行中"),
-                "负责人": goal.owner or "待分配", "下一检查": _fmt_dt(goal.next_check_at) if goal.next_check_at else "待事件触发",
-                "开始时间": _fmt_dt(goal.started_at),
-            } for goal in goals]), hide_index=True, width="stretch")
             selected = st.selectbox("查看目标", goals, format_func=lambda item: f"{_member_display(members.get(item.member_id))} · {item.title}", key="agent-admin-goal")
             st.write(f"**当前等待：** {selected.current_stage}")
             st.caption("下一步：" + (selected.next_action or "等待人工确认"))
@@ -357,6 +351,13 @@ def _render_admin_automation() -> None:
                     HealthOpsAgentSupervisor().cancel_goal(session, selected.id, actor="管理员", reason="管理员取消本次自动跟进")
                     session.commit()
                 st.success("目标已取消并保留审计记录。"); st.rerun()
+            with st.expander("全部目标明细"):
+                st.dataframe(pd.DataFrame([{
+                    "成员": _member_display(members.get(goal.member_id)), "目标": goal.title,
+                    "当前阶段": goal.current_stage, "状态": GOAL_LABELS.get(goal.status, "进行中"),
+                    "负责人": goal.owner or "待分配", "下一检查": _fmt_dt(goal.next_check_at) if goal.next_check_at else "待事件触发",
+                    "开始时间": _fmt_dt(goal.started_at),
+                } for goal in goals]), hide_index=True, width="stretch")
         if pending_approvals:
             st.caption(f"当前有 {len(pending_approvals)} 项等待人工确认。")
         with st.expander("高级信息"):
@@ -392,10 +393,16 @@ def _render_sidebar_navigation() -> str:
 
 
 def _render_surface_switcher() -> str:
-    """Development-only surface switcher; no authentication is implied."""
-    st.sidebar.markdown("<div class='surface-label'>切换视图</div>", unsafe_allow_html=True)
-    surface = st.sidebar.radio("当前视图", ["运营后台", "成员健康中心", "医生工作台", "系统管理"], key="surface-mode", label_visibility="collapsed", format_func=lambda value: {"运营后台": "健康管理师", "成员健康中心": "成员", "医生工作台": "医生", "系统管理": "管理员"}[value])
-    st.sidebar.caption("演示角色预览 · 不代表登录鉴权")
+    """Development preview stays available without occupying primary navigation."""
+    labels = {"运营后台": "健康管理师", "成员健康中心": "成员", "医生工作台": "医生", "系统管理": "管理员"}
+    st.sidebar.markdown("### HealthOps")
+    with st.sidebar.popover("切换演示角色", icon=":material/swap_horiz:"):
+        # A closed popover can remount its controls after page navigation. Keep
+        # the browser's initial selection aligned with the retained role.
+        current = st.session_state.get("surface-mode", "运营后台")
+        surface = st.radio("当前视图", list(labels), index=list(labels).index(current), key="surface-mode", format_func=labels.get)
+        st.caption("演示角色预览 · 不代表登录鉴权")
+    st.sidebar.caption("当前：" + labels[surface] + " · 演示预览")
     st.sidebar.divider()
     return surface
 
@@ -405,7 +412,7 @@ def _render_member_center_navigation() -> str:
     st.sidebar.caption("看状态、健康资料、计划与服务")
     st.sidebar.divider()
     page = st.sidebar.radio(
-        "成员健康中心导航", ["首页", "健康", "历程", "计划", "服务"],
+        "成员健康中心导航", ["首页", "健康", "计划", "服务", "历程"],
         key="member-center-navigation", label_visibility="collapsed",
         on_change=lambda: st.session_state.pop("member-profile-open", None),
     )
@@ -5749,12 +5756,12 @@ def render_member_service_management(patient: Patient) -> None:
 
 
 def _render_client_service(patient: Patient, ctx: dict[str, list[object]]) -> None:
-    _page_header("服务", "查看可用服务、我的申请和已完成服务。", eyebrow="成员健康中心")
+    _page_header("服务", "当前安排与下一步；需要新的服务时再发起申请。", eyebrow="成员健康中心")
     with SessionLocal() as session:
         operations = MemberServiceOperations(); plan = operations.ensure_demo_plan(session, patient.id); session.commit()
         services = operations.member_services(session, patient.id)
         requests = list(session.scalars(select(ServiceRequest).where(ServiceRequest.patient_id == patient.id).order_by(ServiceRequest.requested_at.desc()).limit(30)))
-    view = st.radio("服务内容", ["可用服务", "我的申请", "服务记录"], horizontal=True, label_visibility="collapsed", key=f"client-service-view-{patient.id}")
+    view = st.radio("服务内容", ["我的申请", "可用服务", "服务记录"], horizontal=True, label_visibility="collapsed", key=f"client-service-view-{patient.id}")
     names = {item.id: item.name for item, _ in services}
     if view != "可用服务":
         rows = [item for item in requests if item.status not in {"COMPLETED", "CANCELLED"}] if view == "我的申请" else [item for item in requests if item.status in {"COMPLETED", "CANCELLED"}]
@@ -5773,6 +5780,9 @@ def _render_client_service(patient: Patient, ctx: dict[str, list[object]]) -> No
             selected = next(item for item in rows if str(item.id) == st.session_state[selected_key])
             with right:
                 with detail_panel(names.get(selected.service_item_id, "会员服务"), "服务状态与结果由健康管理团队确认。"):
+                    from executive_health_ai.ui.components import workflow
+                    phase = {"REQUESTED": "申请", "REVIEWING": "审核", "APPROVED": "安排", "SCHEDULED": "安排", "IN_PROGRESS": "执行", "IN_SERVICE": "执行", "COMPLETED": "完成", "CANCELLED": "已取消"}.get(selected.status, "待确认")
+                    workflow(["申请", "审核", "安排", "执行", "完成"] + ([phase] if phase in {"已取消", "待确认"} else []), phase)
                     st.write(selected.reason or "成员服务申请")
                     st.caption(f"当前状态：{_label(selected.status)} · 申请时间：{_fmt_dt(selected.requested_at)}")
                     if selected.scheduled_at:

@@ -19,7 +19,8 @@ from executive_health_ai.ui.display import get_status_display
 from executive_health_ai.ui.localization.zh_cn import OBSERVATION
 
 LOCAL = ZoneInfo("Asia/Tokyo")
-TOKENS = {"blue": "#185da8", "ink": "#20354c", "muted": "#62758a", "border": "#dce5ef", "background": "#f5f8fc", "radius": "12px", "space": "1rem"}
+from executive_health_ai.ui.styles import TOKENS
+
 UUID_PATTERN = re.compile(r"\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")
 METRIC_ALIASES = {"收缩压": "收缩压", "舒张压": "舒张压", "体重": "体重", "腰围": "腰围", "糖化血红蛋白": "糖化血红蛋白", "LDL-C": "低密度脂蛋白胆固醇", "HbA1c": "糖化血红蛋白"}
 
@@ -70,30 +71,9 @@ def when(value, *, due=False, now=None):
 
 
 def inject_design(role="manager"):
-    from executive_health_ai.ui.styles import LEGACY_STYLES
+    from executive_health_ai.ui.styles import LEGACY_STYLES, role_styles
     st.markdown(LEGACY_STYLES, unsafe_allow_html=True)
-    st.markdown(f"""<style>
-    :root {{--brand-blue:{TOKENS['blue']};--blue:var(--brand-blue);--ink:{TOKENS['ink']};--muted:{TOKENS['muted']};--line:{TOKENS['border']};--surface:{TOKENS['background']};--radius:12px;--space:1rem}}
-    .stApp, [data-testid="stAppViewContainer"] {{background:#fff;color:var(--ink)}}
-    [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p, [data-testid="stCaption"] p, .stCaption {{color:#53677f!important}}
-    [data-testid="stSidebar"] [data-testid="stRadio"] label {{padding:.3rem .5rem;margin:0}}
-    [data-testid="stDivider"] {{margin:.7rem 0!important}}
-    h2 {{margin:1.1rem 0 .4rem!important}}
-    .empty-state {{text-align:left;max-width:none;margin:.4rem 0;padding:.6rem 0;border:0;background:none}}
-    .block-container {{max-width:{'1080px' if role == 'member' else '1320px'};padding-top:2rem;padding-bottom:3rem}}
-    h1 {{font-size:2rem!important;letter-spacing:-.025em}} h2 {{font-size:1.35rem!important}} h3 {{font-size:1.12rem!important}}
-    [data-testid="stSidebar"] {{background:var(--surface);border-right:1px solid var(--line)}}
-    [data-testid="stMetricValue"] {{font-size:1.7rem}} [data-testid="stMetricLabel"] {{color:var(--muted)}}
-    .ux-eyebrow {{font-size:.78rem;color:var(--muted);letter-spacing:.08em;margin-bottom:.3rem}}
-    .ux-row {{padding:.75rem 0;border-bottom:1px solid var(--line);line-height:1.65}}
-    .ux-row b {{font-size:1rem}} .ux-row small {{color:var(--muted)}}
-    .ux-next {{border-left:3px solid var(--brand-blue);background:var(--surface);padding:.7rem 1rem;margin:.5rem 0 1rem;border-radius:0 8px 8px 0}}
-    .ux-badge {{display:inline-block;background:#edf3fb;color:#25476d;padding:.15rem .6rem;border-radius:16px;font-size:.8rem}}
-    .ux-muted {{color:var(--muted);font-size:.87rem}} .ux-baseline {{border-top:3px solid var(--brand-blue);padding-top:.8rem}}
-    div[data-testid="stVerticalBlockBorderWrapper"] {{border-radius:var(--radius)}}
-    button[kind="primary"] {{background:var(--brand-blue);border-color:var(--brand-blue)}}
-    @media(max-width:700px) {{.block-container {{padding:1rem}} h1 {{font-size:1.65rem!important}} [data-testid="stHorizontalBlock"] {{flex-wrap:wrap}} [data-testid="stColumn"] {{min-width:min(100%,240px)}}}}
-    </style>""", unsafe_allow_html=True)
+    st.markdown(role_styles(role), unsafe_allow_html=True)
 
 
 def page_header(title, description="", eyebrow=""):
@@ -137,8 +117,11 @@ def work_item(title, detail, meta=""):
 
 
 def member_summary(patient, program, next_step):
-    page_header(patient.display_name or "成员", f"{program.title if program else '尚未建立当前计划'} · {owner(program.owner if program else None)}", "成员360")
-    next_action(next_step, program.owner if program else None)
+    from executive_health_ai.ui.components import summary_strip
+    page_header(patient.display_name or "成员", "", "成员360")
+    summary_strip([("当前计划", business_text(program.title) if program else "尚未建立当前计划"),
+        ("负责人", business_text(program.owner) if program and program.owner else "待确认"),
+        ("下一步", business_text(next_step))])
 
 
 def observations(session, patient_id, metric=None, since=None):

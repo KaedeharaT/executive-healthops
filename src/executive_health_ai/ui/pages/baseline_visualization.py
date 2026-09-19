@@ -95,19 +95,6 @@ def render_baseline_visualization(
 
 def render_baseline_progress(view, *, key_prefix: str) -> None:
     """The same comparable projection and chart for members and managers."""
-    st.markdown("**基线与当前**")
-    if view.comparisons:
-        rows = []
-        for item in view.comparisons:
-            rows.append({"指标": item.label,
-                         "年度基线": f"{number_text(item.baseline)} {item.unit}",
-                         "当前记录": f"{number_text(item.current)} {item.unit}" if item.delta is not None else "暂无后续数据",
-                         "数值变化": item.delta_text,
-                         "相对变化": f"{item.percentage:+.1f}%" if item.percentage is not None else "—"})
-        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
-    else:
-        st.caption("暂无可比较指标，已确认的定量数据会显示在这里。")
-    st.caption("↑ / ↓ 只表示数值方向，不自动解释为改善或恶化；百分比指标的绝对差使用百分点。")
     st.markdown("**从基线到现在**")
     by_code = {trend.code: trend for trend in view.trends}
     options = {}
@@ -122,6 +109,7 @@ def render_baseline_progress(view, *, key_prefix: str) -> None:
             options[trend.label] = (trend,)
     if not options:
         st.caption("目前还没有足够的后续数据形成趋势。请由健康管理师核对并补充基线指标。")
+        _render_comparison_details(view)
         return
     columns = st.columns([2, 1])
     selected_label = columns[0].selectbox("选择指标", list(options), key=f"{key_prefix}-trend-metric")
@@ -131,6 +119,13 @@ def render_baseline_progress(view, *, key_prefix: str) -> None:
         cutoff = datetime.now(TOKYO_TIMEZONE) - timedelta(days={"7天":7,"30天":30,"3个月":90,"6个月":180,"1年":365}[window])
         selected = tuple(replace(trend, points=tuple(p for p in trend.points if p.point_type == "BASELINE" or p.observed_at >= cutoff)) for trend in selected)
         st.caption("保留年度基线作为起点；后续记录按所选时间范围展示。")
+    from executive_health_ai.ui.components import summary_strip
+    selected_codes = {trend.code for trend in selected}
+    for item in view.comparisons:
+        if item.code in selected_codes:
+            summary_strip([(item.label + " · 年度基线", f"{number_text(item.baseline)} {item.unit}"),
+                ("当前记录", f"{number_text(item.current)} {item.unit}" if item.delta is not None else "暂无后续数据"),
+                ("数值变化", item.delta_text)])
     chart = baseline_trend_chart(selected)
     if chart is None:
         st.caption("目前还没有足够的后续数据形成趋势。")
@@ -139,6 +134,8 @@ def render_baseline_progress(view, *, key_prefix: str) -> None:
         # Explicit Vega-Lite axes must not inherit Streamlit's minimalist theme.
         st.altair_chart(chart, width="stretch", theme=None, key=f"{key_prefix}-trend-chart")
         st.caption("虚线 / 菱形：年度基线；末端圆点：当前有效记录。悬停查看日期、数值、单位和来源。")
+
+    _render_comparison_details(view)
 
 
 def render_baseline_overview(patient, baseline, *, session_factory, key_prefix):
@@ -151,3 +148,20 @@ def render_baseline_overview(patient, baseline, *, session_factory, key_prefix):
     confirmed = view.assessment.confirmed_at or view.assessment.assessed_at
     st.caption(f"已确认 · 建立时间：{confirmed:%Y/%m/%d} · 已记录 {len(view.metrics)} 项指标；缺失资料不推断为正常。")
     render_baseline_progress(view, key_prefix=key_prefix)
+
+
+def _render_comparison_details(view):
+    with st.expander("所有指标 · 基线与当前对比"):
+        st.markdown("**基线与当前**")
+        if view.comparisons:
+            rows = []
+            for item in view.comparisons:
+                rows.append({"指标": item.label,
+                             "年度基线": f"{number_text(item.baseline)} {item.unit}",
+                             "当前记录": f"{number_text(item.current)} {item.unit}" if item.delta is not None else "暂无后续数据",
+                             "数值变化": item.delta_text,
+                             "相对变化": f"{item.percentage:+.1f}%" if item.percentage is not None else "—"})
+            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+        else:
+            st.caption("暂无可比较指标，已确认的定量数据会显示在这里。")
+        st.caption("↑ / ↓ 只表示数值方向，不自动解释为改善或恶化；百分比指标的绝对差使用百分点。")

@@ -1,0 +1,246 @@
+{
+  "start_commit": "62d9ae3848494344fad32390c4e0c213eb91affd",
+  "browser": "Playwright Chromium",
+  "desktop_viewport": [
+    1500,
+    1100
+  ],
+  "narrow_viewport": [
+    640,
+    1100
+  ],
+  "dataset": "existing isolated synthetic Portfolio Demo",
+  "browser_results": {
+    "member-home": {
+      "charts": 2,
+      "exceptions": 0
+    },
+    "member-health": {
+      "charts": 1,
+      "exceptions": 0
+    },
+    "member-health-data": {
+      "charts": 1,
+      "exceptions": 0
+    },
+    "member-plan": {
+      "charts": 0,
+      "exceptions": 0
+    },
+    "member-service": {
+      "charts": 0,
+      "exceptions": 0
+    },
+    "member-timeline": {
+      "charts": 0,
+      "exceptions": 0
+    },
+    "manager-today": {
+      "charts": 0,
+      "exceptions": 0
+    },
+    "member-360-overview": {
+      "charts": 1,
+      "exceptions": 0
+    },
+    "member-360-health": {
+      "charts": 1,
+      "exceptions": 0
+    },
+    "member-360-management": {
+      "charts": 0,
+      "exceptions": 0
+    },
+    "manager-medical": {
+      "charts": 1,
+      "exceptions": 0
+    },
+    "manager-service": {
+      "charts": 0,
+      "exceptions": 0
+    },
+    "doctor-queue": {
+      "charts": 1,
+      "exceptions": 0
+    },
+    "doctor-detail": {
+      "charts": 1,
+      "exceptions": 0
+    },
+    "admin-integrations": {
+      "charts": 0,
+      "exceptions": 0
+    },
+    "admin-automation": {
+      "charts": 0,
+      "exceptions": 0
+    },
+    "admin-rules": {
+      "charts": 0,
+      "exceptions": 0
+    },
+    "admin-system": {
+      "charts": 0,
+      "exceptions": 0
+    },
+    "tooltip": {
+      "visible": true,
+      "text": "日期\t\n2026/09/01\n\n指标\t\n体重\n\n数值\t\n85.8\n\n单位\t\nkg\n\n类型\t\n当前\n\n来源\t\n健康数据"
+    },
+    "keyboard": {
+      "activeTag": "SUMMARY",
+      "outline": "3px"
+    },
+    "member-home-narrow": {
+      "charts": 2,
+      "exceptions": 0
+    },
+    "member-health-narrow": {
+      "charts": 1,
+      "exceptions": 0
+    },
+    "narrow": {
+      "width": 640,
+      "scrollWidth": 640
+    },
+    "member-health-data-narrow": {
+      "charts": 1,
+      "exceptions": 0
+    }
+  },
+  "screenshots": {
+    "after/admin-automation.png": {
+      "sha256": "f7ef363cdf62bfcc5fc49fda7ffadda4fe90f3fe0001a1381c598f618ed373d5"
+    },
+    "after/admin-integrations.png": {
+      "sha256": "a629045c7881ae5a2aa600bfa47ed8fe65b7f4c8083ec8bbe055a9216922ba35"
+    },
+    "after/admin-rules.png": {
+      "sha256": "e6a9a4b7ab2c0bbb9a6fc6d9c7771d9b9dacbe62df296cf35896605fdc5949c4"
+    },
+    "after/admin-system.png": {
+      "sha256": "e3614dc1ec41257b50edd43c06a9e644ea0aeeca4e419cd3ff6cd381f375ed74"
+    },
+    "after/doctor-detail.png": {
+      "sha256": "1b54f1f4a93199d6883b3d4082178672ef175a5cdd6aa7ec1c2ca8e2fbeef17b"
+    },
+    "after/doctor-queue.png": {
+      "sha256": "3370f26d91483b93ff04cf09387d789a48a91e36df852aa7e0e747012624e41e"
+    },
+    "after/manager-medical.png": {
+      "sha256": "d1cad692e9a226f3e280891b25a89db4e2cbed289cc6bc73bf4841d8acc645ae"
+    },
+    "after/manager-service.png": {
+      "sha256": "623928623f4a0b206302e6069aff35c19bd440bbb60f60668777c3e5f1fa8bae"
+    },
+    "after/manager-today.png": {
+      "sha256": "3bb262db31e56956bb30ad7b392d77d5ab58234282fb923090f30e13ce4a2a4a"
+    },
+    "after/member-360-health.png": {
+      "sha256": "de5f9f6fb7a8a02cce7c6a574bf251ec4617fce99d088cf2915b1654368afca8"
+    },
+    "after/member-360-management.png": {
+      "sha256": "280296576618ae31b951ba6daf2f62a07ae0c32f5ae64050ed629cae6134dfb8"
+    },
+    "after/member-360-overview.png": {
+      "sha256": "f548e9871aec93ebb6b174c6c29854db844b87e37e4dd7cf38458decccadcb8a"
+    },
+    "after/member-health-data-narrow-chart.png": {
+      "sha256": "ff6843b0a2ed701f26ce48e5a040c3e71ded3faac09068ec2bad0e8894bdc8c1"
+    },
+    "after/member-health-data-narrow.png": {
+      "sha256": "ff6843b0a2ed701f26ce48e5a040c3e71ded3faac09068ec2bad0e8894bdc8c1"
+    },
+    "after/member-health-data.png": {
+      "sha256": "689f247d7f018617ffd9a9067260123af577e34043eb81f518250ac752f27bd7"
+    },
+    "after/member-health-narrow-chart.png": {
+      "sha256": "5970af8e157310e65b842a4dc486b5a21b0ace6df957fa9d7de67e15a49b52c9"
+    },
+    "after/member-health-narrow.png": {
+      "sha256": "5970af8e157310e65b842a4dc486b5a21b0ace6df957fa9d7de67e15a49b52c9"
+    },
+    "after/member-health.png": {
+      "sha256": "3f530d146d725d30aa2db118eab7adba2302bc331ca558ac92304b081ef30adc"
+    },
+    "after/member-home-narrow.png": {
+      "sha256": "78f518ff97034e42d578b99c786aac96f6b5f93ecc028405415b70bfe0522ab0"
+    },
+    "after/member-home.png": {
+      "sha256": "abb0a283af1225ec3c1b925b13a32f0811db2e55382ae1967f0508455a734ef4"
+    },
+    "after/member-plan.png": {
+      "sha256": "2109d0e95b6fe0427a4af68bb83f97ffce0f5b3dcb55f0c93d1559e49c66184f"
+    },
+    "after/member-service.png": {
+      "sha256": "b682b5dc108b6e2461038e9e3cd8be63cde8a3ab07a626cfdabd73b7fef4af39"
+    },
+    "after/member-timeline.png": {
+      "sha256": "358b8a0b4d70b12cec42d7daa22572fa513ff30385d14c4894fa966a8ab8ad0d"
+    },
+    "before/admin-automation.png": {
+      "sha256": "3b6226d5da84e75424f90286c3a19ee9222933b69433d54887104c30c8ce8087"
+    },
+    "before/admin-integrations.png": {
+      "sha256": "4c1790ebadb461800c672a84605bfd163f086726bcbff0197134ac9324ab99e0"
+    },
+    "before/doctor-detail.png": {
+      "sha256": "38f6febda6bfd22287f2e688b1ff38135480347ee604e21cc1436cb86126906f"
+    },
+    "before/doctor-queue.png": {
+      "sha256": "38f6febda6bfd22287f2e688b1ff38135480347ee604e21cc1436cb86126906f"
+    },
+    "before/manager-medical.png": {
+      "sha256": "10768e1c12afce4d826ffa66a6df983eb001f24a2b6071f7e4a74d0149956c24"
+    },
+    "before/manager-service.png": {
+      "sha256": "c754ce93168fd341e7b5fe5b0b4d4312afecedce8e8aaaabb5ab9def7042bb8a"
+    },
+    "before/manager-today.png": {
+      "sha256": "64b552b3e30bb74d2b83a900ba4a191c3c373f158f64686acd80b791e837f387"
+    },
+    "before/member-360-health.png": {
+      "sha256": "cfc76b80317c1ed5caa01405e63aea44eeca55a1bffbf34b5bb25289b6574934"
+    },
+    "before/member-360-management.png": {
+      "sha256": "04d2c46e130975df092aa6cb254af82ea727962e42345517a9ada0b33ef97bc9"
+    },
+    "before/member-360-overview.png": {
+      "sha256": "8b3b06b9132d74a0d7a8f7dbfcddc8beb46113dae150c7fe6516c14d67d68b63"
+    },
+    "before/member-health-data.png": {
+      "sha256": "d136163193e002352139663d7c06d00310c129756456dba78d956d3b52eb2da8"
+    },
+    "before/member-health.png": {
+      "sha256": "af1715f9c802596e8e3e5a0254a0c947ee214d8dc98f9ae7aa9154561abbf565"
+    },
+    "before/member-home.png": {
+      "sha256": "f283bd821137b08e44b5dee6ea0dd7c24de9da895a273d2773d4e1947fad3baf"
+    },
+    "before/member-plan.png": {
+      "sha256": "45baaef33971039c19d0570b2481c642e7d5a8a586cf8a1ea24f4265bbe7b2b1"
+    },
+    "before/member-service.png": {
+      "sha256": "fe5fb1320490bcb3297e4af77e19ec6b8b1534aa0917ccb4de1884dea9a07329"
+    },
+    "before/member-timeline.png": {
+      "sha256": "16b235a7efbbd1a3fc7c10d1f1e33d113cf3b537ce4a92039a187d54c2c34c68"
+    }
+  },
+  "baseline": {
+    "tests": "493",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "237.110",
+    "timestamp": "2026-09-19T20:40:23.502861+09:00"
+  },
+  "final": {
+    "tests": "502",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "300.742",
+    "timestamp": "2026-09-19T21:18:04.239782+09:00"
+  }
+}

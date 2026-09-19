@@ -18,7 +18,7 @@ def test_member_timeline_is_a_primary_destination_not_a_health_subpage() -> None
     navigation = _source("_render_member_center_navigation", "def _empty_state")
     health = _source("render_client_health_hub", "def render_member_client_view")
     client = _source("render_member_client_view", "def render_global_doctor_workspace")
-    assert '["首页", "健康", "历程", "计划", "服务"]' in navigation
+    assert '["首页", "健康", "计划", "服务", "历程"]' in navigation
     assert '"健康历程"' not in health
     assert 'page in {"历程", "健康历程"}' in client
     assert 'member_pages.timeline(_ui_adapter(), patient)' in client

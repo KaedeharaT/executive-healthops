@@ -28,7 +28,7 @@ def metric_trend_chart(series, *, compact=False):
         y=alt.Y("数值:Q", title=series[0].unit, scale=alt.Scale(zero=False, domain=[low-pad, high+pad], nice=True), axis=numeric_axis_config(series[0].unit, compact=compact)),
         color=alt.Color("指标:N", scale=alt.Scale(range=[BLUE, "#609bd0"]), legend=alt.Legend(title=None, orient="top", labelFontSize=12)),
         tooltip=[alt.Tooltip("时间:T", title="时间", format="%Y/%m/%d %H:%M"), alt.Tooltip("数值:Q", format=".3~f"), alt.Tooltip("单位:N"), alt.Tooltip("来源:N"), alt.Tooltip("指标:N")],
-    ).properties(height=190 if compact else 320, padding=5 if compact else CHART_PADDING).configure_view(stroke=None).configure_axis(**health_axis_config())
+    ).properties(height=190 if compact else 320, padding={"left": 8, "right": 8, "top": 8, "bottom": 8} if compact else CHART_PADDING).configure_view(stroke=None).configure_axis(**health_axis_config())
 
 
 def render_metric_trend(series, *, key, compact=False):
