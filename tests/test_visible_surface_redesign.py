@@ -25,17 +25,18 @@ def test_design_system_exposes_shared_surface_helpers_and_tokens() -> None:
     assert "linear-gradient" not in source
 
 
-def test_ops_today_uses_prioritized_work_cards_not_dashboard_metric_cards() -> None:
+def test_ops_today_uses_prioritized_table_and_selected_detail() -> None:
     source = _source("render_manager_dashboard", "def _render_member_header")
     assert "今日工作" in source
     assert all(label in source for label in ("高优先级", "即将逾期", "等待医生", "优先处理"))
-    assert "ux.work_item(" in source and "总成员数" not in source
+    assert "data_table(visible" in source and "总成员数" not in source
+    assert 'key="today-detail"' in source
 
 
 def test_members_and_member_overview_have_distinct_visual_components() -> None:
     members = _source("render_members_workspace", "KNOWLEDGE_CATEGORIES")
     overview = _source("render_simple_member_overview", "def render_simple_health_problems")
-    assert "ux.work_item(" in members and "最近管理记录" in members
+    assert "data_table(visible" in members and "最近联系" in members
     assert "当前重点" in overview and "最近健康历程" in overview
     assert "section_frame(" in overview
     assert "render_longitudinal_timeline(patient, key_scope=\"overview\")" not in overview
@@ -56,5 +57,6 @@ def test_data_report_service_and_collaboration_use_result_or_action_first_frames
     assert "health_metric_card(" in data and "最近趋势" in data and "查看全部健康数据" in data
     assert "本次核心结论" in report and "与上次相比" in report and "需要处理" in report
     assert "查看解析详情（高级信息）" in report
-    assert "服务工作列表" in service and "等待反馈" in service and "detail_panel(" in service
+    assert "服务事项表" in service and "等待反馈" in service and "detail_panel(" in service
+    assert "data_table(visible" in service and "service_steps(selected)" in service
     assert "内部医生" in collaboration and "外部医疗" in collaboration and "collaboration-view" in collaboration

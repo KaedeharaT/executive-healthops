@@ -24,8 +24,9 @@ def test_shared_design_system_exposes_product_level_helpers() -> None:
 def test_ops_today_has_one_priority_frame_and_compact_work_items() -> None:
     today = _source("render_manager_dashboard", "def _render_member_header")
     assert "今日工作" in today and "c.summary_strip(work.counts(now))" in today
-    assert 'st.subheader("优先处理")' in today and "ux.work_item(" in today
-    assert "ux.sorted_work(" in today and "visible[:6]" in today
+    assert 'st.subheader("优先处理")' in today and "data_table(visible" in today
+    assert "ux.sorted_work(" in today and "work_filter(" in today
+    assert 'key="today-detail"' in today and '"截止时间"' in today
 
 
 def test_member_overview_keeps_the_two_column_focus_then_next_step_structure() -> None:

@@ -23,7 +23,9 @@ def _radio(app: AppTest, label: str):
 
 def test_members_workspace_uses_batch_summary_not_full_member_context() -> None:
     source = _function_source("render_members_workspace", "\n\n\nKNOWLEDGE_CATEGORIES")
-    assert "_member_list_summaries" in source
+    assert "member_directory(session, visible)" in source
+    projection = (APP.parent / "src/executive_health_ai/services/information_presentation.py").read_text(encoding="utf8")
+    assert ".in_(ids)" in projection and "ManagementLog" in projection
     assert "_context(member.id)" not in source
     assert "select(Observation)" not in source
 

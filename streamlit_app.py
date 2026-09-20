@@ -333,7 +333,8 @@ def _render_admin_automation() -> None:
         if not goals:
             _empty_state("暂无进行中的长期目标", "新体检报告进入人工确认后，自动跟进状态会显示在这里。")
         else:
-            selected = st.selectbox("查看目标", goals, format_func=lambda item: f"{_member_display(members.get(item.member_id))} · {item.title}", key="agent-admin-goal")
+            from executive_health_ai.ui.presentation import data_table
+            selected = data_table(goals, [{"目标": g.title, "会员": _member_display(members.get(g.member_id)), "状态": GOAL_LABELS.get(g.status, g.status), "阶段": g.current_stage, "负责人": g.owner, "下一步": g.next_action, "下一检查": ux.when(g.next_check_at)} for g in goals], key="admin-goals", label="查看目标")
             st.write(f"**当前等待：** {selected.current_stage}")
             st.caption("下一步：" + (selected.next_action or "等待人工确认"))
             actions = st.columns(3)
@@ -1768,32 +1769,8 @@ def render_alerts(patient: Patient, ctx: dict[str, list[object]]) -> None:
 
 
 def render_tasks(ctx: dict[str, list[object]]) -> None:
-    st.subheader("执行任务")
-    tasks = ctx["tasks"]
-    if not tasks:
-        st.info("暂无执行任务。")
-        return
-    now = datetime.now(TOKYO_TIMEZONE)
-    for task in tasks:
-        overdue = task.status not in {"COMPLETED", "CANCELLED"} and task.due_at and task.due_at < now
-        severity = "OVERDUE" if overdue else task.priority
-        columns = st.columns([6, 1])
-        columns[0].markdown(f"**{task.title}** {_severity_badge(severity)} {_status_badge('OVERDUE' if overdue else task.status, severity)}  \n\n执行人：{_role_label(task.responsible_role, name=task.assignee)} · 截止：{_fmt_dt(task.due_at)}  \n\n{task.instruction}")
-        if task.status not in {"COMPLETED", "CANCELLED"} and columns[1].button("标记完成", key=f"complete-{task.id}"):
-            with SessionLocal() as session:
-                try:
-                    TaskTransitionService().complete(
-                        session,
-                        task.id,
-                        actor=task.assignee or "健康管理师",
-                        outcome="已在健康运营工作台记录任务完成。",
-                    )
-                    session.commit()
-                except ValueError as error:
-                    session.rollback()
-                    st.error(str(error))
-                else:
-                    st.rerun()
+    from executive_health_ai.ui.presentation import tasks
+    tasks(_ui_adapter(), ctx)
 
 
 def _recent_observation_table(observations: list[Observation]) -> pd.DataFrame:
@@ -2890,20 +2867,20 @@ def render_members_workspace(members):
     _page_header("成员", "在同一上下文查看当前阶段、负责人和下一行动。", eyebrow="成员管理")
     query = st.text_input("搜索成员", placeholder="输入姓名或职位")
     visible = [m for m in members if not query or query.lower() in _member_display(m).lower()]
-    summaries = _member_list_summaries([m.id for m in visible])
-    for member in visible:
-        summary = summaries.get(member.id, {})
-        program, task = summary.get("program"), summary.get("next_task")
-        left, middle, right = st.columns([3, 3, 1])
-        with left:
-            ux.work_item(_member_display(member), "；".join(summary.get("problems", [])) or "待确认关注事项", f"{display_program_type(program.program_type) if program else '待建立计划'} · {summary.get('risk', '暂无法判断')}")
-        with middle:
-            st.write("下一步：" + ux.business_text(task.title if task else "等待负责人更新安排"))
-            st.caption(ux.owner(program.owner if program else None))
-            st.caption("最近管理记录：" + ux.when(task.created_at if task else program.created_at if program else None))
-        right.button("查看成员", key=f"member-card-{member.id}", on_click=_open_member, args=(member.id,))
-    if not visible:
-        ux.empty_state("未找到匹配成员", "请调整搜索条件。")
+    from executive_health_ai.services.information_presentation import member_directory
+    from executive_health_ai.ui.presentation import data_table
+    with SessionLocal() as session:
+        summaries = member_directory(session, visible)
+    records = []
+    for row in summaries:
+        program, task, phase, log = row['program'], row['task'], row['phase'], row['log']
+        records.append({"会员": _member_display(row['member']), "当前阶段": phase.title if phase else display_program_phase(program.current_phase) if program else "待建档",
+            "主要关注": row['focus'] or "待初评", "责任健管": program.owner if program else "待分配", "最近联系": ux.when(log.occurred_at) if log else "尚无联系记录",
+            "下一事项": task.title if task else "待确认安排", "下一日期": ux.when(task.due_at) if task else "—", "状态": _label(program.status) if program else "待建档"})
+    member = data_table(visible, records, key="member-directory", label="选择会员", empty="未找到匹配会员。")
+    if member:
+        st.button("查看成员", key=f"member-card-{member.id}", on_click=_open_member, args=(member.id,), type="primary")
+
 
 
 KNOWLEDGE_CATEGORIES = ["PATIENT_EDUCATION", "MEDICATION", "LAB_TEST", "CLINICAL_GUIDELINE", "TEXTBOOK_REFERENCE", "INTERNAL_SOP", "COMMUNICATION", "SERVICE_SOP", "AI_SAFETY", "PRIVACY"]
@@ -3788,22 +3765,20 @@ def render_service_operations_workspace() -> None:
     if not visible:
         _empty_state("暂无待处理服务", "新的服务申请会按申请时间显示在这里。")
         return
-    selected_key = "service-operations-selected"
-    if st.session_state.get(selected_key) not in {str(item.id) for item in visible}:
-        st.session_state[selected_key] = str(visible[0].id)
-    left, right = st.columns([1.15, 1], gap="large")
+    from executive_health_ai.ui.presentation import data_table, service_steps
+    left, right = st.columns([1.8, 1], gap="large")
     with left:
-        _section_header("服务工作列表", "选择一项后，在右侧直接审核、安排或记录结果。")
-        for request in visible[:20]:
-            member = members.get(request.patient_id)
-            if member and secondary_action(f"{_member_display(member)} · {service_names.get(request.service_item_id, '会员服务')} · {_label(request.status, context='service_request')}", key=f"service-operations-select-{request.id}"):
-                st.session_state[selected_key] = str(request.id); st.rerun()
-    selected = next(item for item in visible if str(item.id) == st.session_state[selected_key])
+        _section_header("服务事项表", "选择记录，在右侧审核、安排或记录结果。")
+        selected = data_table(visible, [{"服务": service_names.get(r.service_item_id, "会员服务"), "会员": _member_display(members.get(r.patient_id)),
+            "原因": r.reason, "服务方": r.service_provider or "待安排", "预约时间": ux.when(r.scheduled_at), "负责人": r.assigned_manager or "待分配",
+            "状态": _label(r.status, context="service_request"), "结果": r.result_summary or "待回写"} for r in visible], key="service-operations-grid")
     with right:
         member = members.get(selected.patient_id)
         with detail_panel("服务详情", "服务申请不等于自动医疗预约；所有安排均由人工确认。"):
             st.markdown(f"**{service_names.get(selected.service_item_id, '会员服务')} · {_member_display(member)}**")
-            st.write(selected.reason or "成员提交服务申请。")
+            service_steps(selected)
+            with st.expander("申请原因与完整说明"):
+                st.write(selected.reason or "成员提交服务申请。")
             st.caption(f"当前状态：{_label(selected.status, context='service_request')} · 负责人：{selected.assigned_manager or '待分配'}")
             st.caption(f"申请时间：{_fmt_dt(selected.requested_at)} · 预计处理：{_fmt_dt(selected.sla_due_at) if selected.sla_due_at else '待确认'}")
             st.write("下一步：" + (selected.next_action or "健康管理师确认下一步"))
@@ -5708,7 +5683,10 @@ def render_member_service_management(patient: Patient) -> None:
             _empty_state("暂无服务申请", "成员申请服务后，健康管理师可在这里审核、安排和记录结果。")
             return
         st.markdown("**服务申请与执行**")
-        for request in requests:
+        from executive_health_ai.ui.presentation import data_table, service_steps
+        selected = data_table(requests, [{"服务": names.get(r.service_item_id, "会员服务"), "状态": _label(r.status, context="service_request"), "预约": ux.when(r.scheduled_at), "负责人": r.assigned_manager or "待分配", "下一步": r.next_action} for r in requests], key=f"member-service-grid-{patient.id}")
+        for request in [selected]:
+            service_steps(request)
             with st.container(border=True):
                 st.markdown(f"**{names.get(request.service_item_id, '会员服务')}** · {_label(request.status, context='service_request')}")
                 st.caption(f"申请原因：{request.reason} · 负责人：{request.assigned_manager or '待分配'} · SLA：{_fmt_dt(request.sla_due_at) if request.sla_due_at else '待确认'} · 安排时间：{_fmt_dt(request.scheduled_at) if request.scheduled_at else '待安排'}")
@@ -5774,20 +5752,13 @@ def _render_client_service(patient: Patient, ctx: dict[str, list[object]]) -> No
             if not rows:
                 _empty_state("暂无服务记录", "提交服务申请后，审核、安排和结果会显示在这里。")
                 return
-            selected_key = f"client-service-request-selected-{patient.id}"
-            if st.session_state.get(selected_key) not in {str(item.id) for item in rows}:
-                st.session_state[selected_key] = str(rows[0].id)
+            from executive_health_ai.ui.presentation import data_table, service_steps
             left, right = st.columns([1, 1.3], gap="large")
             with left:
-                for request in rows:
-                    if secondary_action(f"{names.get(request.service_item_id, '会员服务')} · {_label(request.status, context='service_request')}", key=f"client-service-select-{request.id}"):
-                        st.session_state[selected_key] = str(request.id); st.rerun()
-            selected = next(item for item in rows if str(item.id) == st.session_state[selected_key])
+                selected = data_table(rows, [{"服务": names.get(r.service_item_id, "会员服务"), "状态": _label(r.status, context="service_request"), "安排": ux.when(r.scheduled_at)} for r in rows], key=f"client-services-{patient.id}")
             with right:
                 with detail_panel(names.get(selected.service_item_id, "会员服务"), "服务状态与结果由健康管理团队确认。"):
-                    from executive_health_ai.ui.components import workflow
-                    phase = {"REQUESTED": "申请", "REVIEWING": "审核", "APPROVED": "安排", "SCHEDULED": "安排", "IN_PROGRESS": "执行", "IN_SERVICE": "执行", "COMPLETED": "完成", "CANCELLED": "已取消"}.get(selected.status, "待确认")
-                    workflow(["申请", "审核", "安排", "执行", "完成"] + ([phase] if phase in {"已取消", "待确认"} else []), phase)
+                    service_steps(selected)
                     st.write(selected.reason or "成员服务申请")
                     st.caption(f"当前状态：{_label(selected.status, context='service_request')} · 申请时间：{_fmt_dt(selected.requested_at)}")
                     if selected.scheduled_at:
@@ -5981,7 +5952,10 @@ def _render_client_medical_archive(patient: Patient) -> None:
         elif section == "医生意见":
             rows = list(session.scalars(select(DoctorReview).where(DoctorReview.patient_id == patient.id, DoctorReview.status == "CONFIRMED").order_by(DoctorReview.reviewed_at.desc()).limit(20)))
             if rows:
+                from executive_health_ai.ui.components import timeline_event
+                from executive_health_ai.ui.presentation import preview
                 for item in rows:
+                    timeline_event("医生反馈", preview(item.opinion, 60), ux.when(item.reviewed_at), ux.business_text(item.doctor_name))
                     with st.expander(f"{_fmt_dt(item.reviewed_at)} · 医生反馈"):
                         st.write(item.opinion or "医生意见待补充")
                         if item.question_for_doctor:
@@ -5991,8 +5965,10 @@ def _render_client_medical_archive(patient: Patient) -> None:
         else:
             rows = list(session.scalars(select(HealthProblem).where(HealthProblem.patient_id == patient.id).order_by(HealthProblem.opened_at.desc()).limit(20)))
             if rows:
-                for item in rows:
-                    st.markdown(f"<div class='next-row'><div class='focus-title'>{html.escape(item.title)}</div><div class='focus-copy'>{html.escape(ux.business_text(item.description or '已确认健康记录'))}</div></div>", unsafe_allow_html=True)
+                from executive_health_ai.ui.presentation import data_table
+                item = data_table(rows, [{"健康问题": r.title, "状态": _label(r.status), "记录时间": ux.local_time(r.opened_at)} for r in rows], key=f"member-history-{patient.id}")
+                with st.expander("健康背景详情 · " + ux.business_text(item.title)):
+                    st.write(ux.business_text(item.description or "已确认健康记录"))
             else:
                 _empty_state("暂无健康史记录", "既往史、个人史和家族史需要人工确认后才会显示。")
 

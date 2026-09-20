@@ -60,7 +60,7 @@ def test_medical_collaboration_and_service_operations_are_separate() -> None:
     collaboration = _source("render_collaboration_workspace", "def render_service_operations_workspace")
     service_ops = _source("render_service_operations_workspace", "def _report_candidate_label")
     assert "内部医生" in collaboration and "外部医疗" in collaboration
-    assert "服务工作列表" in service_ops and "service-operations-selected" in service_ops
+    assert "服务事项表" in service_ops and "service-operations-grid" in service_ops
     assert "render_doctor_reviews" not in service_ops
 
 

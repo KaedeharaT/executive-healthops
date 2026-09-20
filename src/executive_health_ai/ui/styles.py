@@ -62,9 +62,14 @@ button[kind="primary"] {background:var(--blue)!important;border-color:var(--blue
 .v2-timeline article {position:relative;border-left:2px solid #afc8df;padding:0 0 1rem 22px}
 .v2-timeline article:before {content:'';position:absolute;left:-6px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--blue)}
 .v2-timeline h3 {font-size:1rem!important}.v2-timeline p {margin:.3rem 0;color:#334155}.v2-timeline small {color:var(--muted)}
-.v2-workflow {display:flex;flex-wrap:wrap;gap:8px;margin:.5rem 0 1rem}
-.v2-workflow span {padding:.4rem .65rem;border-bottom:2px solid #cad7e3;color:var(--muted);font-size:.83rem}
-.v2-workflow .active {background:#eaf2fb;color:var(--blue);border-color:var(--blue);font-weight:700}
+.v2-workflow {display:flex!important;width:100%!important;flex-wrap:wrap;gap:0;margin:.5rem 0 1rem;padding:12px 0}
+.v2-workflow .flow-step {flex:1;min-width:105px;position:relative;text-align:center;color:var(--muted);font-size:.83rem;padding:0 8px}
+.v2-workflow .flow-step:before {content:'';position:absolute;top:14px;left:0;right:0;border-top:2px solid #cad7e3}
+.v2-workflow .flow-step:first-child:before {left:50%}.v2-workflow .flow-step:last-child:before {right:50%}
+.v2-workflow .flow-dot {position:relative;z-index:1;display:block;width:30px;height:30px;line-height:28px;margin:0 auto 8px;border:2px solid #a5bbcf;background:#fff;border-radius:50%;font-size:12px}
+.v2-workflow span {display:block;padding:4px 2px}
+.v2-workflow .active {color:var(--blue);font-weight:700}
+.v2-workflow .active .flow-dot {background:var(--blue);color:white;border-color:var(--blue)}
 .empty-state {text-align:left;max-width:none;margin:.4rem 0;padding:.75rem 0;border:0;background:none}
 @media(max-width:760px) {
  [data-testid="stMainBlockContainer"],.block-container {padding:1.25rem .8rem 3rem!important}

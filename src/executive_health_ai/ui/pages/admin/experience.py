@@ -6,6 +6,7 @@ from executive_health_ai.models import AgentGoal
 from executive_health_ai.llm.local_llm_client import LocalLLMSettings
 from executive_health_ai.ui import experience as ux
 from executive_health_ai.ui import components as c
+from executive_health_ai.ui.presentation import data_table
 
 
 def integration_statuses():
@@ -26,14 +27,16 @@ def integrations(app):
     catalog, config = st.columns([1, 1.8], gap="large")
     with catalog:
         with c.section("连接与服务", key="integration-list"):
-            for title, status, summary, mode in rows:
-                name, action = st.columns([2.6, 1])
-                with name:
-                    ux.work_item(title, status)
-                if action.button("检查", key={"数据导入":"integration-open-data", "AI服务":"integration-open-ai", "专业知识服务":"integration-open-knowledge", "设备接入":"integration-open-device"}[mode]):
-                    st.session_state["integration-center-mode"] = mode
-                st.caption("最后测试：" + st.session_state.get(f"integration-tested-{mode}", "暂无本次会话测试"))
-    mode = st.session_state.get("integration-center-mode")
+            selected = data_table(rows, [{"集成": title, "状态": state, "最后测试": st.session_state.get(f"integration-tested-{mode}", "暂无本次会话测试")} for title,state,summary,mode in rows], key="integrations", label="选择集成", auto_select=False)
+    if selected and st.session_state.get('integration-grid-last') != selected[3]:
+        st.session_state['integration-center-mode'] = selected[3]
+        st.session_state['integration-grid-last'] = selected[3]
+    with st.expander('兼容快捷入口'):
+        for title, state, summary, target in rows:
+            key = {'数据导入':'integration-open-data', 'AI服务':'integration-open-ai', '专业知识服务':'integration-open-knowledge', '设备接入':'integration-open-device'}[target]
+            if st.button('检查 · '+title, key=key):
+                st.session_state['integration-center-mode'] = target
+    mode = st.session_state.get('integration-center-mode')
     with config:
         if not mode:
             with c.section("选择需要检查的连接", key="integration-config-empty"):
@@ -80,8 +83,8 @@ def workspace(app):
         except SQLAlchemyError:
             st.error("暂时无法访问数据，请由管理员检查本机服务。")
         with c.section("集成状态", key="system-connections"):
-            for title, state, summary, mode in integration_statuses():
-                st.markdown(f"**{title}** · {state}")
+            rows = integration_statuses()
+            data_table(rows, [{"集成": title, "状态": state} for title,state,summary,mode in rows], key="system-integrations", selectable=False)
             st.button("检查集成与数据", key="system-open-integrations", type="primary", on_click=_open_integrations)
         with c.secondary_details("运行方式与责任边界"):
             st.info("当前为演示角色预览；角色切换不等于登录或权限认证。")

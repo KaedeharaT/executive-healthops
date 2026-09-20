@@ -75,8 +75,8 @@ def timeline_event(title, description, date, kind):
 
 def workflow(steps, current):
     # Explicit current state, not an inferred completion history.
-    labels = ''.join(f"<span class='{'active' if step == current else ''}'>{'当前 · ' if step == current else ''}{escape(step)}</span>" for step in steps)
-    st.markdown(f"<div class='v2-workflow' aria-label='当前阶段'>{labels}</div>", unsafe_allow_html=True)
+    labels = ''.join(f"<div role='listitem' class='flow-step {'active' if step == current else ''}'><b class='flow-dot'>{i+1}</b><span>{'当前 · ' if step == current else ''}{escape(step)}</span></div>" for i, step in enumerate(steps))
+    st.markdown(f"<div role='list' class='v2-workflow' aria-label='当前阶段'>{labels}</div>", unsafe_allow_html=True)
 
 
 @contextmanager

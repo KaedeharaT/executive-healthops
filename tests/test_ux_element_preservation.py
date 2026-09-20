@@ -68,12 +68,19 @@ def test_manager_selection_changes_inspector_and_keeps_processing_entry():
         session.add_all([Task(patient_id=member.id, title=f"V2选择事项{n}", instruction="核对已有资料", status="PENDING", priority="MEDIUM", assignee="健康管理师", responsible_role="health_manager", due_at=datetime.now(timezone.utc), source="ux_preservation_test") for n in range(2)])
         session.commit()
     app = AppTest.from_file(APP).run(timeout=30)
-    entries = [b for b in app.button if str(b.key).startswith("today-select-")]
-    assert len(entries) >= 2
-    entries[-1].click(); app.run(timeout=30)
+    # Large work lists use a selectable grid; keyboard access selects the same
+    # underlying record and must keep the command attached to that record.
+    assert len(app.dataframe) >= 1
+    next(x for x in app.text_input if x.label == '查找待办').set_value('V2选择事项')
+    app.run(timeout=30)
+    next(x for x in app.checkbox if x.label == '使用下拉选择').set_value(True)
+    app.run(timeout=30)
+    selector = next(x for x in app.selectbox if x.label == '选择待办')
+    assert len(selector.options) == 2
+    selector.set_value(1); app.run(timeout=30)
     assert not app.exception
-    selected = app.session_state["v2-work-selected"]
-    assert any(b.key == "today-" + selected and b.label in {"确认体检资料", "处理当前任务", "跟进服务", "处理关注事项", "确认后续安排", "查看成员详情", "查看医生协同"} for b in app.button)
+    assert any('V2选择事项1' in str(x.value) for x in app.markdown)
+    assert any(b.label == '处理当前任务' for b in app.button)
     next(x for x in app.text_input if x.label == "查找待办").set_value("__no_matching_member__")
     app.run(timeout=30)
     assert any("当前筛选下暂无事项" in c.value for c in app.caption)

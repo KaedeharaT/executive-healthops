@@ -133,6 +133,7 @@ def health_data(app, patient_id):
 
 
 def plan(app, patient, ctx):
+    from executive_health_ai.ui.presentation import data_table, task_records, task_detail, outcome_table
     ux.page_header("接下来我要做什么", "当前行动、近期节点和阶段结果放在同一处。", "健康计划")
     with SessionLocal() as session:
         view = ProductProjectionService().member(session, patient.id)
@@ -165,18 +166,12 @@ def plan(app, patient, ctx):
         selected_id = st.session_state.get(f"ux-task-{patient.id}")
         if selected_id:
             visible.sort(key=lambda t: str(t.id) != selected_id)
-        for i, task in enumerate(visible[:5]):
-            ux.work_item(task.title, task.instruction, f"{ux.owner(task.assignee)} · {ux.when(task.due_at, due=task.status != 'COMPLETED')}")
-            if view == "待完成" and st.button("确认完成", key=f"ux-complete-{task.id}", type="primary" if i == 0 else "secondary"):
+        records = [{k: r[k] for k in ('事项', '状态', '截止时间', '下一步')} for r in task_records(visible)]
+        task = data_table(visible, records, key=f"member-plan-tasks-{patient.id}", empty="此分类暂无任务。新的安排会由负责人更新。")
+        if task:
+            task_detail(task)
+            if view == "待完成" and st.button("确认完成", key=f"ux-complete-{task.id}", type="primary"):
                 _complete(task)
-        if not visible:
-            st.caption("此分类暂无任务。新的安排会由负责人更新。")
-        if len(visible) > 5:
-            with st.expander(f"其他 {len(visible)-5} 项行动"):
-                for task in visible[5:]:
-                    ux.work_item(task.title, task.instruction, ux.owner(task.assignee))
-                    if view == "待完成" and st.button("确认完成", key=f"ux-complete-{task.id}"):
-                        _complete(task)
     with progress:
         with st.container(key="v2-panel-plan-review"):
             st.subheader("近期节点")
@@ -184,15 +179,10 @@ def plan(app, patient, ctx):
             st.caption(" · ".join(f"{ux.when(t.due_at)} {ux.business_text(t.title)}" for t in future[:3]) or "暂无新的未来节点；逾期事项请联系负责人重新安排。")
             st.subheader("阶段结果")
             st.caption("仅记录观察到的前后变化，不将变化归因于某项干预。")
-            for outcome in current_outcomes:
-                ux.work_item(ux.metric_name(outcome.metric), f"{outcome.baseline_value} → {outcome.current_value} {outcome.unit}", f"{ux.when(outcome.evaluation_date)} · {app._label(outcome.result)} · {'当前计划' if program and outcome.program_id == program.id else program_names.get(outcome.program_id, '历史计划')}")
-            if not current_outcomes:
-                st.caption("当前计划尚未记录阶段结果。完成复盘后会显示在这里。")
+            outcome_table(current_outcomes, key=f"member-current-outcomes-{patient.id}")
             with c.secondary_details("历史计划与阶段结果"):
-                for outcome in historical_outcomes:
-                    ux.work_item(program_names.get(outcome.program_id, "历史计划") + " · " + ux.metric_name(outcome.metric), f"{outcome.baseline_value} → {outcome.current_value} {outcome.unit}", ux.when(outcome.evaluation_date))
-                if not historical_outcomes:
-                    st.caption("暂无历史阶段结果。")
+                outcome_table(historical_outcomes, key=f"member-historical-outcomes-{patient.id}", program_names=program_names)
+
 
 
 def timeline(app: TimelineAdapter, patient, *, client_view=True):

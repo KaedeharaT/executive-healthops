@@ -133,7 +133,9 @@ def workspace(app, members, *, patient=None, read_only=False):
     if not rows:
         ux.empty_state("当前没有待复核事项" if mode == "待复核" else "暂无已完成复核", "新增医学问题会统一进入此队列。")
         return
-    selected = queue_selection.selectbox("选择复核事项", rows, format_func=lambda r: f"{people[r.patient_id].display_name} · {ux.business_text(getattr(r, 'question_for_doctor', None) or getattr(r, 'title', None) or '年度基线医学确认')}", key=f"ux-doctor-selected-{patient.id if patient else 'all'}")
+    from executive_health_ai.ui.presentation import data_table
+    selected = data_table(rows, [{"问题": getattr(r, "question_for_doctor", None) or getattr(r, "title", "年度基线医学确认"), "会员": people[r.patient_id].display_name,
+        "提交原因": getattr(r, "doctor_brief", "待核对资料"), "医生": getattr(r, "doctor_name", "待确认"), "状态": "待复核" if mode == "待复核" else "已完成", "提交时间": ux.when(getattr(r, "created_at", None)), "截止": "未单独设置"} for r in rows], key=f"doctor-grid-{patient.id if patient else 'all'}", label="选择复核事项")
     member = people[selected.patient_id]
     if isinstance(selected, DoctorReview):
         detail(app, member, selected, read_only=read_only)
@@ -144,7 +146,4 @@ def workspace(app, members, *, patient=None, read_only=False):
     else:
         ux.next_action("等待医生核对医学资料", "内部医生")
 
-    with st.expander("查看复核队列"):
-        for row in rows:
-            ux.work_item(people[row.patient_id].display_name, getattr(row, "question_for_doctor", None) or getattr(row, "title", None) or "年度基线医学确认", ux.when(getattr(row, "created_at", None)))
-        st.caption("复核记录未设置独立截止时间；按提交时间处理，紧急事项由健管人工联系。")
+    st.caption("复核记录未设置独立截止时间；紧急事项由健管人工联系。")

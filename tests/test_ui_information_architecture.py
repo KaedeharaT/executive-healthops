@@ -20,7 +20,7 @@ def _source(name: str, next_marker: str) -> str:
 def test_workbench_has_a_light_status_strip_and_a_task_driven_worklist() -> None:
     source = _source("render_manager_dashboard", "def _render_member_header")
     assert "c.summary_strip(work.counts(now))" in source and '"优先处理"' in source
-    assert "ProductProjectionService" in source and "ux.work_item(" in source
+    assert "ProductProjectionService" in source and "data_table(visible" in source
     projection = (APP.parent / "src/executive_health_ai/services/product_projection.py").read_text(encoding="utf8")
     assert "OperationalWorklistService().list_items" in projection
 
