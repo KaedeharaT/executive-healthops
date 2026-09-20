@@ -79,7 +79,7 @@ def test_product_navigation_hides_quality_governance_and_uses_blue_tokens() -> N
     assert '"运营后台": "健康管理师"' in app
     assert '"成员健康中心": "成员"' in app
     assert '["首页", "健康", "计划", "服务", "历程"]' in app
-    assert '["今日", "成员", "医疗协同", "服务运营", "更多"]' in app
+    assert '["今日", "成员", "年度管理", "医疗协同", "服务运营"]' in app
     assert 'options = ["风险规则", "操作记录", "系统"]' in shell
     assert 'with st.expander("AI 质量治理（高级）")' in shell
     styles = Path("src/executive_health_ai/ui/styles.py").read_text(encoding="utf-8")

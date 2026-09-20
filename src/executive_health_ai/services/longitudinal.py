@@ -1336,6 +1336,15 @@ class HealthTimelineService:
         events.extend(item for _, item in report_rows)
         events.extend(MonthlyTimelineSummaryService().monthly_summaries(session, member_id, start=start, end=end))
         # group_key is the final guard against duplicate source-derived nodes.
+        # Only confirmed consultation and phase outcomes enter the long record.
+        # Everyday management logs remain in the staff workspace.
+        from executive_health_ai.models.management_workflow import StageReview, ConsultationCase
+        for review in session.scalars(select(StageReview).where(StageReview.patient_id == member_id)):
+            if (start and review.reviewed_at < start) or (end and review.reviewed_at > end): continue
+            events.append(TimelineEvent(review.reviewed_at, "outcome", "阶段管理结果", review.content.get("实际完成", "阶段复盘已记录"), "BLUE", "stage_review", {"next_action":review.content.get("下一阶段建议"),"owner":review.owner}, str(review.id), f"STAGE_REVIEW:{review.id}", (str(review.id),)))
+        for case in session.scalars(select(ConsultationCase).where(ConsultationCase.patient_id == member_id, ConsultationCase.status.in_(("WAITING_ACTIONS","COMPLETED")))):
+            if (start and case.scheduled_at < start) or (end and case.scheduled_at > end): continue
+            events.append(TimelineEvent(case.scheduled_at, "doctor_review", "正式会诊判断", case.conclusion, "BLUE", "consultation", {"owner":case.owner,"doctor":case.concluded_by}, str(case.id), f"CONSULTATION:{case.id}", (str(case.id),)))
         grouped: dict[str, TimelineEvent] = {}
         for event in sorted(events, key=lambda item: item.occurred_at, reverse=True):
             grouped.setdefault(event.group_key or f"{event.event_type}:{event.related_entity}", event)

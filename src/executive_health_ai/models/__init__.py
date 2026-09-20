@@ -48,3 +48,4 @@ __all__ = [
     "FeedbackRecord", "FeedbackDatasetVersion", "ModelVersionRegistry", "RiskRuleReviewCandidate",
     "AgentEvent", "AgentGoal", "AgentPlan", "AgentPlanStep", "AgentApprovalRequest", "AgentRunTrace",
 ]
+from executive_health_ai.models.management_workflow import IntakeAssessment, ManagementLog, RecheckPlan, ConsultationCase, FamilyRelation, StageReview

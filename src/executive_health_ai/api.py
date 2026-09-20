@@ -676,6 +676,8 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
             "open_problems": count(select(func.count(HealthProblem.id)).where(HealthProblem.status != "CLOSED")),
         }
 
+    from executive_health_ai.management_api import register_management_api
+    register_management_api(app, get_session)
     return app
 
 

@@ -92,4 +92,11 @@ def complete_review(session, review, doctor, department, opinion, instruction, d
         task = care.complete_outcome_doctor_review(session, review, doctor, department, opinion, instruction, due_at)
         stored = review
     publish_progress(session, event_type="DOCTOR_REVIEW_COMPLETED", member_id=stored.patient_id, source_type="doctor_review", source_id=stored.id, summary="医生已完成人工医学复核", actor=doctor)
+    from executive_health_ai.models.management_workflow import IntakeAssessment
+    intake = session.scalar(select(IntakeAssessment).where(IntakeAssessment.patient_id == stored.patient_id))
+    if intake:
+        from executive_health_ai.services.management_workflow import task as management_task
+        from executive_health_ai.models.base import utc_now
+        program = session.scalar(select(HealthProgram).where(HealthProgram.patient_id == stored.patient_id, HealthProgram.cycle_year == intake.cycle_year))
+        management_task(session, stored.patient_id, program.id if program else None, "接收医生复核结论", "核对医生结论，确认后续执行事项和负责人。", program.owner if program else "健康管理师", utc_now(), f"doctor_handoff:{stored.id}")
     return stored, task

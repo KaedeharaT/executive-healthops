@@ -354,7 +354,7 @@
     "name": "今日行动数字",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "today",
-    "destination": "今日 P3 → 工作摘要/短队列/选中事项处理",
+    "destination": "今日工作 → 工作摘要/短队列/选中事项处理",
     "visibility": "PRIMARY",
     "layer": "L1",
     "preserved": true
@@ -364,7 +364,7 @@
     "name": "工作队列及类型筛选",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "today",
-    "destination": "今日 P3 → 工作摘要/短队列/选中事项处理",
+    "destination": "今日工作 → 工作摘要/短队列/选中事项处理",
     "visibility": "PRIMARY",
     "layer": "L1",
     "preserved": true
@@ -374,7 +374,7 @@
     "name": "原因责任截止下一步",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "today",
-    "destination": "今日 P3 → 工作摘要/短队列/选中事项处理",
+    "destination": "今日工作 → 工作摘要/短队列/选中事项处理",
     "visibility": "PRIMARY",
     "layer": "L1",
     "preserved": true
@@ -384,7 +384,7 @@
     "name": "处理工作入口",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "today",
-    "destination": "今日 P3 → 工作摘要/短队列/选中事项处理",
+    "destination": "今日工作 → 工作摘要/短队列/选中事项处理",
     "visibility": "PRIMARY",
     "layer": "L1",
     "preserved": true
@@ -394,7 +394,7 @@
     "name": "超过12项的工作",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "today",
-    "destination": "今日 → 完整队列（保留分页/展开后续事项）",
+    "destination": "今日工作 → 完整队列（保留分页/展开后续事项）",
     "visibility": "SECONDARY",
     "layer": "L1",
     "preserved": true
@@ -404,7 +404,7 @@
     "name": "自动跟进及审批",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "approvals",
-    "destination": "今日待确认事项/成员360管理 → 自动跟进确认",
+    "destination": "今日待确认事项/会员360管理 → 自动跟进确认",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -424,7 +424,7 @@
     "name": "成员360摘要",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "member_detail",
-    "destination": "成员360 P4 → 抬头/基线摘要/趋势/当前安排",
+    "destination": "会员360 P4 → 抬头/基线摘要/趋势/当前安排",
     "visibility": "PRIMARY",
     "layer": "L2",
     "preserved": true
@@ -434,7 +434,7 @@
     "name": "成员360基线摘要",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "member_detail",
-    "destination": "成员360 P4 → 抬头/基线摘要/趋势/当前安排",
+    "destination": "会员360 P4 → 抬头/基线摘要/趋势/当前安排",
     "visibility": "PRIMARY",
     "layer": "L2",
     "preserved": true
@@ -444,7 +444,7 @@
     "name": "成员360最近趋势",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "member_detail",
-    "destination": "成员360 P4 → 抬头/基线摘要/趋势/当前安排",
+    "destination": "会员360 P4 → 抬头/基线摘要/趋势/当前安排",
     "visibility": "PRIMARY",
     "layer": "L2",
     "preserved": true
@@ -454,7 +454,7 @@
     "name": "当前计划与服务摘要",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "member_detail",
-    "destination": "成员360 P4 → 抬头/基线摘要/趋势/当前安排",
+    "destination": "会员360 P4 → 抬头/基线摘要/趋势/当前安排",
     "visibility": "PRIMARY",
     "layer": "L2",
     "preserved": true
@@ -464,7 +464,7 @@
     "name": "开放关注事项处理",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "member_detail",
-    "destination": "成员360 → 开放事项摘要；选中进入唯一处理详情",
+    "destination": "会员360 → 开放事项摘要；选中进入唯一处理详情",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -474,7 +474,7 @@
     "name": "成员服务操作",
     "source": "streamlit_app.py",
     "renderer": "render_member_service_management",
-    "destination": "服务运营/成员360管理 → 服务详情",
+    "destination": "服务/会员360管理 → 服务详情",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -484,7 +484,7 @@
     "name": "健康数据",
     "source": "streamlit_app.py",
     "renderer": "render_member_archive",
-    "destination": "成员360健康 → 主趋势/数据记录",
+    "destination": "会员360健康档案 → 主趋势/数据记录",
     "visibility": "PRIMARY",
     "layer": "L2",
     "preserved": true
@@ -494,7 +494,7 @@
     "name": "报告列表上传确认",
     "source": "streamlit_app.py",
     "renderer": "render_report_upload",
-    "destination": "成员360健康 → 报告详情 → 上传/确认/解析详情",
+    "destination": "会员360健康档案 → 报告详情 → 上传/确认/解析详情",
     "visibility": "DETAIL",
     "layer": "L3",
     "preserved": true
@@ -504,7 +504,7 @@
     "name": "报告候选人工核对",
     "source": "streamlit_app.py",
     "renderer": "render_report_review",
-    "destination": "成员360健康 → 报告详情 → 上传/确认/解析详情",
+    "destination": "会员360健康档案 → 报告详情 → 上传/确认/解析详情",
     "visibility": "DETAIL",
     "layer": "L3",
     "preserved": true
@@ -514,7 +514,7 @@
     "name": "报告解析与重跑",
     "source": "streamlit_app.py",
     "renderer": "render_report_review",
-    "destination": "成员360健康 → 报告详情 → 上传/确认/解析详情",
+    "destination": "会员360健康档案 → 报告详情 → 上传/确认/解析详情",
     "visibility": "DETAIL",
     "layer": "L3",
     "preserved": true
@@ -524,7 +524,7 @@
     "name": "年度基线建立确认冻结",
     "source": "streamlit_app.py",
     "renderer": "render_health_assessments",
-    "destination": "成员360健康 → 年度基线详情 → 建立/确认/修订/年度",
+    "destination": "会员360健康档案 → 年度基线详情 → 建立/确认/修订/年度",
     "visibility": "DETAIL",
     "layer": "L2",
     "preserved": true
@@ -534,7 +534,7 @@
     "name": "基线修订年度切换",
     "source": "streamlit_app.py",
     "renderer": "render_health_assessments",
-    "destination": "成员360健康 → 年度基线详情 → 建立/确认/修订/年度",
+    "destination": "会员360健康档案 → 年度基线详情 → 建立/确认/修订/年度",
     "visibility": "DETAIL",
     "layer": "L2",
     "preserved": true
@@ -544,7 +544,7 @@
     "name": "健康史",
     "source": "streamlit_app.py",
     "renderer": "render_member_archive",
-    "destination": "成员360健康 → 健康档案/健康史",
+    "destination": "会员360健康档案 → 健康档案/健康史",
     "visibility": "DETAIL",
     "layer": "L3",
     "preserved": true
@@ -554,7 +554,7 @@
     "name": "当前管理计划选择",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "management",
-    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "destination": "会员 → 会员360 → 管理 → 原有计划 / 任务 / 自动跟进",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -564,7 +564,7 @@
     "name": "建立调整计划",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "management",
-    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "destination": "会员 → 会员360 → 管理 → 原有计划 / 任务 / 自动跟进",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -574,7 +574,7 @@
     "name": "安排随访",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "management",
-    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "destination": "会员 → 会员360 → 管理 → 原有计划 / 任务 / 自动跟进",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -584,7 +584,7 @@
     "name": "阶段结果录入与下一步",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "management",
-    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "destination": "会员 → 会员360 → 管理 → 原有计划 / 任务 / 自动跟进",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -594,7 +594,7 @@
     "name": "执行任务",
     "source": "streamlit_app.py",
     "renderer": "render_tasks",
-    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "destination": "会员 → 会员360 → 管理 → 原有计划 / 任务 / 自动跟进",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -604,7 +604,7 @@
     "name": "计划详情阶段结果",
     "source": "streamlit_app.py",
     "renderer": "render_programs",
-    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "destination": "会员 → 会员360 → 管理 → 原有计划 / 任务 / 自动跟进",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -614,7 +614,7 @@
     "name": "自动跟进健康管理信号",
     "source": "streamlit_app.py",
     "renderer": "render_member_management_signals",
-    "destination": "成员360管理 → 当前计划/任务/随访/阶段结果/自动跟进",
+    "destination": "会员 → 会员360 → 管理 → 原有计划 / 任务 / 自动跟进",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -624,7 +624,7 @@
     "name": "成员医疗上下文",
     "source": "streamlit_app.py",
     "renderer": "render_member_medical_workspace",
-    "destination": "医疗协同/成员360医疗 → 同源复核/转诊/医学依据",
+    "destination": "医疗协同/会员360医疗 → 同源复核/转诊/医学依据",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -634,7 +634,7 @@
     "name": "内部医生协同",
     "source": "streamlit_app.py",
     "renderer": "render_collaboration_workspace",
-    "destination": "医疗协同/成员360医疗 → 同源复核/转诊/医学依据",
+    "destination": "医疗协同/会员360医疗 → 同源复核/转诊/医学依据",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -644,7 +644,7 @@
     "name": "外部医生转诊",
     "source": "streamlit_app.py",
     "renderer": "render_external_doctor_workspace",
-    "destination": "医疗协同/成员360医疗 → 同源复核/转诊/医学依据",
+    "destination": "医疗协同/会员360医疗 → 同源复核/转诊/医学依据",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -654,7 +654,7 @@
     "name": "服务运营队列",
     "source": "streamlit_app.py",
     "renderer": "render_service_operations_workspace",
-    "destination": "服务运营/成员360管理 → 服务详情",
+    "destination": "服务/会员360管理 → 服务详情",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -664,7 +664,7 @@
     "name": "服务审核安排完成",
     "source": "streamlit_app.py",
     "renderer": "render_member_service_management",
-    "destination": "服务运营/成员360管理 → 服务详情",
+    "destination": "服务/会员360管理 → 服务详情",
     "visibility": "DETAIL",
     "layer": "L1",
     "preserved": true
@@ -674,7 +674,7 @@
     "name": "知识检索与资料",
     "source": "streamlit_app.py",
     "renderer": "render_knowledge_library_entry",
-    "destination": "更多 → 专业资料；事项旁查看引用",
+    "destination": "管理员 → 系统状态 → 高级信息 · 兼容工具 → 原平台工具目录 → 专业资料",
     "visibility": "SECONDARY",
     "layer": "L3",
     "preserved": true
@@ -1184,7 +1184,7 @@
     "name": "Manager主导航/360五视图",
     "source": "src/executive_health_ai/ui/pages/manager/experience.py",
     "renderer": "member_detail",
-    "destination": "健管：今日/成员/医疗协同/服务/更多",
+    "destination": "健管：今日工作 / 会员 / 年度管理 / 医疗协同 / 服务；会员360：概览 / 健康档案 / 管理 / 医疗 / 历程",
     "visibility": "PRIMARY",
     "layer": "L1",
     "preserved": true

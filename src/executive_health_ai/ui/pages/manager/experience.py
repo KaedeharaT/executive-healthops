@@ -36,7 +36,7 @@ def approvals(app, patient_id, role="HEALTH_MANAGER"):
 
 
 def today(app):
-    c.page_shell("manager", "今日待处理", "先处理逾期和高优先级事项，再完成今天的安排。", "健康管理师工作台")
+    c.page_shell("manager", "今日工作", "先处理逾期和高优先级事项，再完成今天的安排。", "健康管理师工作台")
     now = datetime.now(ux.LOCAL)
     patients = app._patient_map()
     with SessionLocal() as session:
@@ -44,8 +44,8 @@ def today(app):
         items = ux.sorted_work(work.items, now)
         doctor_count = len(work.pending_doctor)
     c.summary_strip(work.counts(now))
-    categories = {"全部事项": None, "体检": "report_review", "风险": "risk_event", "医生": "doctor_review", "计划 / 复查": "task", "服务": "service_request", "自动跟进": "automation_approval"}
-    selected = st.radio("今日事项筛选", list(categories), horizontal=True, key="manager-today-filter", label_visibility="collapsed")
+    categories = {"全部事项": None, "入组初评":"intake_review", "复查":"recheck", "阶段复盘":"stage_review", "正式会诊":"consultation", "体检": "report_review", "风险": "risk_event", "医生": "doctor_review", "计划 / 复查": "task", "服务": "service_request", "自动跟进": "automation_approval"}
+    selected = st.selectbox("今日事项筛选", list(categories), key="manager-today-filter")
     visible = [i for i in items if selected == "全部事项" or i.source_type == categories[selected] or selected == "医生" and i.status == "等待医生"]
     search = st.text_input("查找待办", placeholder="输入成员、事项或原因", key="v2-work-search")
     visible = [i for i in visible if not search or search.lower() in (app._member_display(patients.get(i.member_id)) + i.title + i.reason + i.next_action).lower()]
@@ -222,6 +222,7 @@ def management(app, patient):
 
 
 def member_detail(app, patient):
+    from executive_health_ai.ui.pages.manager import workflow
     ux.inject_design("manager")
     if st.button("← 返回成员列表", key="back-to-dashboard"):
         st.session_state.pop("focused_member_id", None)
@@ -232,13 +233,22 @@ def member_detail(app, patient):
     program, pending, baseline, rows = view.program, view.pending_doctor, view.baseline, view.observations
     tasks = view.active_tasks
     ux.page_header(patient.display_name, "", "成员360")
-    c.summary_strip([("当前周期", view.cycle), ("当前阶段", app.display_program_phase(program.current_phase) if program else "待建立计划"),
+    c.summary_strip([("当前周期", view.cycle), ("当前阶段", view.phase_title or ("资料收集中" if program and program.current_phase=='ONBOARDING' else app.display_program_phase(program.current_phase) if program else "待建立计划")),
                      ("负责人", ux.business_text(view.owner)), ("资料更新", ux.when(max(r.observed_at for r in rows)) if rows else "暂无健康数据")])
     focus = "；".join(ux.business_text(p.title) for p in ctx["problems"] if p.status != "CLOSED") or "暂无已确认关注事项"
     st.caption("主要关注：" + (focus[:70] + "…" if len(focus) > 70 else focus) + f" · 医生待复核：{len(pending)}")
     st.markdown("**下一步：** " + ux.business_text(tasks[0].title if tasks else "核对健康资料，确认下一阶段安排"))
-    section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}")
+    management_view=workflow.view_for(patient.id)
+    workflow.onboarding(management_view)
+    if management_view.intake:
+        st.caption("会员自己关注："+ux.business_text(management_view.intake.member_concern or "待填写")+" · 专业管理重点："+ux.business_text(management_view.intake.professional_focus or "待初评"))
+    section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
     if section == "概览":
+        if management_view.intake:
+            workflow.phases(management_view)
+            with st.expander("最近管理记录",expanded=True):
+                workflow.log_rows(management_view.logs[:2])
+                st.button("新增管理记录",key=f"overview-new-log-{patient.id}",on_click=workflow.open_log,args=(app,patient))
         problems = [p for p in ctx["problems"] if p.status != "CLOSED"]
         left, right = st.columns([1.7, 1], gap="large")
         with left:
@@ -250,6 +260,11 @@ def member_detail(app, patient):
             with c.section("当前管理", key="360-status"):
                 st.write(ux.business_text(program.main_goal) if program else "尚未建立计划")
                 st.caption("开放事项：" + str(len(tasks)) + " · 医生待复核：" + str(len(pending)))
+                last_review=max((r for r in management_view.doctor_reviews if r.status=='CONFIRMED'),key=lambda r:r.reviewed_at or r.created_at,default=None)
+                if last_review:
+                    st.markdown("**最新医生意见**")
+                    st.write(ux.business_text(last_review.opinion[:120]))
+                    st.caption("执行交接："+ux.owner(management_view.owner)+" · 完整意见见医疗")
                 with SessionLocal() as session:
                     recent = session.execute(select(ServiceRequest, ServiceCatalogItem).join(ServiceCatalogItem, ServiceRequest.service_item_id == ServiceCatalogItem.id).where(ServiceRequest.patient_id == patient.id).order_by(ServiceRequest.requested_at.desc()).limit(1)).first()
                 st.markdown("**近期服务**")
@@ -271,19 +286,27 @@ def member_detail(app, patient):
             for col, label in zip(quick, ["安排随访", "记录阶段结果"]):
                 if col.button(label, key=f"360-quick-{label}-{patient.id}"):
                     st.session_state[f"ux-management-{patient.id}"] = label
+                    st.session_state[f"workflow-mode-{patient.id}"] = "原有计划 / 任务 / 自动跟进"
                     app.request_navigation(surface="运营后台", ops_page="成员", member_id=patient.id, member_section="管理")
         with st.expander("处理开放中的健康关注事项"):
             app._render_current_risk_actions(patient)
         with st.expander("近期服务"):
             app.render_member_service_management(patient)
     elif section == "健康":
-        app.render_member_archive(patient)
+        mode=st.radio("健康档案内容",["健康资料与趋势","初始评估"],horizontal=True,key=f"workflow-record-{patient.id}")
+        if mode=="初始评估":workflow.intake(app,patient)
+        else:app.render_member_archive(patient)
+        workflow.family(patient,management_view)
     elif section == "管理":
-        management(app, patient)
-        with st.expander("计划关联服务与执行结果"):
-            app.render_member_service_management(patient)
+        if management_view.intake:workflow.management(app, patient)
+        else:
+            management(app, patient)
+            with st.expander("计划关联服务与执行结果"):
+                app.render_member_service_management(patient)
     elif section == "医疗":
         app.render_member_medical_workspace(patient, app._member_medical_context(patient.id))
+        with st.expander("正式会诊与方案拆解"):
+            workflow.consultations(app,patient)
     else:
         from executive_health_ai.ui.pages.member.experience import timeline
         timeline(app, patient, client_view=False)

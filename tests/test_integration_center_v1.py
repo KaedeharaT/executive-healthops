@@ -199,9 +199,7 @@ def test_integration_center_uses_business_copy_and_hides_connection_secrets() ->
 def test_all_four_integration_modes_render_in_the_same_system_page() -> None:
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "streamlit_app.py")
     app.run(timeout=30)
-    next(item for item in app.radio if item.label == "工作区").set_value("更多")
-    app.run(timeout=30)
-    next(item for item in app.button if item.key == "more-open-系统").click()
+    next(item for item in app.radio if item.label == "当前视图").set_value("系统管理")
     app.run(timeout=30)
     assert next(item for item in app.radio if item.label == "系统").value == "系统状态"
     next(item for item in app.radio if item.label == "系统").set_value("集成与数据")
@@ -234,9 +232,7 @@ def test_portfolio_admin_can_reach_and_use_integration_controls(monkeypatch, tmp
     app.run(timeout=30)
     next(item for item in app.button if item.key == "portfolio-enter-ops").click()
     app.run(timeout=30)
-    next(item for item in app.radio if item.label == "工作区").set_value("更多")
-    app.run(timeout=30)
-    next(item for item in app.button if item.key == "more-open-系统").click()
+    next(item for item in app.radio if item.label == "当前视图").set_value("系统管理")
     app.run(timeout=30)
     assert next(item for item in app.radio if item.label == "系统").value == "系统状态"
     next(item for item in app.radio if item.label == "系统").set_value("集成与数据")

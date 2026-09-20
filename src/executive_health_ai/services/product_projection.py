@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from executive_health_ai.models import (
     Alert, AgentApprovalRequest, AgentGoal, DoctorReview, HealthAssessment,
-    HealthProgram, Observation, ServiceRequest, Task, OutcomeEvaluation, HealthProblem, MedicationPlan,
+    HealthProgram, Observation, ServiceRequest, Task, OutcomeEvaluation, HealthProblem, MedicationPlan, ProgramPhase,
 )
 from executive_health_ai.services.longitudinal import HealthAssessmentService
 from executive_health_ai.services.health_visualization import HealthVisualizationService
@@ -20,6 +20,9 @@ from executive_health_ai.services.operational_worklist import OperationalWorkIte
 def current_program(programs):
     priority = {"ACTIVE": 0, "PAUSED": 1, "PLANNED": 2}
     eligible = [p for p in programs if p.status in priority]
+    enrolled = [p for p in eligible if getattr(p, 'cycle_year', None) == datetime.now().year]
+    if enrolled:
+        eligible = enrolled
     return min(eligible, key=lambda p: (priority[p.status], -p.created_at.timestamp(), str(p.id))) if eligible else None
 
 
@@ -63,6 +66,11 @@ class Member360View:
     observations: tuple
     health: HealthStatusView | None
     outcomes: tuple = ()
+    phases: tuple = ()
+
+    @property
+    def phase_title(self):
+        return next((p.title for p in self.phases if p.status == 'ACTIVE'), None)
 
     @property
     def owner(self):
@@ -86,6 +94,8 @@ class Member360View:
 
     @property
     def cycle(self):
+        if self.program and getattr(self.program, 'cycle_year', None):
+            return f"{self.program.cycle_year}年度健康管理"
         return f"{self.baseline.cycle_year or self.baseline.assessed_at.year}年度健康管理" if self.baseline else "年度周期待确认"
 
 
@@ -124,13 +134,15 @@ class ProductProjectionService:
     def member(self, session, patient_id, *, health=False):
         programs = tuple(session.scalars(select(HealthProgram).where(HealthProgram.patient_id == patient_id).order_by(HealthProgram.created_at.desc())))
         baseline = HealthAssessmentService().latest_baseline(session, patient_id)
+        program = current_program(programs)
         return Member360View(patient_id, current_program(programs), programs,
             tuple(session.scalars(select(Task).where(Task.patient_id == patient_id).order_by(Task.due_at, Task.created_at))),
             tuple(session.scalars(select(ServiceRequest).where(ServiceRequest.patient_id == patient_id).order_by(ServiceRequest.requested_at.desc()))),
             tuple(pending_doctor_work(session, patient_id)), baseline,
             tuple(observations(session, patient_id)),
             self.health(session, patient_id, cycle_year=baseline.cycle_year if baseline else None) if health else None,
-            tuple(session.scalars(select(OutcomeEvaluation).where(OutcomeEvaluation.patient_id == patient_id).order_by(OutcomeEvaluation.evaluation_date.desc()))))
+            tuple(session.scalars(select(OutcomeEvaluation).where(OutcomeEvaluation.patient_id == patient_id).order_by(OutcomeEvaluation.evaluation_date.desc()))),
+            tuple(session.scalars(select(ProgramPhase).where(ProgramPhase.program_id == program.id).order_by(ProgramPhase.sequence))) if program else ())
 
     def doctor(self, session, review):
         member = self.member(session, review.patient_id)

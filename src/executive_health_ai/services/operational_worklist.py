@@ -45,6 +45,7 @@ class OperationalWorkItem:
     @property
     def source_label(self) -> str:
         return {
+            "intake_review":"入组初评", "recheck":"检查复查", "consultation":"正式会诊", "stage_review":"阶段复盘",
             "risk_event": "健康风险",
             "report_review": "体检报告",
             "task": "计划与随访任务",
@@ -187,6 +188,8 @@ class OperationalWorklistService:
                 created_at=request.requested_at, event_at=request.scheduled_at or request.requested_at,
             ))
 
+        from executive_health_ai.services.member_management_projection import management_work_items
+        items.extend(management_work_items(session, now))
         return sorted(items, key=lambda item: (item.priority, item.due_at or now, item.event_at or now, item.title))
 
     @staticmethod

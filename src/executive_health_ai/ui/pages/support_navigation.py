@@ -4,6 +4,8 @@ from executive_health_ai.ui import experience as ux
 
 
 def render_support_directory(app):
+    if st.button("返回今日工作",key="support-return-work"):
+        app.request_navigation(surface="运营后台",ops_page="今日")
     legacy = st.session_state.pop("more-navigation", None)
     if legacy in {"风险规则", "操作记录", "系统"}:
         st.session_state["ux-admin-navigation"] = {"风险规则":"规则与知识", "操作记录":"系统状态", "系统":"集成与数据"}[legacy]

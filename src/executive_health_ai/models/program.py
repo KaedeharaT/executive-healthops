@@ -43,6 +43,9 @@ class HealthProgram(Base):
 
     __tablename__ = "health_programs"
 
+    cycle_year: Mapped[int | None] = mapped_column(nullable=True, index=True)
+    customer_advisor: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     patient_id: Mapped[UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
     journey_id: Mapped[UUID] = mapped_column(ForeignKey("health_journeys.id"), nullable=False, index=True)
@@ -65,6 +68,11 @@ class ProgramPhase(Base):
     """A deliberately finite phase within a program, not a repeating reminder."""
 
     __tablename__ = "program_phases"
+
+    management_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    owner: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     program_id: Mapped[UUID] = mapped_column(ForeignKey("health_programs.id"), nullable=False, index=True)

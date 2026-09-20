@@ -98,6 +98,10 @@ def detail(app, patient, review, *, read_only=False):
 
 
 def workspace(app, members, *, patient=None, read_only=False):
+    if not read_only:
+        from executive_health_ai.ui.pages.manager.workflow import consultations
+        with st.expander("正式会诊 · 各科意见与综合结论"):
+            consultations(app,patient,doctor=True,members=members)
     c.page_shell("doctor", "医学复核" if read_only else "待我复核", "明确问题、核对依据，判断后由健康管理师执行。", "医疗协同" if read_only else "医生工作台")
     if message := st.session_state.pop("doctor-flash", None):
         st.success(message)

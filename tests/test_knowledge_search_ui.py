@@ -35,9 +35,7 @@ def _result() -> KnowledgeSearchResult:
 def _knowledge_library() -> AppTest:
     app = AppTest.from_file(APP)
     app.run(timeout=30)
-    next(item for item in app.radio if item.label == "工作区").set_value("更多")
-    app.run(timeout=30)
-    next(item for item in app.button if item.key == "more-open-系统").click()
+    next(item for item in app.radio if item.label == "当前视图").set_value("系统管理")
     app.run(timeout=30)
     assert next(item for item in app.radio if item.label == "系统").value == "系统状态"
     next(item for item in app.radio if item.label == "系统").set_value("集成与数据")

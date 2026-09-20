@@ -27,7 +27,7 @@ def test_design_system_exposes_shared_surface_helpers_and_tokens() -> None:
 
 def test_ops_today_uses_prioritized_work_cards_not_dashboard_metric_cards() -> None:
     source = _source("render_manager_dashboard", "def _render_member_header")
-    assert "今日待处理" in source
+    assert "今日工作" in source
     assert all(label in source for label in ("高优先级", "即将逾期", "等待医生", "优先处理"))
     assert "ux.work_item(" in source and "总成员数" not in source
 

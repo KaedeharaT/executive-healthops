@@ -94,7 +94,7 @@ def test_visual_system_has_a_constrained_reading_width_and_quiet_cards() -> None
 
 
 def test_primary_surfaces_use_product_facing_page_headers() -> None:
-    assert 'c.page_shell("manager", "今日待处理"' in _source("render_manager_dashboard", "def _render_member_header")
+    assert 'c.page_shell("manager", "今日工作"' in _source("render_manager_dashboard", "def _render_member_header")
     assert "_page_header(\"成员\"" in _source("render_members_workspace", "KNOWLEDGE_CATEGORIES")
     assert "_page_header(\"医疗协同\"" in _source("render_collaboration_workspace", "def _report_candidate_label")
     assert 'page_header("更多"' in MORE_SHELL.read_text(encoding="utf-8")
@@ -127,13 +127,13 @@ def test_primary_navigation_and_collaboration_are_task_and_member_oriented() -> 
     from tests.ui_source import all_ui_source
     source = all_ui_source()
     more = MORE_SHELL.read_text(encoding="utf-8")
-    assert '["今日", "成员", "医疗协同", "服务运营", "更多"]' in source
+    assert '["今日", "成员", "年度管理", "医疗协同", "服务运营"]' in source
     assert 'options = ["风险规则", "操作记录", "系统"]' in more
     assert "render_integration_center()" in more
     assert 'with st.expander("AI 质量治理（高级）")' in more
     assert "健管培训助手" not in more
     collaboration = _source("render_collaboration_workspace", "def _report_candidate_label")
-    assert 'st.radio("医疗协同内容", ["内部医生", "外部医疗"]' in collaboration
+    assert 'st.radio("医疗协同内容", ["内部医生", "正式会诊", "外部医疗"]' in collaboration
 
 
 def test_surface_switcher_is_global_and_member_center_is_not_a_more_subpage() -> None:

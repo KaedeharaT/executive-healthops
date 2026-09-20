@@ -1,0 +1,371 @@
+"""Member-centred working pages. All reads/writes delegate to shared services."""
+from datetime import date, datetime, time, timedelta
+from uuid import uuid4
+import pandas as pd
+import streamlit as st
+from executive_health_ai.database import SessionLocal
+from executive_health_ai.services.management_workflow import ManagementWorkflowService, STEPS, TABLE_FIELDS, PROFILE_FIELDS, LOG_CATEGORIES, RECHECK_STATES, CASE_STATES
+from executive_health_ai.services.member_management_projection import MemberManagementProjection
+from executive_health_ai.ui import components as c, experience as ux
+
+service=ManagementWorkflowService()
+projection=MemberManagementProjection()
+
+
+def write(command):
+    try:
+        with SessionLocal() as session:
+            row=command(session)
+            session.commit()
+        st.session_state['workflow-flash']='已保存，相关页面将使用同一份记录。'
+        st.rerun()
+    except (ValueError,TypeError) as error:
+        st.error(str(error))
+
+
+def view_for(member_id):
+    with SessionLocal() as session: return projection.member(session,member_id)
+
+
+def flash():
+    if msg:=st.session_state.pop('workflow-flash',None): st.success(msg)
+
+
+def open_log(app,patient):
+    st.session_state[f'workflow-mode-{patient.id}']='管理日志'
+    st.session_state[f'workflow-open-log-{patient.id}']=True
+    app._open_member_management(patient.id)
+
+
+def phases(view):
+    if not view.phases:
+        st.caption('尚未制定阶段；完成初评与基线后建立年度方案。')
+        return
+    labels=[p.title+(' · 已完成' if p.status in {'COMPLETED','REVIEWED'} else '' if p.status=='ACTIVE' else ' · 待开始') for p in view.phases]
+    current=next((labels[i] for i,p in enumerate(view.phases) if p.status=='ACTIVE'),'')
+    c.workflow(labels,current)
+
+
+def onboarding(view):
+    if view.intake and view.onboarding!='持续管理中':
+        st.markdown('**入组进度 · '+view.onboarding+'**')
+        st.caption(' → '.join(('✓ ' if done else '○ ')+label for label,done in view.milestones))
+
+
+def enroll(app):
+    with st.expander('会员入组 · 新建年度服务周期'):
+        with st.form('workflow-enroll'):
+            name=st.text_input('会员称呼')
+            members=app._members()
+            existing=st.selectbox('会员档案',['新会员']+[str(m.id) for m in members],format_func=lambda k:next((m.display_name for m in members if str(m.id)==k),k))
+            owner=st.text_input('责任健康管理师',value='演示健康管理师')
+            a,b=st.columns(2)
+            start=a.date_input('服务开始日期');end=b.date_input('服务结束日期',value=date.today()+timedelta(days=364))
+            goal=st.text_input('年度目标');advisor=st.text_input('客户顾问（选填）')
+            submit=st.form_submit_button('确认入组')
+        if submit:
+            from uuid import UUID
+            write(lambda s:service.enroll(s,name=name,start=start,end=end,owner=owner,goal=goal,advisor=advisor,member_id=None if existing=='新会员' else UUID(existing)))
+
+
+def annual(app):
+    c.page_shell('manager','年度管理','围绕服务周期、当前阶段和下一节点推进会员管理。')
+    flash();enroll(app)
+    with SessionLocal() as session: rows=projection.annual(session)
+    for member,view in rows:
+        if not view.program: continue
+        with st.container(border=True):
+            st.markdown('**'+ux.business_text(member.display_name)+'** · '+view.onboarding)
+            st.caption(f'{view.program.start_date} — {view.program.end_date} · {ux.owner(view.owner)}')
+            st.write(ux.business_text(view.program.main_goal));phases(view)
+            st.caption('下一节点：'+(view.current_phase.title+' · '+str(view.current_phase.end_date) if view.current_phase else '完成入组资料与年度方案'))
+            st.button('进入年度管理',key=f'annual-{member.id}',on_click=app._open_member_management,args=(member.id,))
+
+
+def intake(app,patient,member=False):
+    flash();view=view_for(patient.id);row=view.intake
+    if not row:
+        st.info('尚未进入年度入组；请健康管理师建立服务周期。');return
+    st.subheader('初始健康评估')
+    st.caption('保存的是本人陈述，提交后由健管核对；症状评分不代表诊断。')
+    if row.status!='DRAFT':
+        st.success('问卷已提交' if row.status=='SUBMITTED' else '初评已确认')
+        st.write('会员自己关注：'+ux.business_text(row.member_concern))
+        with st.expander('查看已提交资料'):
+            for label,data in row.responses.items():
+                st.markdown('**'+label+'**')
+                if label=='基础资料':st.caption('使用会员现有基础档案；身高、体重沿用健康数据入口。')
+                elif isinstance(data,list):st.dataframe(pd.DataFrame(data),hide_index=True) if data else st.caption('本次未提供已知记录，仍需核对。')
+                elif isinstance(data,dict):
+                    for k,v in data.items():st.caption(f'{k}：{v or "待补充"}')
+        if not member:manager_assessment(patient,view)
+        return
+    resume_index=next((i for i,label in enumerate(STEPS[:-1]) if label not in row.responses),len(STEPS)-1)
+    index=st.session_state.get(f'intake-step-{patient.id}',resume_index)
+    chosen=st.selectbox('填写步骤',range(len(STEPS)),index=index,format_func=lambda i:f'{i+1}. {STEPS[i]}',key=f'intake-select-{patient.id}-{index}')
+    step=STEPS[chosen]
+    st.progress(chosen/(len(STEPS)-1),text=f'第{chosen+1}步 / {len(STEPS)}步')
+    if step=='确认提交':
+        missing=[x for x in STEPS[:-1] if x not in row.responses]
+        st.write('尚未确认：'+'、'.join(missing) if missing else '各步骤已保存，请确认自述准确后提交。')
+        consent=st.checkbox('我确认已逐项核对；未知项由健康管理团队继续确认')
+        if st.button('提交初始评估',disabled=bool(missing) or not consent,type='primary'):
+            write(lambda s:service.submit_intake(s,patient.id,row.id,'会员本人' if member else view.owner))
+        return
+    with st.form(f'intake-form-{patient.id}-{chosen}'):
+        old=row.responses.get(step)
+        if step=='基础资料':
+            name=st.text_input('姓名 / 称呼',value=patient.display_name or '')
+            birth=st.date_input('出生日期（未知可留空）',value=patient.birth_date,min_value=date(1900,1,1),max_value=date.today())
+            sex=st.selectbox('性别',['未提供','male','female'],index=['未提供','male','female'].index(patient.sex) if patient.sex in {'male','female'} else 0,format_func=lambda x:{'male':'男','female':'女'}.get(x,x))
+            st.caption('身高与体重使用已有健康观测，联系方式通过家庭联系人维护。')
+            data={'display_name':name,'birth_date':birth.isoformat() if birth else None,'sex':None if sex=='未提供' else sex}
+        elif step in TABLE_FIELDS:
+            if step=='专项症状评估':st.caption('按原始问题录入0—4分。版本 healthops-intake-v1；尚未取得原量表题目，不声称已复刻或验证其医学评分。')
+            frame=st.data_editor(pd.DataFrame(old or [],columns=TABLE_FIELDS[step]),num_rows='dynamic',hide_index=True,width='stretch',key=f'intake-data-{patient.id}-{chosen}')
+            data=frame.fillna('').to_dict('records')
+        elif step in PROFILE_FIELDS:
+            data={k:st.text_input(k,value=(old or {}).get(k,'')) for k in PROFILE_FIELDS[step]}
+        else:
+            data={'concern':st.text_area('会员自己最想改善什么',value=row.member_concern)}
+        save=st.form_submit_button('保存草稿并继续',type='primary')
+    if save:
+        try:
+            with SessionLocal() as session:
+                service.save_intake(session,patient.id,row.cycle_year,step,data,'会员本人' if member else view.owner);session.commit()
+            st.session_state[f'intake-step-{patient.id}']=min(chosen+1,len(STEPS)-1);st.rerun()
+        except ValueError as error:st.error(str(error))
+
+
+def manager_assessment(patient,view):
+    row=view.intake
+    with st.expander('健管专业初评',expanded=row.review_status!='CONFIRMED'):
+        st.caption('专业管理重点与会员关注分开；医学结论、检查建议和用药改变须有医生或正式医疗依据。')
+        st.write('当前状态：'+{'DRAFT':'草稿','READY_FOR_REVIEW':'待初评','WAITING_MEDICAL_REVIEW':'等待医生','CONFIRMED':'已确认'}.get(row.review_status,'待核对'))
+        with st.form(f'intake-review-{row.id}'):
+            focus=st.text_area('专业管理重点',value=row.professional_focus)
+            missing=st.text_area('需要补充资料',value=row.review.get('missing','') if isinstance(row.review.get('missing'),str) else '')
+            tests=st.text_area('拟补充检查（需医生确认）',value=row.review.get('supplementary_tests',''))
+            medical=st.text_area('需医生确认内容',value=row.review.get('medical_question',''))
+            annual=st.text_area('初步年度管理重点',value=row.review.get('annual_focus',''))
+            actor=st.text_input('初评人',value=view.owner)
+            decision=st.selectbox('初评决定',['DRAFT','CONFIRM','RETURN'],format_func=lambda x:{'DRAFT':'保存初评草稿','CONFIRM':'确认初评 / 交医生确认','RETURN':'退回问卷补充'}[x])
+            submit=st.form_submit_button('保存健管初评',type='primary')
+        if submit:write(lambda s:service.review_intake(s,patient.id,row.id,focus=focus,missing=missing,tests=tests,medical_question=medical,annual_focus=annual,actor=actor,decision=decision))
+
+
+def family(patient,view):
+    with st.expander('家庭关系与紧急联系人'):
+        for row in view.family:st.caption(row.relationship+' · '+row.contact_name+(' · 紧急联系人' if row.emergency else ''))
+        with st.form(f'family-{patient.id}'):
+            relation=st.text_input('关系');name=st.text_input('联系人');contact=st.text_input('联系方式')
+            emergency=st.checkbox('紧急联系人');shared=st.checkbox('共享服务权益标记（不自动授予权限）')
+            members=[]
+            with SessionLocal() as session:members=[m for m,_ in projection.annual(session) if m.id!=patient.id]
+            linked=st.selectbox('关联会员（可选）',[None]+[m.id for m in members],format_func=lambda k:next((m.display_name for m in members if m.id==k),'不关联'))
+            submit=st.form_submit_button('保存家庭关系')
+        if submit:write(lambda s:service.family(s,patient.id,relationship=relation,contact_name=name,contact=contact,emergency=emergency,shared_entitlement=shared,related_patient_id=linked,actor=view.owner))
+
+
+def management(app,patient):
+    flash();view=view_for(patient.id)
+    if not view.program:
+        st.info('先从年度管理建立服务周期。');return
+    st.subheader('当前阶段 · '+(view.current_phase.title if view.current_phase else view.onboarding))
+    phases(view)
+    mode=st.selectbox('管理工作',['管理日志','年度方案与阶段','检查复查','阶段评估','关联服务','原有计划 / 任务 / 自动跟进'],key=f'workflow-mode-{patient.id}')
+    if mode=='管理日志':
+        with st.expander('新增管理记录',expanded=not view.logs or st.session_state.get(f'workflow-open-log-{patient.id}',False)):
+            logs(patient,view)
+    elif mode=='年度方案与阶段':plan(patient,view)
+    elif mode=='检查复查':recheck(patient,view)
+    elif mode=='阶段评估':stage_review(patient,view)
+    elif mode=='关联服务':
+        if view.services:
+            service_row=st.selectbox('服务记录',view.services,format_func=lambda r:ux.business_text(r.reason or '服务申请')+' · '+ux.status_label(r.status) if hasattr(ux,'status_label') else r.reason)
+            phase=st.selectbox('关联阶段',[None]+list(view.phases),format_func=lambda r:r.title if r else '年度周期')
+            linked=st.selectbox('关联管理事项',[None]+list(view.tasks),format_func=lambda r:r.title if r else '不关联')
+            if st.button('关联周期与阶段',type='primary'):write(lambda s:service.link_service(s,patient.id,service_row.id,view.program.id,phase.id if phase else None,linked.id if linked else None))
+        app.render_member_service_management(patient)
+    else:
+        from executive_health_ai.ui.pages.manager.experience import management as legacy
+        legacy(app,patient)
+    with st.expander('最近管理记录',expanded=mode=='管理日志'):log_rows(view.logs[:5])
+
+
+def log_rows(rows):
+    if not rows:st.caption('暂无管理记录。完成沟通后记录结果与下一步。')
+    for row in rows:
+        with st.expander(f'{ux.local_time(row.occurred_at):%m/%d %H:%M} · {row.category} · {row.member_issue[:32]}'):
+            st.write('已做：'+row.manager_action);st.write('结果：'+(row.result or '待反馈'));st.write('下一步：'+(row.next_action or '暂未安排'))
+            st.caption(ux.owner(row.owner)+' · '+ux.due_date(row.follow_up_at))
+            if row.follow_up_task_id:st.caption('已生成关联待办，不重复创建。')
+            if row.evidence:st.caption('依据：'+row.evidence)
+
+
+def logs(patient,view):
+    st.markdown('**新增管理记录**')
+    request_key=st.session_state.setdefault(f'log-key-{patient.id}',str(uuid4()))
+    with st.form(f'log-form-{patient.id}'):
+        a,b=st.columns(2);category=a.selectbox('记录类型',LOG_CATEGORIES);occurred=b.date_input('发生日期')
+        occurred_time=st.time_input('发生时间',value=datetime.now(ux.LOCAL).time().replace(second=0,microsecond=0))
+        issue=st.text_input('发生了什么');action=st.text_area('我做了什么',height=70);result=st.text_input('本次结果');next_action=st.text_input('下一步')
+        a,b=st.columns(2);follow=a.date_input('下次跟进日期',value=None);owner=b.text_input('执行负责人',value=view.owner)
+        with st.expander('机构、服务与依据（选填）'):
+            channel=st.selectbox('沟通渠道',['电话','微信','面谈','其他']);provider=st.text_input('机构 / 医院');department=st.text_input('科室');expert=st.text_input('专家');evidence=st.text_area('依据说明')
+            service_type=st.text_input('服务类型')
+            linked_task=st.selectbox('相关任务',[None]+list(view.tasks),format_func=lambda r:r.title if r else '无')
+            linked_doc=st.selectbox('相关报告',[None]+list(view.documents),format_func=lambda r:r.title if r else '无')
+            linked_review=st.selectbox('相关医生复核',[None]+list(view.doctor_reviews),format_func=lambda r:r.question_for_doctor[:40] if r else '无')
+            linked_service=st.selectbox('相关服务',[None]+list(view.services),format_func=lambda r:r.reason[:40] if r else '无')
+            linked_risk=st.selectbox('相关风险',[None]+list(view.risks),format_func=lambda r:ux.business_text(r.summary[:40]) if r else '无')
+        followup=st.checkbox('保存并创建下一步',value=True)
+        submit=st.form_submit_button('保存管理记录',type='primary')
+    if submit:
+        def command(s):
+            row=service.record_log(s,patient.id,view.program.id,actor=view.owner,request_key=request_key,create_followup=followup,
+                occurred_at=datetime.combine(occurred,occurred_time,ux.LOCAL),category=category,channel=channel,member_issue=issue,manager_action=action,result=result,next_action=next_action,
+                follow_up_at=datetime.combine(follow,time(17),ux.LOCAL) if follow else None,owner=owner,provider=provider,department=department,expert=expert,evidence=evidence,service_type=service_type,
+                related_task_id=linked_task.id if linked_task else None,related_document_id=linked_doc.id if linked_doc else None,related_doctor_review_id=linked_review.id if linked_review else None,related_service_id=linked_service.id if linked_service else None,related_risk_id=linked_risk.id if linked_risk else None)
+            return row
+        try:
+            with SessionLocal() as session:command(session);session.commit()
+            st.session_state.pop(f'workflow-open-log-{patient.id}',None)
+            st.session_state.pop(f'log-key-{patient.id}',None);st.session_state['workflow-flash']='记录已保存，下一步已按所选设置建立。';st.rerun()
+        except ValueError as error:st.error(str(error))
+
+
+def plan(patient,view):
+    st.write('年度目标：'+view.program.main_goal)
+    for phase in view.phases:
+        with st.expander(phase.title+' · '+('当前' if phase.status=='ACTIVE' else '已完成' if phase.status=='COMPLETED' else '待开始')):
+            st.write(phase.goal);st.caption(phase.management_content or '按阶段目标执行');st.caption(f'{phase.start_date} — {phase.end_date} · {phase.owner or view.owner}')
+            for review in view.reviews:
+                if review.phase_id==phase.id:
+                    st.markdown('**本阶段复盘记录**')
+                    for label,value in review.content.items():
+                        st.write(label+'：'+(value or '本次未记录'))
+    with st.expander('增加阶段',expanded=not view.phases):
+        with st.form(f'phase-{patient.id}'):
+            title=st.text_input('阶段名称');goal=st.text_input('阶段目标');content=st.text_area('管理内容')
+            a,b=st.columns(2);start=a.date_input('阶段开始',value=view.program.start_date);end=b.date_input('阶段结束',value=view.program.start_date+timedelta(days=29))
+            owner=st.text_input('阶段负责人',value=view.owner);submit=st.form_submit_button('保存阶段')
+        if submit:write(lambda s:service.add_phase(s,patient.id,view.program.id,title=title,goal=goal,content=content,start=start,end=end,owner=owner))
+    if view.program.status=='PLANNED' and st.button('启动年度方案',type='primary'):
+        write(lambda s:service.start_program(s,patient.id,view.program.id,view.owner))
+
+
+def recheck(patient,view):
+    with st.expander('建立检查复查计划',expanded=not view.rechecks):
+        with st.form(f'recheck-{patient.id}'):
+            title=st.text_input('检查项目');reason=st.text_input('检查原因');planned=st.date_input('计划检查日期',value=date.today()+timedelta(days=7))
+            provider=st.text_input('检查机构');evidence=st.text_area('正式医疗建议依据');owner=st.text_input('复查负责人',value=view.owner)
+            review=st.selectbox('已确认医生意见',[None]+[r for r in view.doctor_reviews if r.status=='CONFIRMED'],format_func=lambda r:r.question_for_doctor[:40] if r else '使用已核对医疗记录')
+            submit=st.form_submit_button('建立复查事项',type='primary')
+        if submit:write(lambda s:service.create_recheck(s,patient.id,view.program.id,title=title,reason=reason,planned_at=datetime.combine(planned,time(9),ux.LOCAL),owner=owner,provider=provider,evidence=evidence,doctor_review_id=review.id if review else None))
+    for row in view.rechecks:
+        with st.expander(row.title+' · '+RECHECK_STATES[row.status],expanded=len(view.rechecks)==1):
+            st.caption(f'{ux.when(row.planned_at)} · {ux.owner(row.owner)}');st.write(row.reason)
+            if row.status=='CLOSED':st.write(row.result);continue
+            target=list(RECHECK_STATES)[list(RECHECK_STATES).index(row.status)+1]
+            with st.form(f'recheck-update-{row.id}'):
+                result=st.text_input('复核结果 / 执行记录',value=row.result)
+                document=st.selectbox('关联报告',[None]+list(view.documents),format_func=lambda r:r.title if r else '尚未取得')
+                next_date=st.date_input('下次复查日期（选填）',value=None)
+                submit=st.form_submit_button('推进至'+RECHECK_STATES[target])
+            if submit:write(lambda s:service.advance_recheck(s,patient.id,row.id,status=target,actor=view.owner,result=result,document_id=document.id if document else None,next_recheck_at=datetime.combine(next_date,time(9),ux.LOCAL) if next_date else None))
+
+
+def stage_review(patient,view):
+    phase=view.current_phase
+    if not phase:st.info('暂无执行中的阶段；先启动年度方案。');return
+    previous=next((r for r in view.reviews if r.phase_id==phase.id),None)
+    if previous:
+        st.success('本阶段已完成复盘；当前阶段继续执行至负责人确认交接。')
+        st.write(previous.content.get('实际完成',''));st.caption('下一步：'+previous.content.get('下一阶段建议',''))
+        if st.button('确认进入下一阶段',type='primary'):
+            write(lambda s:service.advance_phase(s,patient.id,phase.id,view.owner))
+        return
+    st.write('本阶段目标：'+phase.goal)
+    st.caption('记录实际执行与观察变化，不自动作因果归因。数值结果仍沿用原阶段结果入口。')
+    with st.form(f'stage-review-{phase.id}'):
+        content={}
+        fields=['实际完成','关键指标变化','用药执行','检查完成','生活方式执行','服务完成','未解决问题','下一阶段建议']
+        for i in range(0,len(fields),2):
+            left,right=st.columns(2)
+            content[fields[i]]=left.text_area(fields[i],height=70)
+            content[fields[i+1]]=right.text_area(fields[i+1],height=70)
+        decision=st.selectbox('阶段决定',['CONTINUE','ADJUST','DOCTOR_REVIEW','STABILIZE','NEXT_PHASE'],format_func=lambda x:{'CONTINUE':'继续','ADJUST':'调整','DOCTOR_REVIEW':'转医生','STABILIZE':'进入稳定管理','NEXT_PHASE':'进入下一阶段'}[x])
+        submit=st.form_submit_button('确认阶段结果',type='primary')
+    if submit:write(lambda s:service.review_stage(s,patient.id,phase.id,content=content,decision=decision,actor=view.owner))
+
+
+def consultations(app,patient=None,doctor=False,members=None):
+    flash()
+    if patient is None:
+        members=members if members is not None else app._members()
+        if not members:st.info('暂无会员。');return
+        patient=st.selectbox('会诊会员',members,format_func=lambda m:ux.business_text(m.display_name),key='consultation-member-doctor' if doctor else 'consultation-member-manager')
+    view=view_for(patient.id)
+    if doctor and view.intake and view.intake.status!='DRAFT':
+        with st.expander('初始评估用药候选 · 医生核对'):
+            candidates=view.intake.responses.get('当前用药 / 营养补充',[])
+            if candidates:
+                index=st.selectbox('待确认用药',range(len(candidates)),format_func=lambda i:candidates[i].get('名称','待核对'))
+                st.caption('确认只是录入已核对处方记录，不是新开药或调整处方。')
+                with st.form(f'medication-confirm-{patient.id}'):
+                    evidence=st.text_area('正式处方 / 医疗记录依据');actor=st.text_input('核对医生')
+                    submit=st.form_submit_button('确认映射到现有用药档案')
+                if submit:write(lambda s:service.confirm_medication(s,patient.id,view.intake.id,index,actor=actor,role='doctor',evidence=evidence))
+            else:st.caption('暂无已提交用药候选。')
+    st.subheader('正式会诊')
+    if not doctor:
+        with st.expander('申请正式会诊',expanded=not view.consultations):
+            with st.form(f'case-new-{patient.id}'):
+                reason=st.text_area('为什么会诊');scheduled=st.date_input('会诊日期');location=st.text_input('地点 / 方式');evidence=st.text_area('关键资料与依据')
+                scheduled_time=st.time_input('会诊时间',value=time(10))
+                primary_doctor=st.text_input('主要参加医生');primary_department=st.text_input('主要科室')
+                extra_doctors=st.text_area('其他参加医生（每行：医生｜科室）',height=70)
+                submit=st.form_submit_button('提交会诊申请')
+            if submit:
+                participants=[{'doctor':primary_doctor.strip(),'department':primary_department.strip()}]
+                for line in extra_doctors.splitlines():
+                    if line.strip():
+                        parts=line.replace('|','｜').split('｜',1)
+                        participants.append({'doctor':parts[0].strip(),'department':parts[1].strip() if len(parts)>1 else ''})
+                write(lambda s:service.create_consultation(s,patient.id,reason=reason,scheduled_at=datetime.combine(scheduled,scheduled_time,ux.LOCAL),location=location,participants=participants,evidence=evidence,owner=view.owner,program_id=view.program.id if view.program else None))
+    if not view.consultations: return
+    selected=st.selectbox('会诊记录',view.consultations,format_func=lambda r:f'{r.scheduled_at:%m/%d} · {CASE_STATES[r.status]}')
+    with SessionLocal() as session:case,encounter,opinions=projection.consultation(session,selected.id)
+    st.markdown('### '+encounter.reason);st.caption(CASE_STATES[case.status]+' · '+ux.owner(case.owner)+' · '+case.location)
+    st.write('依据：'+case.evidence)
+    st.caption('参加：'+'、'.join(p['department']+' '+p['doctor'] for p in case.participants))
+    for opinion in opinions:
+        with st.expander(opinion.department+' · '+opinion.clinician_name):st.write(opinion.content)
+    if not doctor and case.status=='PREPARING':
+        if st.button('确认会诊安排',type='primary'):
+            write(lambda s:service.schedule_consultation(s,patient.id,case.id,view.owner))
+    if doctor and case.status in {'SCHEDULED','WAITING_RESULT'}:
+        participant=st.selectbox('本次参加医生',case.participants,format_func=lambda p:p['doctor']+' · '+p['department'])
+        with st.form(f'case-opinion-{case.id}'):
+            opinion=st.text_area('本人医学意见');submit=st.form_submit_button('提交本科意见',type='primary')
+        if submit:write(lambda s:service.consultation_opinion(s,patient.id,case.id,actor=participant['doctor'],department=participant['department'],content=opinion,role='doctor'))
+        with st.expander('收齐意见后确认综合结论'):
+            with st.form(f'case-conclusion-{case.id}'):
+                conclusion=st.text_area('综合结论与执行建议');submit=st.form_submit_button('确认综合结论并交健管')
+            if submit:write(lambda s:service.conclude_consultation(s,patient.id,case.id,actor=participant['doctor'],role='doctor',conclusion=conclusion))
+    if case.conclusion:st.write('综合结论：'+case.conclusion)
+    if not doctor and case.status=='WAITING_ACTIONS':
+        st.markdown('**方案拆解 · 保存草稿不会创建任务**')
+        for a in case.action_drafts:
+            st.caption(a['category']+' · '+a['title']+' · '+a['owner']+' · '+a['due'])
+        with st.form(f'case-actions-{case.id}'):
+            category=st.selectbox('事项类型',['复查事项','用药管理事项','生活方式事项','服务事项','医生复核'])
+            title=st.text_input('具体执行事项');owner=st.text_input('事项负责人',value=view.owner);due=st.date_input('事项截止日期')
+            submit=st.form_submit_button('保存行动草稿')
+        if submit:
+            actions=[*case.action_drafts,{'category':category,'title':title,'owner':owner,'due':due.isoformat()}]
+            write(lambda s:service.confirm_actions(s,patient.id,case.id,actions=actions,actor=view.owner))
+        if case.action_drafts and st.button('确认并创建全部事项',type='primary'):
+            write(lambda s:service.confirm_actions(s,patient.id,case.id,actions=case.action_drafts,actor=view.owner,confirm=True))
+    if case.status=='COMPLETED':st.success('已交由'+case.confirmed_by+'执行，事项进入今日工作。')

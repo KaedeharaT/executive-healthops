@@ -44,8 +44,7 @@ def test_member_manager_doctor_and_admin_see_business_agent_status_without_techn
         assert "AgentGoal" not in _text(doctor)
 
         admin = AppTest.from_file(APP); admin.run(timeout=30)
-        _radio(admin, "工作区").set_value("更多"); admin.run(timeout=30)
-        next(button for button in admin.button if button.key == "more-open-系统").click(); admin.run(timeout=30)
+        _radio(admin, "当前视图").set_value("系统管理"); admin.run(timeout=30)
         _radio(admin, "系统").set_value("自动化运营"); admin.run(timeout=30)
         visible = _text(admin)
         assert "自动化运营" in visible and "AgentGoal" not in visible

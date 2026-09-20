@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE = ROOT / "data" / "portfolio_demo.db"
 DEMO_EXTERNAL_ID = "portfolio-demo-executive-a"
-DEMO_DATA_VERSION = "portfolio-demo-chart-restoration-v4"
+DEMO_DATA_VERSION = "portfolio-demo-real-workflow-v1"
 
 
 def _configure_console_encoding() -> None:
@@ -456,6 +456,8 @@ def _customize_portfolio_data() -> dict[str, int]:
             supervisor.receive_event(session, uploaded)
             confirmed, _ = EventService().publish(session, event_type="REPORT_CONFIRMED", member_id=patient.id, source_type="document", source_id=report.id, payload_summary="Synthetic report human-confirmed", metadata={"actor": "演示健康管理师"})
             supervisor.receive_event(session, confirmed)
+        seed_workflow = runpy.run_path(str(ROOT / "scripts" / "seed_real_workflow_demo.py"))["seed_workflow_enrollment"]
+        seed_workflow(session)
         session.commit()
 
         return {

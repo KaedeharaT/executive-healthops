@@ -62,6 +62,9 @@ class MemberEntitlement(Base):
 
 class ServiceRequest(Base):
     __tablename__ = "service_requests"
+    program_id: Mapped[UUID | None] = mapped_column(ForeignKey("health_programs.id"), nullable=True, index=True)
+    phase_id: Mapped[UUID | None] = mapped_column(ForeignKey("program_phases.id"), nullable=True)
+    management_task_id: Mapped[UUID | None] = mapped_column(ForeignKey("tasks.id"), nullable=True)
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     patient_id: Mapped[UUID] = mapped_column(ForeignKey("patients.id"), index=True)
     service_item_id: Mapped[UUID] = mapped_column(ForeignKey("service_catalog_items.id"), index=True)

@@ -20,7 +20,7 @@ def _source(name: str, next_marker: str) -> str:
 def test_primary_navigation_is_limited_to_five_per_surface() -> None:
     source = APP.read_text(encoding="utf-8")
     assert '["首页", "健康", "计划", "服务", "历程"]' in source
-    assert '["今日", "成员", "医疗协同", "服务运营", "更多"]' in source
+    assert '["今日", "成员", "年度管理", "医疗协同", "服务运营"]' in source
 
 
 def test_member_health_has_at_most_five_second_level_views() -> None:
@@ -48,7 +48,7 @@ def test_reports_medical_doctors_services_and_timeline_use_inline_detail_pattern
     assert "st.columns([1, 1.7]" in report and "render_member_report_upload(patient)" in report
     assert 'st.radio("医疗内容", ["医生复核", "用药", "检查", "手术住院"]' in medical
     assert "member-medical-event-selected" in medical and "detail_panel(" in medical
-    assert 'st.radio("医疗协同内容", ["内部医生", "外部医疗"]' in collaboration
+    assert 'st.radio("医疗协同内容", ["内部医生", "正式会诊", "外部医疗"]' in collaboration
     assert "service-operations-selected" in services and "detail_panel(" in services
     assert "external-medical-selected" in external and "detail_panel(" in external
     assert "timeline-selected-" in timeline and "_render_evidence_action" in timeline

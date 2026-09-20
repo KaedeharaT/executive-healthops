@@ -100,7 +100,7 @@ def test_navigation_root_has_no_ai_risk_or_seed_side_effects() -> None:
 def test_all_sidebar_and_more_pages_render_without_exception() -> None:
     """Exercise installed Streamlit's real widget API, not documentation assumptions."""
     root = APP
-    for workspace in ["今日", "成员", "医疗协同", "服务运营", "更多"]:
+    for workspace in ["今日", "成员", "年度管理", "医疗协同", "服务运营"]:
         app = AppTest.from_file(root)
         app.run(timeout=30)
         _radio(app, "工作区").set_value(workspace)

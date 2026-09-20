@@ -387,9 +387,12 @@ def _render_sidebar_navigation() -> str:
     selected = st.session_state.get("ops-navigation")
     if selected in legacy:
         st.session_state["ops-navigation"] = legacy[selected]
+    if st.session_state.get("ops-navigation") == "更多":
+        # Retain old deep links, but support tools no longer occupy staff navigation.
+        return "更多"
     return st.sidebar.radio(
-        "工作区", ["今日", "成员", "医疗协同", "服务运营", "更多"],
-        key="ops-navigation", label_visibility="collapsed", format_func=lambda value: "服务" if value == "服务运营" else value,
+        "工作区", ["今日", "成员", "年度管理", "医疗协同", "服务运营"],
+        key="ops-navigation", label_visibility="collapsed", format_func=lambda value: {"今日":"今日工作", "成员":"会员", "服务运营":"服务"}.get(value,value),
     )
 
 
@@ -2881,6 +2884,9 @@ def render_simple_medical_records(patient: Patient, ctx: dict[str, list[object]]
 
 
 def render_members_workspace(members):
+    from executive_health_ai.ui.pages.manager.workflow import enroll, flash
+    flash()
+    enroll(_ui_adapter())
     _page_header("成员", "在同一上下文查看当前阶段、负责人和下一行动。", eyebrow="成员管理")
     query = st.text_input("搜索成员", placeholder="输入姓名或职位")
     visible = [m for m in members if not query or query.lower() in _member_display(m).lower()]
@@ -3750,10 +3756,13 @@ def render_oversight_summary() -> None:
 def render_collaboration_workspace() -> None:
     """Keep internal medical review distinct from external-care coordination."""
     _page_header("医疗协同", "只处理需要医学判断或外部医疗安排的事项。", eyebrow="运营后台")
-    collaboration = st.radio("医疗协同内容", ["内部医生", "外部医疗"], horizontal=True, label_visibility="collapsed", key="collaboration-view")
+    collaboration = st.radio("医疗协同内容", ["内部医生", "正式会诊", "外部医疗"], horizontal=True, label_visibility="collapsed", key="collaboration-view")
     members = _members()
     if collaboration == "内部医生":
         doctor_pages.workspace(_ui_adapter(), members, read_only=True)
+    elif collaboration == "正式会诊":
+        from executive_health_ai.ui.pages.manager.workflow import consultations
+        consultations(_ui_adapter())
     else:
         render_external_doctor_workspace(members)
 
@@ -6363,6 +6372,10 @@ def main() -> None:
     if page == "今日":
         _render_timed("今日", render_manager_dashboard)
         if NAVIGATION_PROFILE_ENABLED: LOGGER.warning("[PERF] total %.1f ms", (perf_counter() - started) * 1000)
+        return
+    if page == "年度管理":
+        from executive_health_ai.ui.pages.manager.workflow import annual
+        annual(_ui_adapter())
         return
     if page == "医疗协同":
         _render_timed("医疗协同", render_collaboration_workspace)

@@ -42,6 +42,18 @@ def _complete(task):
 
 
 def home(app, patient, ctx):
+    from executive_health_ai.ui.pages.manager.workflow import view_for, intake
+    management=view_for(patient.id)
+    if management.intake and management.intake.status=='DRAFT':
+        if st.session_state.get(f'member-intake-open-{patient.id}'):
+            if st.button("返回首页",key=f'intake-back-{patient.id}'):
+                st.session_state.pop(f'member-intake-open-{patient.id}',None);st.rerun()
+            intake(app,patient,member=True)
+            return
+        with c.section("完善健康档案",key="member-intake-action",emphasis=True):
+            st.write("完成初始评估，让健康管理师了解你自己希望改善的问题。")
+            if st.button("继续填写",key=f'intake-open-{patient.id}',type='primary'):
+                st.session_state[f'member-intake-open-{patient.id}']=True;st.rerun()
     c.page_shell("member", "今日健康", f"{patient.display_name}，今天先处理最重要的一件事。", "持续健康管理")
     if message := st.session_state.pop("ux-flash", None):
         st.success(message)
@@ -75,7 +87,7 @@ def home(app, patient, ctx):
             if not view.baseline and st.button("上传体检报告", key=f"client-home-report-empty-{patient.id}", type="primary"):
                 app._open_member_report_upload(patient.id)
     with c.section("当前管理", key="member-management"):
-        c.summary_strip([("管理周期", view.cycle), ("当前阶段", app.display_program_phase(program.current_phase) if program else "待建立计划"),
+        c.summary_strip([("管理周期", view.cycle), ("当前阶段", view.phase_title or ("完善健康档案" if program and program.current_phase=='ONBOARDING' else app.display_program_phase(program.current_phase) if program else "待建立计划")),
                          ("负责人", ux.business_text(view.owner))])
         next_task = next((t for t in view.active_tasks if t.due_at and ux.local_time(t.due_at) >= datetime.now(ux.LOCAL)), None)
         st.caption((app._label(program.status) + " · " if program else "") + "下一节点：" + (ux.when(next_task.due_at) + " · " + ux.business_text(next_task.title) if next_task else "由负责人确认下一次安排"))

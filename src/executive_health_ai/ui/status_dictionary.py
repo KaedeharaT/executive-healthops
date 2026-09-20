@@ -1,6 +1,6 @@
 """Canonical business status vocabulary; context distinguishes different facts."""
 
-STATUS = {'NEW': '新建',
+STATUS = {'ONBOARDING':'资料收集中','READY_FOR_REVIEW':'待健管初评','SUBMITTED':'已提交','WAITING_ACTIONS':'待方案拆解','WAITING_REPORT':'待报告','WAITING_TIME':'等待时间','NEXT_PHASE':'进入下一阶段','REVIEWED':'已复盘','NEW': '新建',
  'AI_SCREENED': '规则筛查完成',
  'WAITING_MANAGER_REVIEW': '等待健管',
  'MANAGER_CONFIRMED': '管理师已确认',

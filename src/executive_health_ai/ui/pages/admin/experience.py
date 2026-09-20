@@ -98,6 +98,9 @@ def workspace(app):
 def legacy_tools(app):
     """Explicit, discoverable home for retained historical UI capabilities."""
     with st.expander("高级信息 · 兼容工具"):
+        with st.expander("原平台工具目录"):
+            from executive_health_ai.ui.pages.support_navigation import render_support_directory
+            render_support_directory(app)
         st.caption("保留历史详细视图和管理工具。这里的操作仍使用原有业务服务；仅用于演示管理与核对。")
         members = app._members()
         if not members:

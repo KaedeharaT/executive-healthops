@@ -12,7 +12,7 @@ def test_streamlit_status_copy_describes_data_not_medical_conclusions() -> None:
     assert '"normal": "数据完整，可进行趋势分析"' in app_source
     assert '"insufficient_data": "数据不足，暂无法判断趋势"' in app_source
     assert "今日跟进" in app_source
-    assert '"今日", "成员", "医疗协同", "服务运营", "更多"' in app_source
+    assert '"今日", "成员", "年度管理", "医疗协同", "服务运营"' in app_source
     assert '"成员页面", ["概览", "健康", "管理", "医疗", "历程"]' in app_source
     assert "_render_lifecycle_grid" in app_source
     assert "timeline-spine-" in app_source
@@ -61,7 +61,7 @@ def test_streamlit_default_page_smoke_loads() -> None:
     app.run(timeout=30)
 
     assert not app.exception
-    assert [title.value for title in app.title] == ["今日待处理"]
+    assert [title.value for title in app.title] == ["今日工作"]
 
 
 def test_platform_launcher_uses_fixed_ports_safe_project_restart_and_single_browser_open() -> None:

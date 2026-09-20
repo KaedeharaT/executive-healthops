@@ -150,15 +150,15 @@ def test_actual_member_and_manager_baseline_and_owner_read_the_same_context():
 
 
 def test_support_directory_and_legacy_deep_link_still_reach_admin():
-    app=AppTest.from_file(APP).run(timeout=45)
-    radio(app,'工作区','更多')
+    app=AppTest.from_file(APP)
+    app.session_state['ops-navigation']='更多';app.run(timeout=45)
     assert any(b.key=='more-open-风险规则' for b in app.button)
     next(b for b in app.button if b.key=='more-open-风险规则').click();app.run(timeout=45)
     assert not app.exception
     assert app.session_state['surface-mode']=='系统管理'
     assert app.session_state['ux-admin-navigation']=='规则与知识'
-    radio(app,'当前视图','运营后台')
-    radio(app,'工作区','更多')
+    app=AppTest.from_file(APP)
+    app.session_state['ops-navigation']='更多'
     app.session_state['more-navigation']='操作记录';app.run(timeout=45)
     assert not app.exception and app.session_state['surface-mode']=='系统管理'
     assert app.session_state['ux-admin-navigation']=='系统状态'

@@ -84,6 +84,11 @@ def test_portfolio_builder_rebuild_creates_training_tables():
         assert approved == 12 and chunks == 59
         member = session.scalar(select(Patient).where(Patient.external_id == "portfolio-demo-executive-a"))
         assert member is not None
+        from executive_health_ai.models.management_workflow import IntakeAssessment
+        workflow_member = session.scalar(select(Patient).where(Patient.external_id == "synthetic-real-workflow-v1"))
+        assert workflow_member is not None
+        intake = session.scalar(select(IntakeAssessment).where(IntakeAssessment.patient_id == workflow_member.id))
+        assert intake is not None and intake.status == "DRAFT"
         baseline = session.scalar(select(HealthAssessment).where(
             HealthAssessment.patient_id == member.id,
             HealthAssessment.cycle_year == 2026,

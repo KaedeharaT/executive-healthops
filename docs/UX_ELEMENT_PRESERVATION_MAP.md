@@ -1335,3 +1335,8 @@
 ## Product Logic V3 后续整理
 
 本表保留UX V2的94组历史口径。本轮以 `3ba46b2` 冻结当前全部102组业务要素及1390个底层UI调用点，见 [Product Logic Preservation Map](PRODUCT_LOGIC_PRESERVATION_MAP.md)。新的归属与位置以该表为准；V2能力与高级兼容入口全部保留。
+
+
+## 本轮真实健管工作流迁移
+
+原121元素的最新入口见 [完整保留结果](REAL_WORKFLOW_ELEMENT_PRESERVATION.md)。健管“更多”的原支撑能力移至管理员高级信息的原平台工具目录；旧深链接仍兼容。管理页原功能归入“原有计划 / 任务 / 自动跟进”，没有删除。
