@@ -107,6 +107,16 @@ def render_member_health_overview(app, patient, ctx, view, *, session_factory):
         # B — real phase/state, including absent and paused plans.
         management_stage(baseline, view.program)
 
+        # D — the existing shared chart, not another graph implementation.
+        with st.container(key="overview-trend"):
+            st.subheader("从基线到现在")
+            if health:
+                render_baseline_progress(health, key_prefix=key, layout="member_overview")
+            else:
+                st.caption("目前还没有足够的后续数据形成趋势。" if baseline else "建立并确认年度基线后，即可与后续健康数据比较。")
+                if baseline:
+                    st.caption("基线尚待人工确认；当前健康记录可在详细资料中查看。")
+
         # C — never place empty domains before the actual concerns.
         with st.container(key="overview-focus"):
             st.subheader("重点关注")
@@ -131,16 +141,6 @@ def render_member_health_overview(app, patient, ctx, view, *, session_factory):
             if focus or problems:
                 if history.button("查看历次记录", key=f"{key}-history"):
                     app.request_navigation(surface="成员健康中心", member_page="历程", member_id=patient.id)
-
-        # D — the existing shared chart, not another graph implementation.
-        with st.container(key="overview-trend"):
-            st.subheader("从基线到现在")
-            if health:
-                render_baseline_progress(health, key_prefix=key, layout="member_overview")
-            else:
-                st.caption("目前还没有足够的后续数据形成趋势。" if baseline else "建立并确认年度基线后，即可与后续健康数据比较。")
-                if baseline:
-                    st.caption("基线尚待人工确认；当前健康记录可在详细资料中查看。")
 
         # E/F — information-rich domains and one grouped supplement action.
         with st.container(key="overview-domain-coverage"):

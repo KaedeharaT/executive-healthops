@@ -4,7 +4,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 UI = ROOT / "src/executive_health_ai/ui"
 MOVED = {
-    "render_manager_dashboard": ("pages/manager/experience.py", "today"),
+    "render_manager_dashboard": ("pages/manager/workbench.py", "today"),
+    "render_members_workspace": ("pages/manager/workbench.py", "directory"),
+    "render_service_operations_workspace": ("pages/manager/services.py", "services"),
     "render_member_detail": ("pages/manager/experience.py", "member_detail"),
     "_render_client_home": ("pages/member/experience.py", "home"),
     "_render_client_plan": ("pages/member/experience.py", "plan"),

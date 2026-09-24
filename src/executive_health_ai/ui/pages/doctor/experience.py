@@ -102,7 +102,8 @@ def workspace(app, members, *, patient=None, read_only=False):
         from executive_health_ai.ui.pages.manager.workflow import consultations
         with st.expander("正式会诊 · 各科意见与综合结论"):
             consultations(app,patient,doctor=True,members=members)
-    c.page_shell("doctor", "医学复核" if read_only else "待我复核", "明确问题、核对依据，判断后由健康管理师执行。", "医疗协同" if read_only else "医生工作台")
+    if not read_only:
+        c.page_shell("doctor", "待我复核", "明确问题、核对依据，判断后由健康管理师执行。", "医生工作台")
     if message := st.session_state.pop("doctor-flash", None):
         st.success(message)
     with SessionLocal() as session:
@@ -134,11 +135,13 @@ def workspace(app, members, *, patient=None, read_only=False):
         ux.empty_state("当前没有待复核事项" if mode == "待复核" else "暂无已完成复核", "新增医学问题会统一进入此队列。")
         return
     from executive_health_ai.ui.presentation import data_table
-    selected = data_table(rows, [{"问题": getattr(r, "question_for_doctor", None) or getattr(r, "title", "年度基线医学确认"), "会员": people[r.patient_id].display_name,
-        "提交原因": getattr(r, "doctor_brief", "待核对资料"), "医生": getattr(r, "doctor_name", "待确认"), "状态": "待复核" if mode == "待复核" else "已完成", "提交时间": ux.when(getattr(r, "created_at", None)), "截止": "未单独设置"} for r in rows], key=f"doctor-grid-{patient.id if patient else 'all'}", label="选择复核事项")
+    selected = data_table(rows, [{"会员": people[r.patient_id].display_name,"问题": getattr(r, "question_for_doctor", None) or getattr(r, "title", "年度基线医学确认"),
+        "来源": '健康关注事项' if getattr(r,'risk_event_id',None) else '健康管理提交', "医生": getattr(r, "doctor_name", "待确认"), "状态": "待复核" if mode == "待复核" else "已完成", "提交时间": ux.local_time(getattr(r, "created_at", None)), "截止时间": "未单独设置"} for r in rows], key=f"doctor-grid-{patient.id if patient else 'all'}", label="选择复核事项",search=True,auto_select=False)
+    if selected is None:return
     member = people[selected.patient_id]
     if isinstance(selected, DoctorReview):
-        detail(app, member, selected, read_only=read_only)
+        with c.detail_drawer('医生复核详情',key='doctor-review',table_key=f"doctor-grid-{patient.id if patient else 'all'}"):
+            detail(app, member, selected, read_only=read_only)
     elif not read_only:
         # Existing annual-baseline / historical-alert decisions retain their service path.
         ctx = app._member_doctor_context(member.id)

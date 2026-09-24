@@ -1,0 +1,189 @@
+{
+  "pages": [
+    {
+      "page": "manager-today",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "manager-today-detail",
+      "tables": 2,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 1
+    },
+    {
+      "page": "member-list",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "member-360",
+      "tables": 1,
+      "charts": 2,
+      "timelines": 1,
+      "steppers": 1,
+      "drawers": 0
+    },
+    {
+      "page": "member-health-record",
+      "tables": 0,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "member-management",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "management-log",
+      "tables": 0,
+      "charts": 0,
+      "timelines": 3,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "management-log-table",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "recheck",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "recheck-detail",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 1,
+      "drawers": 0
+    },
+    {
+      "page": "annual-stage-detail",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 1,
+      "drawers": 0
+    },
+    {
+      "page": "stage-review",
+      "tables": 1,
+      "charts": 1,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "annual-management",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "annual-selected",
+      "tables": 2,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 1,
+      "drawers": 0
+    },
+    {
+      "page": "medical-collaboration",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "doctor-review-detail",
+      "tables": 1,
+      "charts": 1,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 1
+    },
+    {
+      "page": "consultation",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "consultation-detail",
+      "tables": 2,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 1,
+      "drawers": 0
+    },
+    {
+      "page": "service",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    },
+    {
+      "page": "service-detail",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 1,
+      "drawers": 1
+    },
+    {
+      "page": "member-health",
+      "tables": 0,
+      "charts": 1,
+      "timelines": 0,
+      "steppers": 1,
+      "drawers": 0
+    },
+    {
+      "page": "member-plan",
+      "tables": 1,
+      "charts": 0,
+      "timelines": 0,
+      "steppers": 1,
+      "drawers": 0
+    },
+    {
+      "page": "member-home",
+      "tables": 0,
+      "charts": 2,
+      "timelines": 0,
+      "steppers": 0,
+      "drawers": 0
+    }
+  ],
+  "errors": []
+}

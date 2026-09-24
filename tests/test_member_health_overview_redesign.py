@@ -61,10 +61,10 @@ def test_missing_domains_are_grouped_once_without_repeated_empty_paragraphs():
     assert [d.label for d in focus] == ["肺部"]
 
 
-def test_focus_precedes_main_chart_and_all_details_follow_coverage():
+def test_baseline_change_precedes_focus_and_all_details_follow_coverage():
     app = AppTest.from_function(render_example, args=(example_view(),)).run()
     headings = [e.value for e in app.subheader]
-    assert headings == ["2026年度健康基线", "重点关注", "从基线到现在", "健康概览", "资料待补充", "详细资料"]
+    assert headings == ["2026年度健康基线", "从基线到现在", "重点关注", "健康概览", "资料待补充", "详细资料"]
     assert len(app.get("vega_lite_chart")) == 1
     assert "已有检查发现待跟进" in text(app)
     assert "90 kg" in text(app) and "85.8 kg" in text(app) and "↓ 下降 4.2 kg" in text(app)

@@ -52,7 +52,7 @@ def test_member_and_ops_primary_navigation_have_at_most_five_destinations() -> N
 def test_ops_today_is_kpis_plus_worklist_and_member_detail_has_five_tabs() -> None:
     today = _source("render_manager_dashboard", "def _render_member_header")
     member = _source("render_member_detail", "def render_member_archive")
-    assert "c.summary_strip(work.counts(now))" in today and '"优先处理"' in today
+    assert "c.summary_strip(" in today and '管理事项' in today and 'auto_select=False' in today
     assert '["概览", "健康", "管理", "医疗", "历程"]' in member
 
 

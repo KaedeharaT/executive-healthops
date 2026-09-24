@@ -19,7 +19,8 @@ def _source(name: str, next_marker: str) -> str:
 
 def test_workbench_has_a_light_status_strip_and_a_task_driven_worklist() -> None:
     source = _source("render_manager_dashboard", "def _render_member_header")
-    assert "c.summary_strip(work.counts(now))" in source and '"优先处理"' in source
+    assert "c.summary_strip(" in source and '管理事项' in source
+    assert all(label in source for label in ('今日待办','已逾期','等待医生','等待会员','待复查'))
     assert "ProductProjectionService" in source and "data_table(visible" in source
     projection = (APP.parent / "src/executive_health_ai/services/product_projection.py").read_text(encoding="utf8")
     assert "OperationalWorklistService().list_items" in projection
@@ -94,8 +95,8 @@ def test_visual_system_has_a_constrained_reading_width_and_quiet_cards() -> None
 
 
 def test_primary_surfaces_use_product_facing_page_headers() -> None:
-    assert 'c.page_shell("manager", "今日工作"' in _source("render_manager_dashboard", "def _render_member_header")
-    assert "_page_header(\"成员\"" in _source("render_members_workspace", "KNOWLEDGE_CATEGORIES")
+    assert "c.page_shell('manager', '今日工作'" in _source("render_manager_dashboard", "def _render_member_header")
+    assert "c.page_shell('manager','会员'" in _source("render_members_workspace", "KNOWLEDGE_CATEGORIES")
     assert "_page_header(\"医疗协同\"" in _source("render_collaboration_workspace", "def _report_candidate_label")
     assert 'page_header("更多"' in MORE_SHELL.read_text(encoding="utf-8")
     assert "_page_header(\"健康数据\"" in _source("render_health_data", "def render_medications")

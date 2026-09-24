@@ -66,7 +66,14 @@ def render_health_explorer(patient_id, *, key=None):
     latest = max(p.at for s in group for p in s.points)
     st.caption(f"最后记录：{latest:%Y/%m/%d} · 历史数据可用不代表设备当前已连接")
     renderer = render_blood_pressure_trend if code == "blood_pressure" else render_sleep_trend if "sleep" in code else render_activity_trend if code in {"steps", "exercise_minutes", "active_calories"} else render_metric_trend
-    renderer(visible, key=f"{key}-chart")
+    from executive_health_ai.services.baseline_visualization import BaselineVisualizationService
+    with SessionLocal() as session:
+        try: baseline=BaselineVisualizationService().build(session,patient_id)
+        except ValueError: baseline=None
+    metrics=baseline.metrics if baseline else ()
+    renderer(visible, key=f"{key}-chart",baseline_metrics=metrics)
+    if any(m.value is not None and any(s.code==m.code and s.unit==m.unit for s in visible) for m in metrics):
+        st.caption('虚线：已确认年度健康基线；不是医学目标值。')
     for item in visible:
         if item.has_trend:
             st.caption(item.label + " · " + item.comparison)

@@ -48,7 +48,7 @@ def data_table(rows, records, *, key, label='选择记录', selectable=True, emp
         return None
     frame = display_frame(records)
     signature = sha256((repr([str(getattr(r, 'id', i)) for i, r in enumerate(rows)])+repr(records)).encode()).hexdigest()[:12]
-    grid_key = f'{key}-{signature}'
+    grid_key = f'{key}-{signature}-{st.session_state.get(key+"-epoch", 0)}'
     st.caption(f'{len(rows)} 条 · 点击行查看详情；点击列名排序' if selectable else f'{len(rows)} 条 · 点击列名排序')
     columns = {}
     for name in frame:
@@ -135,10 +135,10 @@ def tasks(app, ctx):
     scope = st.radio('事项状态', ['未完成', '全部', '已完成'], horizontal=True, key='management-task-status')
     rows = [t for t in rows if scope == '全部' or (t.status == 'COMPLETED' if scope == '已完成' else t.status not in {'COMPLETED','CANCELLED'})]
     rows.sort(key=lambda t: (t.status in {'COMPLETED','CANCELLED'}, not (t.due_at and ux.local_time(t.due_at) < datetime.now(ux.LOCAL)), t.priority != 'HIGH', ux.local_time(t.due_at) or datetime.max.replace(tzinfo=ux.LOCAL)))
-    selected = data_table(rows, task_records(rows), key='management-tasks', search=True, empty='此分类暂无管理事项。')
+    selected = data_table(rows, task_records(rows), key='management-tasks', search=True, empty='此分类暂无管理事项。', auto_select=False)
     if selected is None:
         return
-    with c.detail_panel('所选事项', key='task-inspector'):
+    with c.detail_drawer('所选事项', key='task-inspector',table_key='management-tasks'):
         task_detail(selected)
         if selected.status not in {'COMPLETED','CANCELLED'} and st.button('标记完成', key=f'complete-{selected.id}', type='primary'):
             with app.SessionLocal() as session:

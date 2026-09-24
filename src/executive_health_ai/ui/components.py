@@ -83,3 +83,81 @@ def workflow(steps, current):
 def detail_panel(title, *, key, meta=""):
     with section(title, key=key, description=meta):
         yield
+
+
+def business_table(*args, **kwargs):
+    from executive_health_ai.ui.presentation import data_table
+    return data_table(*args, **kwargs)
+
+
+def filter_bar(*, key, statuses=(), owners=(), search_label='搜索记录'):
+    columns = st.columns([2, 1, 1])
+    query = columns[0].text_input(search_label, key=key+'-query', placeholder='会员、事项或关键词')
+    status = columns[1].selectbox('状态', ['全部']+list(statuses), key=key+'-state')
+    owner = columns[2].selectbox('负责人', ['全部']+list(owners), key=key+'-owner')
+    return query.strip().casefold(), status, owner
+
+
+@contextmanager
+def detail_drawer(title, *, key, table_key):
+    """Nonmodal right inspector. Closing resets only presentation selection."""
+    st.markdown('''<style>
+    div[class*="st-key-care-drawer-"] {position:fixed;right:16px;top:64px;bottom:16px;
+      width:460px;max-width:92vw;overflow-y:auto;background:white;z-index:90;
+      border:1px solid #cad8e5;border-radius:12px;padding:20px;box-shadow:0 12px 45px #24395233;}
+    div[class*="st-key-care-drawer-"] h3 {font-size:1.05rem;}
+    div[class*="st-key-care-drawer-"] .v2-summary>div {min-width:90px;padding:8px;}
+    div[class*="st-key-care-drawer-"] .v2-timeline {grid-template-columns:70px 1fr;gap:12px;}
+    @media(min-width:1200px) {[data-testid="stMainBlockContainer"]:has(div[class*="st-key-care-drawer-"]) {padding-right:500px!important;}}
+    </style>''', unsafe_allow_html=True)
+    with st.container(key='care-drawer-'+key):
+        a, b = st.columns([4, 1])
+        a.subheader(title)
+        if b.button('关闭', key=key+'-close'):
+            st.session_state[table_key+'-epoch'] = st.session_state.get(table_key+'-epoch', 0)+1
+            st.rerun()
+        yield
+
+
+def member_header(name, *, cycle, owner, phase, concern, focus, next_action, updated):
+    from executive_health_ai.ui.presentation import preview
+    st.markdown(f"<div class='care-member-header'><div class='care-name'><h1>{escape(name)}</h1><small>MEMBER 360 · 全周期健康管理</small></div>"
+                f"<div>{escape(cycle)}　·　责任健管：{escape(owner)}　·　{escape(phase)}　<small>更新：{escape(updated)}</small></div>"
+                f"<div class='care-focus'><span><b>会员本人关注</b> {escape(preview(concern, 70))}</span>"
+                f"<span><b>专业管理重点</b> {escape(preview(focus, 70))}</span></div>"
+                f"<div class='care-next'><b>下一步</b> {escape(preview(next_action, 95))}</div>"
+                f"</div>", unsafe_allow_html=True)
+
+
+def stage_stepper(phases, *, key, current_id=None):
+    """Clickable stage selection; completion comes from explicit stored status."""
+    phases = list(phases)
+    if not phases:
+        return None
+    ids = [str(p.id) for p in phases]
+    selected = st.session_state.get(key, str(current_id) if current_id else ids[0])
+    if selected not in ids:
+        selected = ids[0]
+    with st.container(key='care-stage-selector-'+key):
+        cols = st.columns(len(phases))
+        for col, phase in zip(cols, phases):
+            state = '●' if phase.status in {'COMPLETED','REVIEWED'} else '◉' if phase.status == 'ACTIVE' else '○'
+            label = '已完成' if phase.status in {'COMPLETED','REVIEWED'} else '当前' if phase.status == 'ACTIVE' else '待开始'
+            if col.button(f'{state} {phase.title} · {label}', key=key+'-'+str(phase.id), width='stretch', type='primary' if str(phase.id)==selected else 'secondary'):
+                st.session_state[key] = str(phase.id)
+                st.rerun()
+    return next(p for p in phases if str(p.id)==selected)
+
+
+def timeline(*args, **kwargs):
+    return timeline_event(*args, **kwargs)
+
+
+def trend_chart(series, *, key):
+    from executive_health_ai.ui.charts.health import render_metric_trend
+    return render_metric_trend(series, key=key)
+
+
+def empty_state(title, description=''):
+    from executive_health_ai.ui.experience import empty_state as render
+    return render(title, description)

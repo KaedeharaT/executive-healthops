@@ -9,6 +9,19 @@ def role_styles(role="manager"):
 
 
 ROLE_STYLES = """<style>
+.care-member-header {border-left:4px solid #185da8;padding:14px 20px;background:white;border-radius:8px;line-height:1.7}
+.care-member-header small {color:#52677d;font-size:12px}
+.care-focus {display:flex;gap:24px;flex-wrap:wrap;font-size:14px;margin:8px 0}
+.care-focus b {color:#185da8;margin-right:8px}
+.care-next {background:#edf4fb;padding:6px 10px;font-size:14px}
+.care-member-header h1 {font-size:26px!important}
+.care-name {display:flex;align-items:center;gap:20px}
+.care-member-header .care-name h1 {font-size:24px!important;line-height:1.2!important;padding:0!important}
+.care-member-header {padding:10px 16px}
+.care-focus {margin:4px 0}
+[class*="st-key-care-stage-selector-"] [data-testid="stHorizontalBlock"] {position:relative}
+[class*="st-key-care-stage-selector-"] [data-testid="stHorizontalBlock"]:before {content:'';position:absolute;left:2%;right:2%;top:22px;border-top:2px solid #9dbbd8}
+[class*="st-key-care-stage-selector-"] [data-testid="stColumn"] {padding:0 16px;z-index:1}
 :root {--brand-blue:#185da8;--blue:#185da8;--ink:#20354c;--muted:#52677d;--line:#dce5ef;--surface:#f4f7fa;--canvas:#f4f7fa;--card:#fff;--radius:12px;--space:1rem;--space-sm:8px;--space-md:16px;--space-lg:24px;--space-xl:32px}
 .stApp,[data-testid="stAppViewContainer"] {background:var(--canvas);color:var(--ink)}
 [data-testid="stMainBlockContainer"],.block-container {max-width:__CONTENT_WIDTH__!important;padding:2rem 2.1rem 4rem!important}

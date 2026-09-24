@@ -40,6 +40,7 @@ def test_baseline_review_confirmation_and_member_reference_point_are_interaction
     try:
         doctor = AppTest.from_file(APP); doctor.run(timeout=30)
         _radio(doctor, "当前视图").set_value("医生工作台"); doctor.run(timeout=30)
+        next(item for item in doctor.checkbox if item.label == '使用下拉选择').check(); doctor.run(timeout=30)
         assert "年度健康基线医学资料复核" in _visible_text(doctor)
         assert "2026年度健康基线医学摘要" in _visible_text(doctor)
         next(item for item in doctor.text_area if item.label == "医学资料复核说明").set_value("医学相关资料已人工核对")

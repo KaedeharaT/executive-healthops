@@ -83,6 +83,7 @@ def test_manager_can_create_adjust_schedule_and_record_outcome_through_normal_ui
     _radio(app, "工作区").set_value("成员"); app.run(timeout=30)
     _button(app, "查看成员").click(); app.run(timeout=30)
     _radio(app, "成员页面").set_value("管理"); app.run(timeout=30)
+    next(item for item in app.selectbox if item.label == '管理工作').set_value('原有计划 / 任务 / 自动跟进'); app.run(timeout=30)
     _radio(app, "管理操作").set_value("建立 / 调整计划"); app.run(timeout=30)
     next(item for item in app.checkbox if item.label == "建立新计划").set_value(True); app.run(timeout=30)
     _field(app, "计划名称", "UX操作路径验收计划")
