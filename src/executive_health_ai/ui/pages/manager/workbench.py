@@ -10,6 +10,10 @@ from executive_health_ai.ui.status_dictionary import status_label
 
 
 def today(app):
+    if st.session_state.get('care-detail'):
+        from executive_health_ai.ui.pages.manager.post_checkup import manager_detail
+        manager_detail(app, st.session_state['care-detail'])
+        return
     c.page_shell('manager', '今日工作', '今天需要处理谁、为什么、何时完成，以及下一步。')
     now = datetime.now(ux.LOCAL)
     people = app._patient_map()
@@ -21,7 +25,7 @@ def today(app):
                      ('待复查', len(work_filter(items, '复查', now)))])
     categories = {'全部事项': None, '入组初评':'intake_review', '复查':'recheck', '阶段复盘':'stage_review',
                   '正式会诊':'consultation', '体检':'report_review', '风险':'risk_event', '医生':'doctor_review',
-                  '计划 / 复查':'task', '服务':'service_request', '自动跟进':'automation_approval'}
+                  '计划 / 复查':'task', '服务':'service_request', '自动跟进':'automation_approval', '体检后管理':'post_checkup'}
     a,b,d = st.columns([1,2,1])
     kind = a.selectbox('今日事项筛选', list(categories), key='manager-today-filter')
     search = b.text_input('查找待办', placeholder='输入会员、事项或原因', key='v2-work-search').strip().casefold()
@@ -38,9 +42,13 @@ def today(app):
     item = data_table(visible, [{'会员':app._member_display(people.get(i.member_id)), '事项':i.title,
         '类型':i.source_label, '优先级':'高' if i.priority<=1 else '中' if i.priority==2 else '低',
         '状态':status_label(i.status, context='service_request') if i.source_type=='service_request' else status_label(i.status),
+        '当前阶段':i.reason if i.source_type=='post_checkup' else '—',
         '负责人':i.owner, '截止时间':ux.local_time(i.due_at), '下一步':i.next_action} for i in visible],
         key='today-work-grid', label='选择待办', auto_select=False)
     if item:
+        if item.source_type == 'post_checkup':
+            st.session_state['care-detail'] = str(item.source_id)
+            st.rerun()
         with c.detail_drawer('事项详情', key='today', table_key='today-work-grid'):
             work_detail(app, item, people.get(item.member_id))
     # Retained operational waiting state, subordinate to today's business queue.

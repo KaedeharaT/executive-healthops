@@ -599,7 +599,7 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
             session.commit()
         except ValueError as error:
             session.rollback(); raise HTTPException(status_code=409, detail=str(error)) from error
-        return {"doctor_review_id": str(review.id), "task_id": str(task.id), "status": review.status}
+        return {"doctor_review_id": str(review.id), "task_id": str(task.id) if task else "", "status": review.status}
 
     @app.post("/risk-events/{event_id}/follow-up")
     def follow_up_yellow(event_id: UUID, payload: YellowFollowUp, session: Session = Depends(get_session)) -> dict[str, str]:

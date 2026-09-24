@@ -873,6 +873,11 @@ class ReportParsingService:
             llm_success_count=run.llm_success_count,
             llm_failure_count=run.llm_failure_count,
         )
+        session.flush()
+        # Reuse REPORT_UPLOADED as the report-ingested business event. Every UI
+        # and API upload uses this shared pipeline; no operator mode switch.
+        from executive_health_ai.services.post_checkup_entry import report_ingested
+        report_ingested(session, document, actor)
         return run
 
     @staticmethod

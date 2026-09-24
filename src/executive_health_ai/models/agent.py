@@ -46,6 +46,7 @@ class AgentGoal(Base):
     title: Mapped[str] = mapped_column(String(240), nullable=False)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="ACTIVE", index=True)
     success_criteria: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    context_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     source_type: Mapped[str] = mapped_column(String(64), nullable=False)
     source_id: Mapped[str] = mapped_column(String(64), nullable=False)
     owner: Mapped[str | None] = mapped_column(String(128), nullable=True)

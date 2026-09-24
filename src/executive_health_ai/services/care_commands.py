@@ -86,6 +86,13 @@ def complete_review(session, review, doctor, department, opinion, instruction, d
     from executive_health_ai.services.risk_operations import RiskOperationsService
     if review is None:
         raise ValueError("未找到待复核事项。")
+    from executive_health_ai.agent.post_checkup import goal_for_review
+    care_goal = goal_for_review(session, review.id, review.patient_id)
+    if care_goal:
+        from executive_health_ai.services.post_checkup import PostCheckupCareService
+        PostCheckupCareService().submit_review(session, care_goal, actor=doctor, role='DOCTOR',
+            judgement=opinion, recommendation=instruction, recheck=False, suggested_date=due_at.date())
+        return review, None
     if review.risk_event_id:
         stored, task = RiskOperationsService().complete_doctor_review(session, review.id, doctor, department, opinion, instruction, due_at)
     else:

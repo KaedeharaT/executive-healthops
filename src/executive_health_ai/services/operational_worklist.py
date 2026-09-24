@@ -53,6 +53,7 @@ class OperationalWorkItem:
             "management_signal": "健康数据变化",
             "service_request": "服务申请",
             "automation_approval": "自动跟进确认",
+            "post_checkup": "体检后管理",
             "baseline_review": "年度基线医学确认",
             "legacy_medical_review": "医学资料复核",
         }.get(self.source_type, "健康运营事项")

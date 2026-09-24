@@ -48,7 +48,10 @@ class HealthOpsPlanner:
         plan = AgentPlan(goal_id=goal.id, version=version, status="ACTIVE", reason=reason)
         session.add(plan)
         session.flush()
-        for order, template in enumerate(POST_CHECKUP_TEMPLATE, 1):
+        from executive_health_ai.agent.post_checkup import is_care_goal, STAGES
+        templates = tuple(StepTemplate(stage, approval_role='HEALTH_MANAGER' if stage in {'WAITING_MANAGER_REVIEW', 'WAITING_ACTION_APPROVAL'} else None,
+            wait_event_type='DOCTOR_REVIEW_COMPLETED' if stage == 'WAITING_DOCTOR_REVIEW' else None) for stage in STAGES[:7]) if is_care_goal(goal) else POST_CHECKUP_TEMPLATE
+        for order, template in enumerate(templates, 1):
             status = "SKIPPED" if order < start_at else "PENDING"
             session.add(AgentPlanStep(
                 plan_id=plan.id, step_order=order, step_type=template.step_type,

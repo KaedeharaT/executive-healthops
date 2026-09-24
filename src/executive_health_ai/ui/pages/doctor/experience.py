@@ -98,6 +98,19 @@ def detail(app, patient, review, *, read_only=False):
 
 
 def workspace(app, members, *, patient=None, read_only=False):
+    from executive_health_ai.agent.post_checkup import goal_for_review
+    from executive_health_ai.ui.pages.manager.post_checkup import doctor_detail
+    if st.session_state.get('care-doctor-detail') and not read_only:
+        from uuid import UUID
+        with SessionLocal() as session:
+            goal = session.get(AgentGoal, UUID(st.session_state['care-doctor-detail']))
+        if st.button('← 返回待我复核'):
+            st.session_state.pop('care-doctor-detail', None)
+            table_key=f"doctor-grid-{patient.id if patient else 'all'}"
+            st.session_state[table_key+'-epoch']=st.session_state.get(table_key+'-epoch',0)+1
+            st.rerun()
+        doctor_detail(goal)
+        return
     if not read_only:
         from executive_health_ai.ui.pages.manager.workflow import consultations
         with st.expander("正式会诊 · 各科意见与综合结论"):
@@ -116,6 +129,8 @@ def workspace(app, members, *, patient=None, read_only=False):
         if patient:
             approval_query = approval_query.where(AgentGoal.member_id == patient.id)
         approval_members = list(dict.fromkeys(session.scalars(approval_query)))
+        from executive_health_ai.agent.post_checkup import is_care_goal
+        care_review_ids = {g.context_json.get('review_id') for g in session.scalars(select(AgentGoal)) if is_care_goal(g)}
     c.summary_strip([("待复核", len(pending)), ("已完成", len(completed)), ("执行交接", "医生判断 → 健管跟进")])
     queue_filter, queue_selection = st.columns([1, 2.8])
     mode = queue_filter.radio("复核工作", ["待复核", "已完成"], horizontal=True, format_func=lambda value: "待我复核" if value == "待复核" else "历史", key=f"ux-doctor-mode-{patient.id if patient else 'all'}")
@@ -136,10 +151,17 @@ def workspace(app, members, *, patient=None, read_only=False):
         return
     from executive_health_ai.ui.presentation import data_table
     selected = data_table(rows, [{"会员": people[r.patient_id].display_name,"问题": getattr(r, "question_for_doctor", None) or getattr(r, "title", "年度基线医学确认"),
-        "来源": '健康关注事项' if getattr(r,'risk_event_id',None) else '健康管理提交', "医生": getattr(r, "doctor_name", "待确认"), "状态": "待复核" if mode == "待复核" else "已完成", "提交时间": ux.local_time(getattr(r, "created_at", None)), "截止时间": "未单独设置"} for r in rows], key=f"doctor-grid-{patient.id if patient else 'all'}", label="选择复核事项",search=True,auto_select=False)
+        "来源": '体检后健康管理' if str(r.id) in care_review_ids else '健康关注事项' if getattr(r,'risk_event_id',None) else '健康管理提交', "医生": getattr(r, "doctor_name", "待确认"), "状态": "待复核" if mode == "待复核" else "已完成", "提交时间": ux.local_time(getattr(r, "created_at", None)), "截止时间": "未单独设置"} for r in rows], key=f"doctor-grid-{patient.id if patient else 'all'}", label="选择复核事项",search=True,auto_select=False)
     if selected is None:return
     member = people[selected.patient_id]
     if isinstance(selected, DoctorReview):
+        with SessionLocal() as session:
+            care_goal = goal_for_review(session, selected.id, selected.patient_id)
+        if care_goal:
+            if not read_only:
+                st.session_state['care-doctor-detail'] = str(care_goal.id); st.rerun()
+            doctor_detail(care_goal, read_only=True)
+            return
         with c.detail_drawer('医生复核详情',key='doctor-review',table_key=f"doctor-grid-{patient.id if patient else 'all'}"):
             detail(app, member, selected, read_only=read_only)
     elif not read_only:

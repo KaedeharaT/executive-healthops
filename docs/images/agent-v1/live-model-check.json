@@ -1,0 +1,8 @@
+{
+  "model": "qwen2.5:7b",
+  "provider": "local Ollama",
+  "status": "AVAILABLE",
+  "elapsed_seconds": 1.47,
+  "summary_characters": 79,
+  "synthetic_data_only": true
+}

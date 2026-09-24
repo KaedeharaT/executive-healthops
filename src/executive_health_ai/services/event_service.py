@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from executive_health_ai.agent.events import EVENT_TYPES
 from executive_health_ai.models import AgentEvent
@@ -20,8 +21,17 @@ class EventService:
         key = dedup_key or f"{event_type}:{source_type}:{source}"
         existing = session.scalar(select(AgentEvent).where(AgentEvent.dedup_key == key))
         if existing:
+            if (existing.member_id, existing.event_type, existing.source_type, existing.source_id) != (member_id, event_type, source_type, source):
+                raise ValueError('重复事件与原业务来源不一致。')
             return existing, False
         event = AgentEvent(event_type=event_type, member_id=member_id, source_type=source_type, source_id=source, payload_summary=(payload_summary or "")[:1000] or None, metadata_json=metadata or {}, dedup_key=key)
-        session.add(event)
-        session.flush()
+        try:
+            with session.begin_nested():
+                session.add(event)
+                session.flush()
+        except IntegrityError:
+            existing = session.scalar(select(AgentEvent).where(AgentEvent.dedup_key == key))
+            if existing and (existing.member_id, existing.event_type, existing.source_type, existing.source_id) == (member_id, event_type, source_type, source):
+                return existing, False
+            raise
         return event, True

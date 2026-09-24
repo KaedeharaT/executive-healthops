@@ -62,7 +62,10 @@ def workspace(app):
         integrations(app)
     elif section == "自动化运营":
         ux.page_header("自动化运营", "按成员查看长期管理的等待、失败和下一步。")
-        app._render_admin_automation()
+        from executive_health_ai.ui.pages.admin.post_checkup import monitor
+        monitor()
+        with st.expander('已有自动化与兼容管理工具'):
+            app._render_admin_automation()
     elif section == "规则与知识":
         mode = st.radio("配置内容", ["规则", "专业知识", "设备"], horizontal=True)
         if mode == "设备":

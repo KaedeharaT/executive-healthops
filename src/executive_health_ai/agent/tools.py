@@ -46,6 +46,8 @@ class AgentToolRegistry:
     def __init__(self) -> None:
         self._tools: dict[str, AgentTool] = {}
         self._register_defaults()
+        from executive_health_ai.agent.post_checkup import register_tools
+        register_tools(self)
 
     def register(self, tool: AgentTool) -> None:
         if tool.name in self._tools:

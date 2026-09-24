@@ -9,7 +9,7 @@ from executive_health_ai.ui.charts.axes import CHART_PADDING, health_axis_config
 BLUE = "#185da8"
 
 
-def metric_trend_chart(series, *, compact=False, baseline_metrics=()):
+def metric_trend_chart(series, *, compact=False, baseline_metrics=(), current_marker=False):
     drawable = [s for s in series if s.has_trend]
     if not drawable:
         return None
@@ -35,11 +35,16 @@ def metric_trend_chart(series, *, compact=False, baseline_metrics=()):
         rules=alt.Chart(pd.DataFrame(references)).mark_rule(strokeDash=[6,4],color='#6b7f93').encode(
             y=alt.Y('年度基线:Q'),tooltip=['指标:N','年度基线:Q','单位:N'])
         line=alt.layer(line,rules)
+    if current_marker:
+        current = alt.Chart(frame.sort_values('时间').groupby('指标', as_index=False).tail(1)).mark_point(
+            filled=True, size=85 if compact else 110, color=BLUE, stroke='white', strokeWidth=2).encode(
+            x='时间:T', y='数值:Q', tooltip=[alt.Tooltip('时间:T', format='%Y/%m/%d'), '数值:Q', '单位:N', '指标:N', '来源:N'])
+        line = alt.layer(line, current)
     return line.properties(height=190 if compact else 320, padding={"left": 8, "right": 8, "top": 8, "bottom": 8} if compact else CHART_PADDING).configure_view(stroke=None).configure_axis(**health_axis_config())
 
 
-def render_metric_trend(series, *, key, compact=False, baseline_metrics=()):
-    chart = metric_trend_chart(series, compact=compact, baseline_metrics=baseline_metrics)
+def render_metric_trend(series, *, key, compact=False, baseline_metrics=(), current_marker=False):
+    chart = metric_trend_chart(series, compact=compact, baseline_metrics=baseline_metrics, current_marker=current_marker)
     if chart is None:
         for item in series:
             if item.points:

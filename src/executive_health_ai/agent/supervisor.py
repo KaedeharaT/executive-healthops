@@ -41,6 +41,10 @@ class HealthOpsAgentSupervisor:
         self.default_max_retries = max(0, int(os.getenv("AGENT_MAX_RETRIES", "3")))
 
     def receive_event(self, session: Session, event: AgentEvent) -> AgentGoal | None:
+        from executive_health_ai.agent.post_checkup import handle_event
+        handled, care_goal = handle_event(self, session, event)
+        if handled:
+            return care_goal
         if event.status == "PROCESSED":
             return self._goal_for_event(session, event)
         goal: AgentGoal | None
@@ -89,6 +93,9 @@ class HealthOpsAgentSupervisor:
 
     def execute_next_step(self, session: Session, goal_id: UUID, *, event_id: UUID | None = None) -> AgentGoal:
         goal = self._goal(session, goal_id)
+        from executive_health_ai.agent.post_checkup import is_care_goal
+        if is_care_goal(goal):
+            return goal  # Human gates advance only through their typed business commands.
         if goal.status in {"COMPLETED", "FAILED", "CANCELLED"} or goal.automation_paused:
             return goal
         plan = session.get(AgentPlan, goal.current_plan_id)
@@ -194,6 +201,9 @@ class HealthOpsAgentSupervisor:
         approval = session.get(AgentApprovalRequest, approval_id)
         if approval is None:
             raise ValueError("Approval request not found.")
+        from executive_health_ai.agent.post_checkup import is_care_goal
+        if is_care_goal(self._goal(session, approval.goal_id)):
+            raise ValueError('请在体检后管理业务详情确认报告或后续行动。')
         if approval.status != "PENDING":
             return approval
         if actor_role not in {approval.required_role, "ADMIN"}:
@@ -219,6 +229,15 @@ class HealthOpsAgentSupervisor:
 
     def pause_goal(self, session: Session, goal_id: UUID, *, actor: str, reason: str) -> AgentGoal:
         goal = self._goal(session, goal_id)
+        from executive_health_ai.agent.post_checkup import is_care_goal, move
+        if is_care_goal(goal):
+            if goal.status == 'COMPLETED' or goal.automation_paused:
+                return goal
+            goal.context_json = {**goal.context_json, 'paused_stage': goal.current_stage, 'paused_status': goal.status}
+            goal.automation_paused, goal.takeover_by, goal.takeover_reason = True, actor, reason
+            move(self, session, goal, 'ESCALATED', '流程已交人工接手，补齐资料后可继续原流程')
+            self._control_audit(session, goal, actor, 'agent_goal_paused', reason)
+            return goal
         goal.automation_paused, goal.takeover_by, goal.takeover_reason = True, actor, reason
         goal.status, goal.current_stage, goal.next_action = "BLOCKED", "人工接手", reason or "由健康管理师人工处理"
         self._control_audit(session, goal, actor, "agent_goal_paused", reason)
@@ -226,6 +245,21 @@ class HealthOpsAgentSupervisor:
 
     def resume_goal(self, session: Session, goal_id: UUID, *, actor: str = "admin", reason: str = "人工确认恢复") -> AgentGoal:
         goal = self._goal(session, goal_id)
+        from executive_health_ai.agent.post_checkup import is_care_goal, analyze, move, LABELS
+        if is_care_goal(goal):
+            if goal.automation_paused and goal.context_json.get('paused_stage') in LABELS:
+                goal.automation_paused = False
+                stage = goal.context_json['paused_stage']
+                move(self, session, goal, stage, '继续'+LABELS[stage], status=goal.context_json.get('paused_status'))
+                self._control_audit(session, goal, actor, 'agent_goal_resumed', reason)
+                return goal
+            if goal.status in {'ESCALATED', 'FAILED', 'WAITING_INPUT'} and not goal.context_json.get('manager_confirmed'):
+                return analyze(self, session, goal)
+            if goal.status == 'FAILED' and goal.context_json.get('actions'):
+                move(self, session, goal, 'WAITING_ACTION_APPROVAL', '确认并创建后续安排')
+            elif goal.status == 'FAILED' and goal.context_json.get('review_id'):
+                move(self, session, goal, 'WAITING_DOCTOR_REVIEW', '等待责任医生提交判断')
+            return goal
         if goal.status in {"COMPLETED", "CANCELLED"}:
             return goal
         goal.automation_paused, goal.takeover_by, goal.takeover_reason = False, None, None
@@ -235,12 +269,18 @@ class HealthOpsAgentSupervisor:
 
     def cancel_goal(self, session: Session, goal_id: UUID, *, actor: str, reason: str) -> AgentGoal:
         goal = self._goal(session, goal_id)
+        from executive_health_ai.agent.post_checkup import is_care_goal
+        if is_care_goal(goal):
+            return self.pause_goal(session, goal_id, actor=actor, reason=reason)
         goal.status, goal.completed_at, goal.next_action = "CANCELLED", utc_now(), reason
         self._control_audit(session, goal, actor, "agent_goal_cancelled", reason)
         return goal
 
     def complete_goal(self, session: Session, goal_id: UUID) -> AgentGoal:
         goal = self._goal(session, goal_id)
+        from executive_health_ai.agent.post_checkup import is_care_goal, complete
+        if is_care_goal(goal):
+            return complete(self, session, goal)
         goal.status, goal.current_stage, goal.next_action = "COMPLETED", "本次体检后管理已完成", "进入下一次周期复盘"
         goal.completed_at, goal.next_check_at = utc_now(), None
         plan = session.get(AgentPlan, goal.current_plan_id)
@@ -251,6 +291,13 @@ class HealthOpsAgentSupervisor:
 
     def fail_goal(self, session: Session, goal_id: UUID, *, reason: str) -> AgentGoal:
         goal = self._goal(session, goal_id)
+        from executive_health_ai.agent.post_checkup import is_care_goal, move
+        if is_care_goal(goal):
+            if goal.status == 'COMPLETED':
+                return goal
+            move(self, session, goal, 'FAILED', '自动整理暂不可用，请人工核对资料后重试')
+            self._trace(session, goal, action='failure', status='FAILED', error=reason)
+            return goal
         goal.status, goal.current_stage, goal.next_action = "FAILED", "自动跟进暂时停止，需要人工处理", reason
         return goal
 

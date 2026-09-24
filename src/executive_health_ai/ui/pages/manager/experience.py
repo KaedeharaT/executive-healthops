@@ -22,6 +22,12 @@ def approvals(app, patient_id, role="HEALTH_MANAGER"):
         rows = list(session.execute(select(AgentApprovalRequest, AgentGoal, AgentPlanStep).join(AgentGoal, AgentApprovalRequest.goal_id == AgentGoal.id).join(AgentPlanStep, AgentApprovalRequest.plan_step_id == AgentPlanStep.id).where(AgentGoal.member_id == patient_id, AgentApprovalRequest.status == "PENDING", AgentApprovalRequest.required_role == role)))
     selected = data_table(rows, [{'安排': goal.title, '负责人': goal.owner, '状态': '待人工确认', '下一步': goal.next_action} for approval,goal,step in rows], key=f'approvals-{patient_id}-{role}', empty='暂无需要您确认的自动跟进安排。')
     for approval, goal, step in [selected] if selected else []:
+        from executive_health_ai.agent.post_checkup import is_care_goal
+        if is_care_goal(goal):
+            if st.button('处理本次体检报告', key=f'care-approval-open-{goal.id}'):
+                st.session_state['care-detail'] = str(goal.id)
+                app.request_navigation(surface='运营后台', ops_page='今日')
+            continue
         with st.expander("需要您确认 · " + ux.business_text(goal.title), expanded=True):
             ux.next_action(goal.next_action or "确认后继续已有管理流程", goal.owner)
             st.caption("确认后将执行当前等待的管理步骤；医学结论仍须医生人工复核。")
@@ -161,6 +167,8 @@ def member_detail(app, patient):
         updated=ux.when(max(updated)) if updated else '暂无记录')
     section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
     if section == "概览":
+        from executive_health_ai.ui.pages.manager.post_checkup import member_summary
+        member_summary(patient.id)
         st.markdown('**当前阶段**')
         if management_view.phases: workflow.phases(management_view)
         else: workflow.onboarding(management_view)
