@@ -233,7 +233,7 @@ def test_timeline_range_slider_changes_the_user_path_without_widget_state_error(
     app.run(timeout=30)
     open_member(app)
     app.run(timeout=30)
-    next(item for item in app.button if item.label == "查看完整健康历程").click()
+    next(item for item in app.radio if item.label == "成员页面").set_value("历程")
     app.run(timeout=30)
     slider = next(item for item in app.slider if item.label == "健康历程时间范围")
     latest = datetime.fromtimestamp(slider.max / 1_000_000, tz=TOKYO_TIMEZONE).date()
@@ -251,7 +251,7 @@ def test_timeline_shortcut_and_slider_remain_synchronized() -> None:
     app.run(timeout=30)
     open_member(app)
     app.run(timeout=30)
-    next(item for item in app.button if item.label == "查看完整健康历程").click()
+    next(item for item in app.radio if item.label == "成员页面").set_value("历程")
     app.run(timeout=30)
 
     next(item for item in app.button if item.label == "近7天").click()
@@ -428,7 +428,7 @@ def test_clicking_a_timeline_card_updates_the_inspector_without_a_view_button() 
     app.run(timeout=30)
     open_member(app)
     app.run(timeout=30)
-    next(item for item in app.button if item.label == "查看完整健康历程").click()
+    next(item for item in app.radio if item.label == "成员页面").set_value("历程")
     app.run(timeout=30)
 
     cards = [item for item in app.button if item.key and item.key.startswith("timeline-card-select-")]

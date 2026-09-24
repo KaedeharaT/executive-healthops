@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE = ROOT / "data" / "portfolio_demo.db"
 DEMO_EXTERNAL_ID = "portfolio-demo-executive-a"
-DEMO_DATA_VERSION = "portfolio-demo-real-workflow-v1"
+DEMO_DATA_VERSION = "portfolio-demo-product-logic-v5"
 
 
 def _configure_console_encoding() -> None:
@@ -458,6 +458,8 @@ def _customize_portfolio_data() -> dict[str, int]:
             supervisor.receive_event(session, confirmed)
         seed_workflow = runpy.run_path(str(ROOT / "scripts" / "seed_real_workflow_demo.py"))["seed_workflow_enrollment"]
         seed_workflow(session)
+        seed_product = runpy.run_path(str(ROOT / "scripts" / "seed_product_logic_v5.py"))["seed_product_logic"]
+        seed_product(session)
         session.commit()
 
         return {
@@ -508,6 +510,22 @@ def ensure_current_portfolio_demo(target: Path = DEFAULT_DATABASE) -> dict[str, 
     """Rebuild only the isolated synthetic DB when its fixture contract is stale."""
     if portfolio_demo_is_current(target):
         return None
+    target = _safe_target(target)
+    if target.exists():
+        # Upgrade existing synthetic demonstrations in place, preserving cases
+        # already exercised in a browser and avoiding deletion of an open DB.
+        with sqlite3.connect(target) as connection:
+            existing = connection.execute("SELECT 1 FROM patients WHERE external_id = ?", (DEMO_EXTERNAL_ID,)).fetchone()
+        if existing:
+            os.environ['DATABASE_URL'] = _database_url(target)
+            _run_migrations(target)
+            from executive_health_ai.database import SessionLocal
+            from sqlalchemy import text
+            with SessionLocal() as session:
+                runpy.run_path(str(ROOT / 'scripts' / 'seed_product_logic_v5.py'))['seed_product_logic'](session)
+                session.execute(text("UPDATE report_extraction_runs SET file_hash=:version WHERE file_hash='portfolio-demo-real-workflow-v1'"), {'version':DEMO_DATA_VERSION})
+                session.commit()
+            return {'updated_existing_demo':1}
     return build_portfolio_demo(target, rebuild=True)
 
 

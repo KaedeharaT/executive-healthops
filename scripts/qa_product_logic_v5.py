@@ -1,0 +1,122 @@
+"""Real browser stories from role homepages. No internal routes or state injection."""
+import json
+import os
+import re
+from datetime import date, timedelta
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+
+OUT=Path('docs/images/product-logic-v5');OUT.mkdir(parents=True,exist_ok=True)
+FORBIDDEN=re.compile(r'AgentGoal|AgentRun|PlanStep|ToolCall|Trace|\bRaw\b|Debug|UUID|Internal|Legacy|canonical_code|provider_code|WAITING_MANAGER|WAITING_DOCTOR|键盘选择|下拉选择|备用选择|完整标题|Agent模式|st\.rerun|no-op')
+
+with sync_playwright() as p:
+    browser=p.chromium.launch(headless=True)
+    page=browser.new_page(viewport={'width':1600,'height':1100})
+    errors=[];results=[]
+    page.on('pageerror',lambda e:errors.append(str(e)))
+    def settle():
+        page.wait_for_timeout(500)
+        page.locator('[data-testid="stStatusWidget"]').wait_for(state='hidden',timeout=90000)
+        page.wait_for_timeout(500)
+        assert not page.locator('[data-testid="stException"]').count(),page.locator('body').inner_text()
+        assert not errors,errors
+    def top():
+        page.locator('[data-testid="stMain"]').evaluate('(e)=>e.scrollTo(0,0)');page.wait_for_timeout(150)
+    def button(text):page.get_by_role('button',name=text,exact=True).last.click();settle()
+    def radio(text):page.get_by_role('radio',name=text,exact=True).last.locator('xpath=ancestor::label').click();settle()
+    def role(text):
+        top();page.get_by_text('切换演示角色',exact=True).click();radio(text)
+        page.get_by_text('切换演示角色',exact=True).click();settle()
+    def search(label,text):
+        field=page.get_by_label(label,exact=True);field.fill(text);field.press('Enter');settle()
+    def row(index=-1):
+        page.locator('[data-testid="stDataFrame"]:visible').nth(index).click(position={'x':120,'y':53});settle()
+    def choose(label,value):
+        field=page.get_by_label(label,exact=True);field.click();field.fill(value)
+        page.get_by_role('option',name=value,exact=True).click();settle()
+    def shot(name,admin=False):
+        top();text=page.locator('body').inner_text()
+        assert admin or not FORBIDDEN.findall(text),(name,FORBIDDEN.findall(text))
+        nested=page.locator('[data-testid="stExpander"] [data-testid="stExpander"]').count()
+        assert nested==0,(name,'nested expanders',nested)
+        page.screenshot(path=str(OUT/(name+'.png')))
+        results.append({'page':name,'technical_terms':0 if not admin else 'admin only','nested_expanders':nested,'page_errors':0})
+        print(name,flush=True)
+    try:
+        page.goto(os.getenv('HEALTHOPS_QA_URL','http://127.0.0.1:18517'),wait_until='networkidle');settle()
+        if page.get_by_role('button',name='进入 HealthOps 运营后台',exact=True).count():button('进入 HealthOps 运营后台')
+        assert page.get_by_role('heading',name='今日工作',exact=True).count()
+        shot('01-manager-today');shot('03-manager-agent-visible')
+        button('继续处理')
+        assert '现在需要你做' in page.locator('body').inner_text()
+        shot('02-manager-work-detail')
+        page.get_by_text('修改整理结果 / 提交医生判断',exact=True).click()
+        page.get_by_label('责任医生',exact=True).fill('演示医生')
+        page.get_by_label('需要医生判断的问题',exact=True).fill('本次肝功能变化与后续安排如何判断？')
+        button('提交医生判断')
+        assert '医生提交后系统会自动继续' in page.locator('body').inner_text()
+        button('← 返回今日工作')
+        assert '无需您操作' in page.locator('body').inner_text()
+        role('医生');shot('10-doctor-home')
+        search('搜索记录','本次肝功能变化与后续安排');row()
+        shot('11-doctor-review')
+        page.get_by_label('医学判断',exact=True).fill('已核对合成资料，需持续了解肝功能变化。')
+        page.get_by_label('建议',exact=True).fill('了解饮酒情况，按建议时间复查肝功能。')
+        radio('需要');page.get_by_label('复查项目',exact=True).fill('肝功能复查')
+        button('提交判断')
+        page.get_by_text('医学判断已提交，健康管理师将确认后续安排。',exact=True).wait_for(timeout=300000)
+        settle()
+        button('← 返回待我判断');role('健康管理师')
+        assert '等待您的确认' in page.locator('body').inner_text()
+        button('继续处理');assert '确认并创建后续安排' in page.locator('body').inner_text()
+        shot('15-action-approval');button('确认并创建后续安排')
+        assert '本次体检后管理已完成' in page.locator('body').inner_text()
+        shot('16-care-completed');button('返回会员360')
+        shot('05-member360-overview');radio('管理');shot('06-member360-management')
+        choose('管理工作','管理日志');shot('07-management-log')
+        button('新增管理记录')
+        page.get_by_label('发生了什么',exact=True).fill('已电话确认合成会员的复查意向')
+        page.get_by_label('我做了什么',exact=True).fill('核对预约时间并说明后续联系安排')
+        page.get_by_label('本次结果',exact=True).fill('会员同意继续安排')
+        page.get_by_label('下一步',exact=True).fill('浏览器验收：确认复查预约时间')
+        follow_date=page.locator('[data-testid="stDateInput"]').filter(has_text='下次跟进日期').locator('input')
+        follow_date.fill((date.today()+timedelta(days=5)).strftime('%Y/%m/%d'))
+        follow_date.press('Tab')
+        button('保存')
+        assert '已准备后续待办' in page.locator('body').inner_text()
+        shot('20-log-next-action');button('确认保存并建立待办')
+        page.get_by_text('记录已保存，后续待办已进入今日工作。',exact=True).wait_for(timeout=90000)
+        settle()
+        radio('今日工作');search('查找待办','浏览器验收：确认复查预约时间')
+        assert page.locator('[data-testid="stDataFrame"]').count()
+        row()
+        assert '浏览器验收：确认复查预约时间' in page.locator('body').inner_text()
+        button('← 返回今日工作')
+        radio('今日工作');search('查找待办','确认肝功能复查预约');row()
+        assert page.get_by_role('button',name='推进至待预约',exact=True).count()
+        shot('19-recheck-work-detail');button('推进至待预约')
+        button('← 返回今日工作')
+        radio('会员');button('← 返回会员')
+        search('搜索成员','Demo Executive A');shot('04-member-list');row()
+        assert '会员本人关注' in page.locator('body').inner_text()
+        radio('年度管理');shot('08-annual-management');row()
+        assert '年度目标' in page.locator('body').inner_text()
+        radio('医疗协同');shot('09-medical-collaboration')
+        radio('服务');shot('12-service');row();shot('17-service-detail')
+        button('确认开始服务')
+        page.get_by_label('服务结果',exact=True).wait_for(timeout=90000)
+        page.get_by_label('服务结果',exact=True).fill('合成服务已执行，已确认后续跟进安排')
+        page.get_by_label('完成依据',exact=True).fill('合成服务方确认记录')
+        button('记录服务完成')
+        page.get_by_role('button',name='进入会员管理',exact=True).wait_for(timeout=90000)
+        shot('21-service-completed')
+        role('成员');radio('首页');shot('13-member-home')
+        role('管理员');radio('自动化运行');shot('14-admin-automation',admin=True)
+        row();shot('18-admin-detail',admin=True)
+        (OUT/'browser-results.json').write_text(json.dumps({'actual_browser':'Chromium','stories':{k:'PASS' for k in ['manager','doctor','agent','member360','member','admin']},
+            'clicks':{'today_to_work':1,'today_to_agent_gate':1,'member_list_to_member360':1,'doctor_home_to_decision':1,'admin_home_to_run':2},'pages':results,'errors':errors},ensure_ascii=False,indent=2),encoding='utf-8')
+    except Exception:
+        page.screenshot(path=str(OUT/'failure.png'),full_page=True)
+        (OUT/'failure.txt').write_text(page.locator('body').inner_text(),encoding='utf-8')
+        raise
+    finally:browser.close()

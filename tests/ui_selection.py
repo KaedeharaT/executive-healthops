@@ -31,3 +31,9 @@ def select_table_row(app, index=0, *, prefix=None):
 
 def open_member(app):
     return select_table_row(app, prefix='member-directory-')
+
+
+def open_archive(app, title):
+    grid = next(t for t in app.dataframe if '资料' in t.value.columns)
+    index = list(grid.value['资料']).index(title)
+    return select_table_row(app, index, prefix='archive-content-')

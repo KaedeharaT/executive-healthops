@@ -36,7 +36,7 @@ def test_new_upload_context_clears_prior_report_selection_without_deleting_histo
 
 def test_report_result_has_human_risk_routing_and_standard_evidence_entry() -> None:
     report = _source("render_report_review", "def _render_baseline_draft_action")
-    for section in ("本次核心结论", "与上次相比", "需要处理", "主要结果", "查看解析详情（高级信息）"):
+    for section in ("本次核心结论", "与上次相比", "需要处理", "主要结果", "报告整理记录"):
         assert section in report
     assert "_report_risk_next_step" in report
     member_upload = _source("render_member_report_upload", "def _render_member_baseline_center")

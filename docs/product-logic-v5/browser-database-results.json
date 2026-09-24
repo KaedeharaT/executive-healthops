@@ -1,0 +1,38 @@
+{
+  "same_goals_preserved": true,
+  "before_goal_count": 3,
+  "after_goal_count": 3,
+  "completed_case_count": 1,
+  "waiting_doctor_case_count": 1,
+  "counts": {
+    "agent_goals": {
+      "before": 3,
+      "after": 3
+    },
+    "doctor_reviews": {
+      "before": 2,
+      "after": 3
+    },
+    "tasks": {
+      "before": 2,
+      "after": 7
+    },
+    "recheck_plans": {
+      "before": 1,
+      "after": 2
+    },
+    "follow_ups": {
+      "before": 0,
+      "after": 1
+    },
+    "management_logs": {
+      "before": 1,
+      "after": 3
+    },
+    "service_requests": {
+      "before": 1,
+      "after": 1
+    }
+  },
+  "fixture_scope": "Isolated synthetic portfolio snapshot and its browser QA copy."
+}

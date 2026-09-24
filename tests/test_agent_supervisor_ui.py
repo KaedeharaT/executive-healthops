@@ -32,7 +32,7 @@ def test_member_manager_doctor_and_admin_see_business_agent_status_without_techn
         session.add(goal); session.commit()
     try:
         manager = AppTest.from_file(APP); manager.run(timeout=30)
-        assert any("自动跟进状态" in item.label for item in manager.expander) and not manager.exception
+        assert any("健康管理助手" in item.value for item in manager.subheader) and not manager.exception
 
         member_ui = AppTest.from_file(APP); member_ui.run(timeout=30)
         _radio(member_ui, "当前视图").set_value("成员健康中心"); member_ui.run(timeout=30)
@@ -40,14 +40,14 @@ def test_member_manager_doctor_and_admin_see_business_agent_status_without_techn
 
         doctor = AppTest.from_file(APP); doctor.run(timeout=30)
         _radio(doctor, "当前视图").set_value("医生工作台"); doctor.run(timeout=30)
-        assert "待我复核" in _text(doctor) and not doctor.exception
+        assert "待我判断" in _text(doctor) and not doctor.exception
         assert "AgentGoal" not in _text(doctor)
 
         admin = AppTest.from_file(APP); admin.run(timeout=30)
         _radio(admin, "当前视图").set_value("系统管理"); admin.run(timeout=30)
-        _radio(admin, "系统").set_value("自动化运营"); admin.run(timeout=30)
+        _radio(admin, "系统").set_value("自动化运行"); admin.run(timeout=30)
         visible = _text(admin)
-        assert "自动化运营" in visible and "AgentGoal" not in visible
+        assert "自动化运行" in visible and "AgentGoal" not in visible
         assert not admin.exception
     finally:
         with SessionLocal() as session:

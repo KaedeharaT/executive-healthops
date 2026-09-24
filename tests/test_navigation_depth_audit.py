@@ -48,7 +48,7 @@ def test_reports_medical_doctors_services_and_timeline_use_inline_detail_pattern
     assert "st.columns([1, 1.7]" in report and "render_member_report_upload(patient)" in report
     assert 'st.radio("医疗内容", ["医生复核", "用药", "检查", "手术住院"]' in medical
     assert "member-medical-event-selected" in medical and "detail_panel(" in medical
-    assert 'st.radio("医疗协同内容", ["内部医生", "正式会诊", "外部医疗"]' in collaboration
+    assert "collaboration(_ui_adapter())" in collaboration
     assert "service-operations-grid" in services and "detail_drawer(" in services
     assert "external-medical-selected" in external and "detail_panel(" in external
     assert "timeline-selected-" in timeline and "_render_evidence_action" in timeline

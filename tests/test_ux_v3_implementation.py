@@ -71,11 +71,11 @@ def test_admin_lands_on_status_and_configuration_requires_selection():
     radio(app, "当前视图", "系统管理")
     nav = next(r for r in app.radio if r.label == "系统")
     assert nav.value == "系统状态" and len(nav.options) == 4
-    next(b for b in app.button if b.label == "检查集成与数据").click()
+    next(b for b in app.button if b.label == "检查数据与集成").click()
     app.run(timeout=45)
     assert not app.exception
     assert not app.get("file_uploader")
-    next(b for b in app.button if b.key == "integration-open-data").click()
+    select_table_row(app,0)
     app.run(timeout=45)
     assert not app.exception and app.get("file_uploader")
 
@@ -84,7 +84,7 @@ def test_doctor_form_follows_context_and_evidence_in_single_reading_order():
     source = (ROOT / "src/executive_health_ai/ui/pages/doctor/experience.py").read_text(encoding="utf8")
     body = source[source.index("def detail("):source.index("def workspace(")]
     assert body.index("render_doctor_trend(patient.id") < body.index("ux.evidence_summary(payload)") < body.index('with st.form(')
-    assert "clinical, decision = st.columns" not in body
+    assert "clinical, decision = st.columns" in body
     assert "complete_review(session" in body
 
 
@@ -99,12 +99,12 @@ def test_new_projections_are_read_only_and_keep_shared_baseline_and_observation_
 def test_doctor_history_and_member_360_details_keep_frozen_navigation_budget():
     app = AppTest.from_file(APP).run(timeout=45)
     radio(app, "当前视图", "医生工作台")
-    assert len(next(r for r in app.radio if r.label == "复核工作").options) == 2
-    radio(app, "复核工作", "已完成")
+    assert len(next(r for r in app.radio if r.label == "医生工作").options) == 2
+    radio(app, "医生工作", "历史")
     radio(app, "当前视图", "运营后台")
     radio(app, "工作区", "成员")
     open_member(app); app.run(timeout=45)
     assert len(next(r for r in app.radio if r.label == "成员页面").options) == 5
     radio(app, "成员页面", "健康")
-    assert any(b.label == "查看年度健康基线" for b in app.button)
-    assert len(next(r for r in app.radio if r.label == "成员健康内容").options) == 5
+    assert any('年度健康基线' in frame.value.to_string() for frame in app.dataframe)
+    assert not any('选择方式' in x.label for x in app.checkbox)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from tests.ui_selection import select_table_row
 
 import io
 import json
@@ -188,7 +189,7 @@ def test_integration_center_uses_business_copy_and_hides_connection_secrets() ->
     source = all_ui_source()
     shell = Path("src/executive_health_ai/ui/pages/shell.py").read_text(encoding="utf-8")
     center = source.split("def render_integration_center", 1)[1].split("def render_more_workspace", 1)[0]
-    for label in ("集成与数据", "数据导入", "AI服务", "专业知识服务", "设备接入", "上传数据包"):
+    for label in ("数据与集成", "数据导入", "AI服务", "专业知识服务", "设备接入", "上传数据包"):
         assert label in source
     assert 'type="password"' in source and "DATABASE_URL" not in center
     assert 'options = ["风险规则", "操作记录", "系统"]' in shell
@@ -202,12 +203,11 @@ def test_all_four_integration_modes_render_in_the_same_system_page() -> None:
     next(item for item in app.radio if item.label == "当前视图").set_value("系统管理")
     app.run(timeout=30)
     assert next(item for item in app.radio if item.label == "系统").value == "系统状态"
-    next(item for item in app.radio if item.label == "系统").set_value("集成与数据")
+    next(item for item in app.radio if item.label == "系统").set_value("数据与集成")
     app.run(timeout=30)
     assert not app.exception
-    for key in ("integration-open-data", "integration-open-ai", "integration-open-knowledge", "integration-open-device"):
-        next(item for item in app.button if item.key == key).click()
-        app.run(timeout=30)
+    for index in range(4):
+        select_table_row(app,index).run(timeout=30)
         assert not app.exception
 
 
@@ -235,14 +235,12 @@ def test_portfolio_admin_can_reach_and_use_integration_controls(monkeypatch, tmp
     next(item for item in app.radio if item.label == "当前视图").set_value("系统管理")
     app.run(timeout=30)
     assert next(item for item in app.radio if item.label == "系统").value == "系统状态"
-    next(item for item in app.radio if item.label == "系统").set_value("集成与数据")
+    next(item for item in app.radio if item.label == "系统").set_value("数据与集成")
     app.run(timeout=30)
 
-    assert "集成与数据" in "\n".join(str(item.value) for item in app.title)
-    assert {"integration-open-data", "integration-open-ai", "integration-open-knowledge", "integration-open-device"} <= {
-        item.key for item in app.button
-    }
-    next(item for item in app.button if item.key == "integration-open-data").click()
+    assert "数据与集成" in "\n".join(str(item.value) for item in app.title)
+    assert len(app.dataframe[0].value)==4
+    select_table_row(app,0)
     app.run(timeout=30)
     uploader = next(item for item in app.get("file_uploader") if item.label == "拖拽文件到这里，或点击选择")
     uploader.upload("synthetic_health_package.zip", build_synthetic_package(), "application/zip")
@@ -257,7 +255,7 @@ def test_portfolio_admin_can_reach_and_use_integration_controls(monkeypatch, tmp
         observation_count = session.scalar(select(func.count()).select_from(Observation))
         assert observation_count == 1, [str(item.value) for item in app.error]
 
-    next(item for item in app.button if item.key == "integration-open-ai").click()
+    select_table_row(app,1)
     app.run(timeout=30)
     assert {"服务类型", "服务地址", "模型名称", "API Key"} <= {
         item.label for item in [*app.radio, *app.text_input]
@@ -266,7 +264,7 @@ def test_portfolio_admin_can_reach_and_use_integration_controls(monkeypatch, tmp
     app.run(timeout=30)
     assert not app.exception
 
-    next(item for item in app.button if item.key == "integration-open-knowledge").click()
+    select_table_row(app,2)
     app.run(timeout=30)
     assert "专业知识服务" in "\n".join(str(item.value) for item in app.markdown)
     assert any(item.label == "测试连接" for item in app.button)
@@ -274,7 +272,7 @@ def test_portfolio_admin_can_reach_and_use_integration_controls(monkeypatch, tmp
     app.run(timeout=30)
     assert not app.exception
 
-    next(item for item in app.button if item.key == "integration-open-device").click()
+    select_table_row(app,3)
     app.run(timeout=30)
     assert "设备接入" in "\n".join(str(item.value) for item in app.markdown)
     assert any(item.label == "拖拽文件到这里，或点击选择" for item in app.get("file_uploader"))

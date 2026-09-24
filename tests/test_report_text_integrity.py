@@ -110,6 +110,6 @@ def test_review_workspace_keeps_technical_metadata_collapsed_and_groups_manual_q
     source = Path("streamlit_app.py").read_text(encoding="utf-8")
     assert '_page_header(_source_display_name(document, "体检报告")' in source
     assert "需要医生复核" in source and "健康管理跟进" in source and "需要人工核对内容" in source
-    assert 'with st.expander("查看解析详情（高级信息）")' in source
+    assert 'with st.expander("报告整理记录")' in source
     assert '"指标": _report_candidate_label(item)' in source
     assert '_render_evidence_action(_candidate_evidence_payload' in source

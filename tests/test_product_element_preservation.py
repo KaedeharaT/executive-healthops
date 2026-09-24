@@ -10,7 +10,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import select
 from streamlit.testing.v1 import AppTest
-from tests.ui_selection import open_member, select_table_row
+from tests.ui_selection import open_archive, open_member, select_table_row
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.models import DoctorReview, HealthProblem, Observation, Patient, ServiceRequest, AgentGoal, AgentApprovalRequest
 from executive_health_ai.services.product_projection import ProductProjectionService, current_program, pending_doctor_work
@@ -145,8 +145,10 @@ def test_actual_member_and_manager_baseline_and_owner_read_the_same_context():
     manager=AppTest.from_file(APP).run(timeout=45)
     radio(manager,'工作区','成员');open_member(manager).run(timeout=45);radio(manager,'成员页面','健康')
     assert owner in visible(manager)
+    open_archive(manager,'年度健康基线').run(timeout=45)
     for app in [member,manager]:
-        assert '年度健康基线' in visible(app) and '当前健康状态' in visible(app)
+        assert '年度健康基线' in visible(app)
+        assert ('当前健康状态' if app is member else '基线与当前') in visible(app)
         assert app.get('vega_lite_chart')
 
 
@@ -179,9 +181,9 @@ def test_key_role_actions_reachable_in_at_most_three_activations():
         click(app,action.label)  # 2
         assert not app.exception
     radio(app,'当前视图','医生工作台')
-    assert any(r.label=='复核工作' for r in app.radio)
-    radio(app,'当前视图','系统管理');radio(app,'系统','集成与数据')  # 1
-    next(b for b in app.button if b.key=='integration-open-ai').click();app.run(timeout=45)  # 2
+    assert any(r.label=='医生工作' for r in app.radio)
+    radio(app,'当前视图','系统管理');radio(app,'系统','数据与集成')  # 1
+    select_table_row(app,1).run(timeout=45)  # 2
     assert not app.exception and app.session_state['integration-center-mode']=='AI服务'
 
 
@@ -253,5 +255,7 @@ def test_doctor_can_find_approval_even_without_pending_medical_reviews(monkeypat
             page.workspace(None,members)
         app=AppTest.from_function(render).run(timeout=30)
         assert not app.exception
+        assert any('后续安排' in str(frame.value) for frame in app.dataframe)
+        select_table_row(app).run(timeout=30)
+        assert not app.exception
         assert any(b.key==f'approval-submit-{approval.id}' for b in app.button)
-        assert any('当前没有待复核事项' in str(c.value) for c in app.caption)

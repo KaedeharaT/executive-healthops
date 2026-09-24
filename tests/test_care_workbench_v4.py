@@ -19,11 +19,11 @@ APP=Path(__file__).resolve().parents[1]/'streamlit_app.py'
 def test_today_drawer_requires_selection_and_close_resets_only_selection():
     app=AppTest.from_file(APP).run(timeout=45)
     assert not app.exception
-    assert not any(b.label=='关闭' for b in app.button)
+    assert not any(b.label=='← 返回今日工作' for b in app.button)
     select_table_row(app).run(timeout=45)
-    assert not app.exception and any(b.label=='关闭' for b in app.button)
-    next(b for b in app.button if b.label=='关闭').click().run(timeout=45)
-    assert not app.exception and not any(b.label=='关闭' for b in app.button)
+    assert not app.exception and any(b.label=='← 返回今日工作' for b in app.button)
+    next(b for b in app.button if b.label=='← 返回今日工作').click().run(timeout=45)
+    assert not app.exception and not any(b.label=='← 返回今日工作' for b in app.button)
     assert app.dataframe
 
 

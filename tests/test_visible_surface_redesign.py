@@ -28,9 +28,9 @@ def test_design_system_exposes_shared_surface_helpers_and_tokens() -> None:
 def test_ops_today_uses_prioritized_table_and_selected_detail() -> None:
     source = _source("render_manager_dashboard", "def _render_member_header")
     assert "今日工作" in source
-    assert all(label in source for label in ('已逾期','等待医生','待复查','管理事项'))
+    assert all(label in source for label in ('已逾期','等待医生','今天到期','工作事项'))
     assert "data_table(visible" in source and "总成员数" not in source
-    assert "c.detail_drawer(" in source and 'auto_select=False' in source
+    assert "work_detail(app, item" in source and 'auto_select=False' in source
 
 
 def test_members_and_member_overview_have_distinct_visual_components() -> None:
@@ -56,7 +56,7 @@ def test_data_report_service_and_collaboration_use_result_or_action_first_frames
     collaboration = _source("render_collaboration_workspace", "def render_service_operations_workspace")
     assert "health_metric_card(" in data and "最近趋势" in data and "查看全部健康数据" in data
     assert "本次核心结论" in report and "与上次相比" in report and "需要处理" in report
-    assert "查看解析详情（高级信息）" in report
+    assert "报告整理记录" in report
     assert "服务事项表" in service and "等待反馈" in service and "detail_drawer(" in service
-    assert "data_table(visible" in service and "service_steps(selected)" in service
-    assert "内部医生" in collaboration and "外部医疗" in collaboration and "collaboration-view" in collaboration
+    assert "data_table(visible" in service and "service_detail(app,selected" in service
+    assert "collaboration(_ui_adapter())" in collaboration

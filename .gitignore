@@ -42,6 +42,7 @@ logs/
 # Portfolio release: generated local data and private capture work must not enter Git
 data/portfolio_demo.db
 data/synthetic_health_package.zip
+data/portfolio_reports/
 portfolio/.recordings/
 portfolio/.screenshots/
 demo_assets/private/

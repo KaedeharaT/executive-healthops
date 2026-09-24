@@ -152,7 +152,7 @@ class ProductProjectionService:
             tuple(sorted((t for t in member.tasks if t.status == "COMPLETED"), key=lambda t: t.created_at, reverse=True)))
 
     def manager(self, session, now):
-        items = OperationalWorklistService().list_items(session, now)
+        items = OperationalWorklistService().list_items(session, now, include_scheduled=True)
         service_ids = {i.source_id for i in items if i.source_type == "service_request"}
         service_states = {r.id: r.status for r in session.scalars(select(ServiceRequest).where(ServiceRequest.id.in_(service_ids)))} if service_ids else {}
         # Preserve raw workflow state; UI applies the shared service vocabulary.
@@ -180,12 +180,21 @@ class ProductProjectionService:
                 owner="内部医生" if approval.required_role == "DOCTOR" else goal.owner or "健康管理师",
                 route_target="doctor_review" if approval.required_role == "DOCTOR" else "member_management"))
         from executive_health_ai.agent.post_checkup import is_care_goal, LABELS
-        care_goals = [g for g in session.scalars(select(AgentGoal).where(AgentGoal.status.not_in(('COMPLETED','CANCELLED')))) if is_care_goal(g)]
+        care_goals = [g for g in session.scalars(select(AgentGoal)) if is_care_goal(g)]
+        # A report preparation owns its report confirmation and medical handoff.
+        # Waiting/running remain visible in the assistant, not as manager actions.
+        care_reports = {g.source_id for g in care_goals}
+        care_reviews = {g.context_json.get('review_id') for g in care_goals}
+        items = [i for i in items if not (
+            i.source_type == 'report_review' and str(i.document_id) in care_reports
+            or i.source_type == 'doctor_review' and str(i.source_id) in care_reviews)]
         for goal in care_goals:
+            if goal.status not in {'WAITING_MANAGER', 'WAITING_INPUT', 'ESCALATED', 'FAILED'}:
+                continue
             items.append(OperationalWorkItem(goal.member_id, 'post_checkup', goal.id, 2 if goal.status != 'WAITING_DOCTOR' else 4,
                 '等待医生' if goal.status == 'WAITING_DOCTOR' else '待人工处理' if goal.status in {'ESCALATED','FAILED','WAITING_INPUT'} else '待健管确认',
                 '医生意见已返回' if goal.current_stage == 'WAITING_ACTION_APPROVAL' and goal.context_json.get('review_id') else '新体检报告待确认',
-                LABELS.get(goal.current_stage, '需人工处理'),
-                '补齐年度资料' if goal.status == 'WAITING_INPUT' else {'WAITING_MANAGER_REVIEW':'确认整理结果', 'WAITING_ACTION_APPROVAL':'确认后续行动', 'WAITING_DOCTOR_REVIEW':'等待医生判断'}.get(goal.current_stage, '人工核对资料'), goal.due_at,
+                f"已整理成 {len(goal.context_json.get('actions', []))} 项行动" if goal.current_stage == 'WAITING_ACTION_APPROVAL' else '已完成报告整理' if goal.current_stage == 'WAITING_MANAGER_REVIEW' else LABELS.get(goal.current_stage, '需人工处理'),
+                '补齐年度资料' if goal.status == 'WAITING_INPUT' else {'WAITING_MANAGER_REVIEW':f"确认 {len(goal.context_json.get('findings', []))} 项健康变化", 'WAITING_ACTION_APPROVAL':'确认后续行动'}.get(goal.current_stage, '人工核对资料'), goal.due_at,
                 owner=goal.owner or '待分配', document_id=UUID(goal.source_id), route_target='post_checkup', created_at=goal.started_at))
         return ManagerWorkView(tuple(items), pending)

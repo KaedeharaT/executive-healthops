@@ -158,7 +158,7 @@ def test_member_overview_timeline_opens_evidence_from_normal_navigation() -> Non
     app_test.run(timeout=30)
     open_member(app_test)
     app_test.run(timeout=30)
-    next(item for item in app_test.button if item.label == "查看完整健康历程").click()
+    next(item for item in app_test.radio if item.label == "成员页面").set_value("历程")
     app_test.run(timeout=30)
     next(item for item in app_test.radio if item.label == "事件筛选").set_value("体检")
     app_test.run(timeout=30)

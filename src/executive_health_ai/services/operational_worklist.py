@@ -91,18 +91,19 @@ class OperationalWorklistService:
     linked rows enrich that responsibility rather than creating duplicates.
     """
 
-    def list_items(self, session: Session, now: datetime) -> list[OperationalWorkItem]:
+    def list_items(self, session: Session, now: datetime, *, include_scheduled: bool = False) -> list[OperationalWorkItem]:
         now = now.astimezone(ZoneInfo("Asia/Tokyo"))
         items: list[OperationalWorkItem] = []
-        active_tasks = list(session.scalars(select(Task).where(Task.status.not_in(CLOSED_TASK_STATUSES)).order_by(Task.due_at, Task.created_at.desc()).limit(150)))
+        # The full staff queue must remain searchable beyond legacy preview limits.
+        active_tasks = list(session.scalars(select(Task).where(Task.status.not_in(CLOSED_TASK_STATUSES)).order_by(Task.due_at, Task.created_at.desc()).limit(None if include_scheduled else 150)))
         tasks_by_risk: dict[UUID, Task] = {}
         for task in active_tasks:
             if task.risk_event_id:
                 tasks_by_risk.setdefault(task.risk_event_id, task)
-        pending_reviews = list(session.scalars(select(DoctorReview).where(DoctorReview.status == "PENDING").order_by(DoctorReview.created_at.desc()).limit(100)))
+        pending_reviews = list(session.scalars(select(DoctorReview).where(DoctorReview.status == "PENDING").order_by(DoctorReview.created_at.desc()).limit(None if include_scheduled else 100)))
         reviews_by_risk = {review.risk_event_id: review for review in pending_reviews if review.risk_event_id}
 
-        active_risks = list(session.scalars(select(RiskEvent).where(RiskEvent.status.in_(ACTIVE_RISK_STATUSES)).order_by(RiskEvent.created_at.desc()).limit(100)))
+        active_risks = list(session.scalars(select(RiskEvent).where(RiskEvent.status.in_(ACTIVE_RISK_STATUSES)).order_by(RiskEvent.created_at.desc()).limit(None if include_scheduled else 100)))
         active_risk_ids = {event.id for event in active_risks}
         active_risk_metrics = {(event.patient_id, event.canonical_code) for event in active_risks}
         for event in active_risks:
@@ -120,7 +121,7 @@ class OperationalWorklistService:
         for task in active_tasks:
             if task.risk_event_id in active_risk_ids:
                 continue
-            if task.due_at is not None and task.due_at > now + timedelta(days=1) and task.source != "member_plan_choice":
+            if not include_scheduled and task.due_at is not None and task.due_at > now + timedelta(days=1) and task.source != "member_plan_choice":
                 continue
             is_overdue = bool(task.due_at and task.due_at < now)
             status = "逾期" if is_overdue else "今日跟进" if task.due_at and task.due_at.astimezone(now.tzinfo).date() == now.date() else "待处理"
@@ -157,7 +158,7 @@ class OperationalWorklistService:
                 route_target="doctor_review", created_at=review.created_at, event_at=review.created_at,
             ))
 
-        signals = session.scalars(select(ManagementSignal).where(ManagementSignal.status.in_(("OPEN", "IN_PROGRESS"))).order_by(ManagementSignal.last_detected_at.desc()).limit(50))
+        signals = session.scalars(select(ManagementSignal).where(ManagementSignal.status.in_(("OPEN", "IN_PROGRESS"))).order_by(ManagementSignal.last_detected_at.desc()).limit(None if include_scheduled else 50))
         for signal in signals:
             # A medical risk is the primary responsibility when the same member
             # and metric are already represented. The management signal remains
@@ -170,7 +171,7 @@ class OperationalWorklistService:
                 owner="健康管理师", route_target="member_health", created_at=signal.last_detected_at, event_at=signal.last_detected_at,
             ))
 
-        requests = session.scalars(select(ServiceRequest).where(ServiceRequest.status.in_(("REQUESTED", "REVIEWING", "APPROVED", "SCHEDULED", "IN_PROGRESS", "IN_SERVICE"))).order_by(ServiceRequest.requested_at.desc()).limit(50))
+        requests = session.scalars(select(ServiceRequest).where(ServiceRequest.status.in_(("REQUESTED", "REVIEWING", "APPROVED", "SCHEDULED", "IN_PROGRESS", "IN_SERVICE"))).order_by(ServiceRequest.requested_at.desc()).limit(None if include_scheduled else 50))
         for request in requests:
             catalog = session.get(ServiceCatalogItem, request.service_item_id)
             if request.status in {"REQUESTED", "REVIEWING"}:

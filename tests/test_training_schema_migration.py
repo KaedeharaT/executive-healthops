@@ -115,7 +115,7 @@ def test_portfolio_builder_rebuild_creates_training_tables():
         view = BaselineVisualizationService().build(session, member.id, cycle_year=2026)
         assert len(view.metrics) == 6
         assert sum(trend.has_follow_up for trend in view.trends) == 6
-        assert sum(len(trend.points) for trend in view.trends) == 25
+        assert sum(len(trend.points) for trend in view.trends) == 27  # Two confirmed synthetic report observations extend existing metric history.
         assert len(view.comparisons) == 6
         assert len(view.coverage) == 6
         assert view.covered_count >= 4

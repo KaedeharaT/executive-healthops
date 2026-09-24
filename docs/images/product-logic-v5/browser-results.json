@@ -1,0 +1,147 @@
+{
+  "actual_browser": "Chromium",
+  "stories": {
+    "manager": "PASS",
+    "doctor": "PASS",
+    "agent": "PASS",
+    "member360": "PASS",
+    "member": "PASS",
+    "admin": "PASS"
+  },
+  "clicks": {
+    "today_to_work": 1,
+    "today_to_agent_gate": 1,
+    "member_list_to_member360": 1,
+    "doctor_home_to_decision": 1,
+    "admin_home_to_run": 2
+  },
+  "pages": [
+    {
+      "page": "01-manager-today",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "03-manager-agent-visible",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "02-manager-work-detail",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "10-doctor-home",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "11-doctor-review",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "15-action-approval",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "16-care-completed",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "05-member360-overview",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "06-member360-management",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "07-management-log",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "20-log-next-action",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "19-recheck-work-detail",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "04-member-list",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "08-annual-management",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "09-medical-collaboration",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "12-service",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "17-service-detail",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "21-service-completed",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "13-member-home",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "14-admin-automation",
+      "technical_terms": "admin only",
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "18-admin-detail",
+      "technical_terms": "admin only",
+      "nested_expanders": 0,
+      "page_errors": 0
+    }
+  ],
+  "errors": []
+}

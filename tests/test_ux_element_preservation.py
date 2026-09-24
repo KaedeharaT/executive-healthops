@@ -77,36 +77,37 @@ def test_manager_selection_changes_inspector_and_keeps_processing_entry():
     assert len(app.dataframe[0].value) == 2
     select_table_row(app, 1).run(timeout=30)
     assert not app.exception
-    assert any('V2选择事项1' in str(x.value) for x in app.markdown)
-    assert any(b.label == '处理当前任务' for b in app.button)
+    assert any('V2选择事项1' in str(x.value) for x in app.header)
+    assert any(b.label == '标记完成' for b in app.button)
+    button(app,'← 返回今日工作')
     next(x for x in app.text_input if x.label == "查找待办").set_value("__no_matching_member__")
     app.run(timeout=30)
-    assert any("当前筛选下暂无事项" in c.value for c in app.caption)
+    assert any("当前没有需要处理的工作" in c.value for c in app.caption)
     assert not any(str(b.key).startswith("today-") for b in app.button)
 
 
 def test_360_quick_actions_open_original_management_forms():
     app = AppTest.from_file(APP).run(timeout=30)
     radio(app, "工作区", "成员"); open_member(app).run(timeout=30)
-    button(app, "安排随访")
-    assert next(x for x in app.radio if x.label == "管理操作").value == "安排随访"
-    assert any(x.label == "需要完成什么" for x in app.text_area)
-    radio(app, "成员页面", "概览"); button(app, "记录阶段结果")
-    assert next(x for x in app.radio if x.label == "管理操作").value == "记录阶段结果"
-    assert any(x.label == "记录阶段结果并安排下一步" for x in app.button)
+    radio(app, '成员页面', '管理')
+    next(x for x in app.selectbox if x.key.startswith('workflow-mode-')).set_value('计划调整与随访');app.run(timeout=30)
+    radio(app, '计划操作', '安排随访')
+    assert any(x.label == '需要完成什么' for x in app.text_area)
+    radio(app, '计划操作', '记录阶段结果')
+    assert any(x.label == '记录阶段结果并安排下一步' for x in app.button)
 
 
 def test_admin_all_integrations_rules_system_and_legacy_tools_are_accessible():
     app = AppTest.from_file(APP).run(timeout=30)
     radio(app, "当前视图", "系统管理")
-    radio(app, "系统", "集成与数据")
-    for key in ["integration-open-ai", "integration-open-knowledge", "integration-open-device", "integration-open-data"]:
-        next(b for b in app.button if b.key == key).click(); app.run(timeout=30)
+    radio(app, "系统", "数据与集成")
+    for index in range(4):
+        select_table_row(app,index).run(timeout=30)
         assert not app.exception
     radio(app, "系统", "规则与知识")
     for value in ["规则", "专业知识", "设备"]:
         radio(app, "配置内容", value)
-    radio(app, "系统", "自动化运营")
+    radio(app, "系统", "自动化运行")
     radio(app, "系统", "系统状态")
     assert any(e.label == "AI质量治理（高级）" for e in app.expander)
     assert any(e.label == "操作记录" for e in app.expander)
@@ -121,12 +122,12 @@ def test_admin_all_integrations_rules_system_and_legacy_tools_are_accessible():
 def test_doctor_pending_completed_and_manager_readonly_use_same_workspace():
     app = AppTest.from_file(APP).run(timeout=30)
     radio(app, "当前视图", "医生工作台")
-    for mode in ["已完成", "待复核"]:
-        radio(app, "复核工作", mode)
+    for mode in ["历史", "待我判断"]:
+        radio(app, "医生工作", mode)
     radio(app, "当前视图", "运营后台")
     radio(app, "工作区", "医疗协同")
     assert not any(b.label == "提交判断并交回健管" for b in app.button)
-    radio(app, "医疗协同内容", "外部医疗")
+    radio(app, "医疗记录", "历史")
     assert not app.exception
 
 

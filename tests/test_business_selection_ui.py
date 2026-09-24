@@ -21,6 +21,6 @@ def test_directory_requires_explicit_selection_and_return_stays_in_list():
     assert not any(s.label == '选择会员' for s in app.selectbox)
     open_member(app).run(timeout=45)
     assert not app.exception and any(r.label == '成员页面' for r in app.radio)
-    next(b for b in app.button if b.label == '← 返回成员列表').click().run(timeout=45)
+    next(b for b in app.button if b.label == '← 返回会员').click().run(timeout=45)
     assert not app.exception and not any(r.label == '成员页面' for r in app.radio)
     assert any(t.label == '搜索成员' for t in app.text_input)

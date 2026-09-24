@@ -84,8 +84,8 @@ def test_manager_can_create_adjust_schedule_and_record_outcome_through_normal_ui
     _radio(app, "工作区").set_value("成员"); app.run(timeout=30)
     open_member(app); app.run(timeout=30)
     _radio(app, "成员页面").set_value("管理"); app.run(timeout=30)
-    next(item for item in app.selectbox if item.label == '管理工作').set_value('原有计划 / 任务 / 自动跟进'); app.run(timeout=30)
-    _radio(app, "管理操作").set_value("建立 / 调整计划"); app.run(timeout=30)
+    next(item for item in app.selectbox if item.label == '管理工作').set_value('计划调整与随访'); app.run(timeout=30)
+    _radio(app, "计划操作").set_value("建立 / 调整计划"); app.run(timeout=30)
     next(item for item in app.checkbox if item.label == "建立新计划").set_value(True); app.run(timeout=30)
     _field(app, "计划名称", "UX操作路径验收计划")
     _field(app, "本阶段目标", "完成连续健康记录")
@@ -97,21 +97,21 @@ def test_manager_can_create_adjust_schedule_and_record_outcome_through_normal_ui
         assert program is not None
         program_id = program.id
     # Refresh and select the newly persisted plan, rather than assuming an optimistic UI state.
-    _radio(app, "管理操作").set_value("工作进展"); app.run(timeout=30)
+    _radio(app, "计划操作").set_value("建立 / 调整计划"); app.run(timeout=30)
     selector = next(i for i in app.selectbox if i.label == "当前管理计划")
     # AppTest selectbox accepts the stored ORM object and maps it through format_func.
     with SessionLocal() as session:
         selected = session.get(HealthProgram, program_id)
     selector.set_value(str(selected.id)); app.run(timeout=30)
-    _radio(app, "管理操作").set_value("建立 / 调整计划"); app.run(timeout=30)
+    _radio(app, "计划操作").set_value("建立 / 调整计划"); app.run(timeout=30)
     next(item for item in app.checkbox if item.label == "建立新计划").set_value(False); app.run(timeout=30)
     _field(app, "本阶段目标", "按调整后的频率记录健康变化")
     _field(app, "建立依据 / 调整原因", "与成员确认可执行频率")
     _button(app, "保存健康计划").click(); app.run(timeout=30)
-    _radio(app, "管理操作").set_value("安排随访"); app.run(timeout=30)
+    _radio(app, "计划操作").set_value("安排随访"); app.run(timeout=30)
     _field(app, "需要完成什么", "核对本周记录并确认后续安排")
     _button(app, "安排随访").click(); app.run(timeout=30)
-    _radio(app, "管理操作").set_value("记录阶段结果"); app.run(timeout=30)
+    _radio(app, "计划操作").set_value("记录阶段结果"); app.run(timeout=30)
     _field(app, "起点数值", "132"); _field(app, "本次数值", "128")
     _field(app, "单位", "mmHg"); _field(app, "结果依据", "人工核对两次记录；不作因果推断")
     _button(app, "记录阶段结果并安排下一步").click(); app.run(timeout=30)

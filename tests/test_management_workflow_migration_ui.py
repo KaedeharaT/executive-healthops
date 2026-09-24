@@ -51,7 +51,7 @@ def test_api_commands_use_same_service_and_reject_non_doctor_medical_write():
     engine.dispose()
 
 
-@pytest.mark.parametrize('mode',['管理日志','年度方案与阶段','检查复查','阶段评估','关联服务','原有计划 / 任务 / 自动跟进'])
+@pytest.mark.parametrize('mode',['管理日志','年度方案与阶段','检查复查','阶段评估','关联服务','计划调整与随访'])
 def test_management_modes_render_with_short_default_sections(monkeypatch,mode):
     from executive_health_ai.ui.pages.manager import workflow
     engine=create_engine('sqlite://',connect_args={'check_same_thread':False},poolclass=StaticPool)
@@ -62,7 +62,7 @@ def test_management_modes_render_with_short_default_sections(monkeypatch,mode):
     # Existing legacy plan surface is covered separately; this renderer test
     # verifies the new workflow dispatch without connecting to a real database.
     from executive_health_ai.ui.pages.manager import experience
-    monkeypatch.setattr(experience,'management',lambda app,patient:None)
+    monkeypatch.setattr(experience,'management',lambda app,patient,action=None:None)
     def page(mid,mode):
         import streamlit as st
         from types import SimpleNamespace

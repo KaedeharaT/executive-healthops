@@ -24,9 +24,9 @@ def test_shared_design_system_exposes_product_level_helpers() -> None:
 def test_ops_today_has_one_priority_frame_and_compact_work_items() -> None:
     today = _source("render_manager_dashboard", "def _render_member_header")
     assert "今日工作" in today and "c.summary_strip(" in today
-    assert "st.subheader('管理事项')" in today and "data_table(visible" in today
+    assert "st.subheader('工作事项')" in today and "data_table(visible" in today
     assert "ux.sorted_work(" in today and "work_filter(" in today
-    assert "c.detail_drawer(" in today and "'截止时间'" in today and 'auto_select=False' in today
+    assert "work_detail(app, item" in today and "'截止时间'" in today and 'auto_select=False' in today
 
 
 def test_member_overview_keeps_the_two_column_focus_then_next_step_structure() -> None:
@@ -47,10 +47,10 @@ def test_member_home_is_personal_and_limits_today_to_six_health_tiles() -> None:
 
 def test_report_is_result_first_and_parser_controls_are_in_advanced_details() -> None:
     report = _source("render_report_review", "def _render_baseline_draft_action")
-    for section in ("本次核心结论", "与上次相比", "需要处理", "查看解析详情（高级信息）"):
+    for section in ("本次核心结论", "与上次相比", "需要处理", "报告整理记录"):
         assert section in report
     assert "risk_badge(report_risk" in report
-    assert report.index("查看解析详情（高级信息）") < report.index('secondary_action("重新整理报告"')
+    assert report.index("报告整理记录") < report.index('secondary_action("重新整理报告"')
 
 
 def test_timeline_has_three_product_frames_and_a_single_detail_column() -> None:

@@ -1097,6 +1097,9 @@ def apply_pending_navigation() -> None:
             st.session_state[f"client-health-view-{member_id}"] = "健康数据"
         if pending.get("member_section"):
             st.session_state[f"member-section-{member_id}"] = {"数据": "健康", "档案": "健康"}.get(pending["member_section"], pending["member_section"])
+            if pending['member_section']=='服务':
+                st.session_state[f'member-section-{member_id}']='管理'
+                st.session_state[f'workflow-mode-{member_id}']='关联服务'
         if pending.get("archive_view") is not None:
             health_view = {
                 "健康数据": "健康数据", "数据": "健康数据", "健康概览": "健康概览", "概览": "健康概览", "体检": "体检", "体检与检查": "体检", "健康基线": "基线", "基线": "基线",
@@ -1110,6 +1113,7 @@ def apply_pending_navigation() -> None:
                 else:
                     st.session_state[f"client-health-view-{member_id}"] = health_view
                     st.session_state[f"member-health-view-{member_id}"] = {"健康数据": "数据", "医疗档案": "健康史", "健康概览": "概览"}.get(health_view, health_view)
+                    st.session_state[f'archive-content-{member_id}']={'健康数据':'健康数据','体检':'报告','基线':'基线','医疗档案':'医疗档案'}.get(health_view)
         if pending.get("health_data_window"):
             st.session_state[f"health-data-window-{member_id}"] = pending["health_data_window"]
     if pending.get("report_document_id"):
@@ -1179,9 +1183,11 @@ def _member_risk_state(patient_id: UUID, ctx: dict[str, list[object]]) -> tuple[
     return "暂无正式风险评估", "暂无适用的正式临床风险规则覆盖；这不等于低风险。", None
 
 
-def _render_current_risk_actions(patient: Patient) -> None:
+def _render_current_risk_actions(patient: Patient, selected_id=None) -> None:
     """Expose existing audited risk actions without adding new triage logic."""
     events = _open_risk_events(patient.id)
+    if selected_id:
+        events = [item for item in events if item.id == selected_id]
     if not events:
         return
     event = next((item for item in events if item.risk_level == "RED"), events[0])
@@ -3714,17 +3720,8 @@ def render_oversight_summary() -> None:
 
 
 def render_collaboration_workspace() -> None:
-    """Keep internal medical review distinct from external-care coordination."""
-    _page_header("医疗协同", "只处理需要医学判断或外部医疗安排的事项。", eyebrow="运营后台")
-    collaboration = st.radio("医疗协同内容", ["内部医生", "正式会诊", "外部医疗"], horizontal=True, label_visibility="collapsed", key="collaboration-view")
-    members = _members()
-    if collaboration == "内部医生":
-        doctor_pages.workspace(_ui_adapter(), members, read_only=True)
-    elif collaboration == "正式会诊":
-        from executive_health_ai.ui.pages.manager.workflow import consultations
-        consultations(_ui_adapter())
-    else:
-        render_external_doctor_workspace(members)
+    from executive_health_ai.ui.pages.manager.medical import collaboration
+    collaboration(_ui_adapter())
 
 
 def render_service_operations_workspace() -> None:
@@ -3980,8 +3977,11 @@ def render_report_review(document_id: UUID) -> None:
         rows = [{"指标": _report_candidate_label(item), "本次": " ".join(part for part in (item.normalized_value or item.raw_value or "—", item.unit or "") if part), "参考范围": item.reference_range or "—", "异常": item.abnormal_flag or "—", "上次": "—", "变化": "—", "状态": {"PENDING_REVIEW":"待确认", "CONFIRMED":"已确认", "REJECTED":"已忽略", "CORRECTED":"已修正"}.get(item.status, "需人工核对")} for item in observations]
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
     _render_baseline_draft_action(document, candidates)
-    with st.expander("查看解析详情（高级信息）"):
-        _render_report_parse_method(run, candidates)
+    with st.expander("报告整理记录"):
+        if st.session_state.get('surface-mode')=='系统管理':
+            _render_report_parse_method(run,candidates)
+        else:
+            st.caption('已按本次报告整理资料，请核对原文和提取结果。')
         st.caption("如原始文件已更新，可在此重新整理；已确认资料和长期健康档案不会被覆盖。")
         if secondary_action("重新整理报告" if not is_processing else "报告整理中…", key=f"report-reparse-{document_id}", disabled=is_processing, width="content"):
             st.session_state[f"report-reparse-in-progress-{document_id}"] = True
@@ -4003,7 +4003,7 @@ def render_report_review(document_id: UUID) -> None:
                 st.session_state[f"report-reparse-in-progress-{document_id}"] = False
         if len(runs) > 1:
             st.caption("查看历史解析")
-            st.dataframe(pd.DataFrame([{"解析时间": _fmt_dt(old_run.completed_at or old_run.created_at), "解析方式": "混合解析" if old_run.llm_used else "规则解析", "解析器版本": old_run.parser_version, "本地AI辅助": f"LLM {old_run.llm_call_count} 次" if old_run.llm_used else "未调用", "候选资料": old_run.candidate_count, "状态": "当前" if index == 0 else "历史记录"} for index, old_run in enumerate(runs)]), hide_index=True, width="stretch")
+            st.dataframe(pd.DataFrame([{"解析时间": _fmt_dt(old_run.completed_at or old_run.created_at), "候选资料": old_run.candidate_count, "状态": "当前" if index == 0 else "历史记录"} for index, old_run in enumerate(runs)]), hide_index=True, width="stretch")
     with st.expander("查看完整文件"):
         path = Path(document.storage_reference)
         if path.is_file():
@@ -4269,13 +4269,15 @@ def render_member_detail(patient):
     manager_pages.member_detail(_ui_adapter(), patient)
 
 
-def render_member_archive(patient: Patient) -> None:
+def render_member_archive(patient: Patient, selected_view=None) -> None:
     """Health overview plus retained detail views; timeline stays first-level."""
     key = f"member-health-view-{patient.id}"
     views = ["概览", "数据", "体检", "基线", "健康史"]
     if st.session_state.get(key) not in views:
         st.session_state[key] = "概览"
-    with st.popover("健康资料与其他视图"):
+    if selected_view:
+        view=selected_view
+    else:
         view = st.radio("成员健康内容", views, key=key, format_func=lambda x: {"概览":"健康概览", "数据":"健康数据", "体检":"体检与检查", "基线":"年度基线详情", "健康史":"健康档案"}.get(x, x))
     if view == "概览":
         from executive_health_ai.services.product_projection import ProductProjectionService

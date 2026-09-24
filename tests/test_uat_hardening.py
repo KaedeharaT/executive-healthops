@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
-from tests.ui_selection import open_member, select_table_row
+from tests.ui_selection import open_archive, open_member, select_table_row
 import streamlit_app
 
 
@@ -76,7 +76,7 @@ def test_ops_member_archive_exposes_the_same_report_upload_intake() -> None:
     open_member(app); app.run(timeout=30)
     next(radio for radio in app.radio if radio.key and radio.key.startswith("member-section-")).set_value("健康")
     app.run(timeout=30)
-    _radio(app, "成员健康内容").set_value("体检")
+    open_archive(app, "体检报告")
     app.run(timeout=30)
     _assert_clean(app)
     assert app.file_uploader

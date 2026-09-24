@@ -94,7 +94,9 @@ def home(app, patient, ctx):
         with c.secondary_details("当前管理进展与下一步"):
             ux.next_action(tasks[0].title if tasks else "等待健康管理师更新下次复盘安排", view.owner)
             if goal:
-                st.caption("持续管理状态：" + ux.business_text(goal.current_stage) + " · " + ux.business_text(goal.next_action or "负责人将更新下一步"))
+                from executive_health_ai.agent.post_checkup import is_care_goal, LABELS
+                state=LABELS.get(goal.current_stage,'由健康团队跟进') if is_care_goal(goal) else ux.business_text(goal.next_action or '由健康团队跟进')
+                st.caption('持续管理状态：'+state)
             if st.button("查看健康计划", key=f"client-home-plan-{patient.id}"):
                 app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
             if st.button("上传体检报告", key=f"client-home-report-{patient.id}"):

@@ -1,3 +1,4 @@
+from tests.ui_selection import select_table_row
 """AppTest coverage for the in-product knowledge-search interaction."""
 
 from datetime import datetime, timezone
@@ -38,9 +39,9 @@ def _knowledge_library() -> AppTest:
     next(item for item in app.radio if item.label == "当前视图").set_value("系统管理")
     app.run(timeout=30)
     assert next(item for item in app.radio if item.label == "系统").value == "系统状态"
-    next(item for item in app.radio if item.label == "系统").set_value("集成与数据")
+    next(item for item in app.radio if item.label == "系统").set_value("数据与集成")
     app.run(timeout=30)
-    next(item for item in app.button if item.key == "integration-open-knowledge").click()
+    select_table_row(app,2)
     app.run(timeout=30)
     assert not app.exception
     return app
@@ -93,6 +94,6 @@ def test_knowledge_integration_prioritizes_connection_state_and_search() -> None
     for heading in ("搜索知识", "专业知识服务"):
         assert heading in visible
     assert any(item.label == "本地内部规范" for item in app.metric)
-    assert "集成与数据" in "\n".join(str(item.value) for item in app.title)
+    assert "数据与集成" in "\n".join(str(item.value) for item in app.title)
     assert "待审核" not in visible
     assert not app.exception

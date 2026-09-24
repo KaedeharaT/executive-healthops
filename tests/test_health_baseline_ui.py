@@ -4,7 +4,7 @@ from pathlib import Path
 
 from sqlalchemy import delete, select
 from streamlit.testing.v1 import AppTest
-from tests.ui_selection import open_member, select_table_row
+from tests.ui_selection import open_archive, open_member, select_table_row
 
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.models import HealthAssessment, Patient
@@ -53,7 +53,7 @@ def test_baseline_review_confirmation_and_member_reference_point_are_interaction
         open_member(manager); manager.run(timeout=30)
         member_section = next(item for item in manager.radio if item.key and item.key.startswith("member-section-"))
         member_section.set_value("健康"); manager.run(timeout=30)
-        _radio(manager, "成员健康内容").set_value("基线"); manager.run(timeout=30)
+        open_archive(manager, "年度健康基线"); manager.run(timeout=30)
         assert "2099年度健康基线" in _visible_text(manager)
         next(item for item in manager.button if item.label == "确认健康基线").click(); manager.run(timeout=30)
         assert "确认后已冻结" in _visible_text(manager)
@@ -77,7 +77,7 @@ def test_confirmed_baseline_visualizations_are_reachable_from_real_member_and_ma
     open_member(manager); manager.run(timeout=30)
     member_section = next(item for item in manager.radio if item.key and item.key.startswith("member-section-"))
     member_section.set_value("健康"); manager.run(timeout=30)
-    _radio(manager, "成员健康内容").set_value("基线"); manager.run(timeout=30)
+    open_archive(manager, "年度健康基线"); manager.run(timeout=30)
     manager_text = _visible_text(manager)
     assert all(label in manager_text for label in ("健康概览", "关键指标基线", "从基线到现在", "基线与当前", "基线资料覆盖"))
     assert "这是资料完整度，不代表健康评分" in manager_text

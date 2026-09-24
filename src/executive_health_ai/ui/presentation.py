@@ -16,11 +16,11 @@ def preview(value, limit=32):
 
 def display_frame(records):
     """Only summaries enter the grid; callers retain the original detail objects."""
-    frame = pd.DataFrame([{k: v if v is None or isinstance(v, (datetime, date, int, float)) else preview(v) for k, v in row.items()} for row in records])
+    frame = pd.DataFrame([{k: '—' if v is None else v if isinstance(v, (datetime, date, int, float)) else preview(v) for k, v in row.items()} for row in records])
     for name in frame:
         values = [v for v in frame[name] if v is not None and not pd.isna(v)]
         if values and any(isinstance(v, str) for v in values) and not all(isinstance(v, str) for v in values):
-            frame[name] = frame[name].map(lambda v: v.strftime('%Y/%m/%d') if isinstance(v, date) else preview(v))
+            frame[name] = frame[name].map(lambda v: v.strftime('%Y/%m/%d %H:%M') if isinstance(v, datetime) else v.strftime('%Y/%m/%d') if isinstance(v, date) else preview(v))
     return frame
 
 
@@ -31,11 +31,12 @@ def selected_record(rows, selection):
     return rows[index] if rows and isinstance(index, int) and 0 <= index < len(rows) else (rows[0] if rows else None)
 
 
-def data_table(rows, records, *, key, label='选择记录', selectable=True, empty='暂无记录。', search=False, export=False, auto_select=True, activate_on_cell=False):
+def data_table(rows, records, *, key, label='选择记录', selectable=True, empty='暂无记录。', search=False, export=False, auto_select=True, activate_on_cell=True):
     """Native sortable grid with built-in keyboard selection and stable source identity.
 
     Streamlit returns original input indices even after client-side sorting. A data
-    signature resets selection after filtering or refresh, preventing stale actions.
+    signature resets selection when the record set changes, preventing stale actions.
+    Updating the selected object's status keeps its detail open.
     """
     rows, records = list(rows), list(records)
     if len(rows) != len(records):
@@ -48,7 +49,9 @@ def data_table(rows, records, *, key, label='选择记录', selectable=True, emp
         st.caption(empty)
         return None
     frame = display_frame(records)
-    signature = sha256((repr([str(getattr(r, 'id', i)) for i, r in enumerate(rows)])+repr(records)).encode()).hexdigest()[:12]
+    identities = [str(getattr(r, 'id', '') or '') for r in rows]
+    stable_objects = all(identities) and len(set(identities)) == len(rows)
+    signature = sha256((repr(identities) if stable_objects else repr(records)).encode()).hexdigest()[:12]
     grid_key = f'{key}-{signature}-{st.session_state.get(key+"-epoch", 0)}'
     st.caption(f'{len(rows)} 条 · 点击行查看详情；点击列名排序' if selectable else f'{len(rows)} 条 · 点击列名排序')
     columns = {}
@@ -134,16 +137,19 @@ def tasks(app, ctx):
         return
     with c.detail_drawer('所选事项', key='task-inspector',table_key='management-tasks'):
         task_detail(selected)
-        if selected.status not in {'COMPLETED','CANCELLED'} and st.button('标记完成', key=f'complete-{selected.id}', type='primary'):
-            with app.SessionLocal() as session:
-                try:
-                    app.TaskTransitionService().complete(session, selected.id, actor=selected.assignee or '健康管理师', outcome='已在健康运营工作台记录任务完成。')
-                    session.commit()
-                except ValueError as error:
-                    session.rollback(); st.error(str(error))
-                else:
-                    st.rerun()
+        task_action(app,selected)
 
+
+def task_action(app,task):
+    if task.status not in {'COMPLETED','CANCELLED'} and st.button('标记完成', key=f'complete-{task.id}', type='primary'):
+        with app.SessionLocal() as session:
+            try:
+                app.TaskTransitionService().complete(session, task.id, actor=task.assignee or '健康管理师', outcome='已在健康运营工作台记录任务完成。')
+                session.commit()
+            except ValueError as error:
+                session.rollback(); st.error(str(error))
+            else:
+                st.rerun()
 
 def service_steps(request):
     current = {'REQUESTED':'申请','REVIEWING':'审核','APPROVED':'安排','SCHEDULED':'安排','IN_PROGRESS':'执行','IN_SERVICE':'执行','COMPLETED':'回写','CANCELLED':'已取消'}.get(request.status, '申请')

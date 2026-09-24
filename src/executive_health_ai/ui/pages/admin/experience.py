@@ -21,21 +21,16 @@ def integration_statuses():
 
 
 def integrations(app):
-    ux.page_header("集成与数据", "先确认连接状态，再检查或测试；配置不等于连接成功。", "系统")
+    ux.page_header("数据与集成", "先确认连接状态，再检查或测试；配置不等于连接成功。", "系统")
     rows = integration_statuses()
     c.summary_strip([("数据导入", "可用"), ("AI服务", rows[1][1]), ("专业知识", rows[2][1]), ("真实设备连接", "0个已验证")])
     catalog, config = st.columns([1, 1.8], gap="large")
     with catalog:
         with c.section("连接与服务", key="integration-list"):
-            selected = data_table(rows, [{"集成": title, "状态": state, "最后测试": st.session_state.get(f"integration-tested-{mode}", "暂无本次会话测试")} for title,state,summary,mode in rows], key="integrations", label="选择集成", auto_select=False)
+            selected = data_table(rows, [{"集成": title, "状态": state} for title,state,summary,mode in rows], key="integrations", label="选择集成", auto_select=False)
     if selected and st.session_state.get('integration-grid-last') != selected[3]:
         st.session_state['integration-center-mode'] = selected[3]
         st.session_state['integration-grid-last'] = selected[3]
-    with st.expander('兼容快捷入口'):
-        for title, state, summary, target in rows:
-            key = {'数据导入':'integration-open-data', 'AI服务':'integration-open-ai', '专业知识服务':'integration-open-knowledge', '设备接入':'integration-open-device'}[target]
-            if st.button('检查 · '+title, key=key):
-                st.session_state['integration-center-mode'] = target
     mode = st.session_state.get('integration-center-mode')
     with config:
         if not mode:
@@ -44,6 +39,7 @@ def integrations(app):
                 st.caption("配置存在不代表连接成功；测试结果和最后同步在对应详情中查看。")
             return
         with c.section(mode, key="integration-config", description=next(row[2] for row in rows if row[3] == mode) + "。配置不等于已连接。"):
+            st.caption("最后测试：" + st.session_state.get(f"integration-tested-{mode}", "暂无本次会话测试"))
             if mode == "数据导入":
                 app._render_data_package_import(key_prefix="integration-data")
             elif mode == "AI服务":
@@ -57,19 +53,20 @@ def integrations(app):
 def workspace(app):
     ux.inject_design("admin")
     st.sidebar.caption("系统配置与运行保障")
-    section = st.sidebar.radio("系统", ["系统状态", "集成与数据", "自动化运营", "规则与知识"], key="ux-admin-navigation")
-    if section == "集成与数据":
+    section = st.sidebar.radio("系统", ["系统状态", "自动化运行", "数据与集成", "规则与知识"], key="ux-admin-navigation")
+    if section == "数据与集成":
         integrations(app)
-    elif section == "自动化运营":
-        ux.page_header("自动化运营", "按成员查看长期管理的等待、失败和下一步。")
+    elif section == "自动化运行":
+        ux.page_header("自动化运行", "按成员查看长期管理的等待、失败和下一步。")
         from executive_health_ai.ui.pages.admin.post_checkup import monitor
-        monitor()
-        with st.expander('已有自动化与兼容管理工具'):
+        mode=st.radio('自动化工作',['运行记录','管理工具'],horizontal=True)
+        if mode=='运行记录':monitor()
+        else:
             app._render_admin_automation()
     elif section == "规则与知识":
         mode = st.radio("配置内容", ["规则", "专业知识", "设备"], horizontal=True)
         if mode == "设备":
-            st.info("设备配置已归入集成与数据；此兼容入口打开同一份配置。")
+            st.info("设备配置已归入数据与集成；此兼容入口打开同一份配置。")
             st.button("打开设备接入", on_click=_open_device, type="primary")
         else:
             if mode == "专业知识":
@@ -82,13 +79,13 @@ def workspace(app):
                 session.execute(select(1))
                 failed = session.scalar(select(func.count()).select_from(AgentGoal).where(AgentGoal.status.in_(("BLOCKED", "FAILED")))) or 0
             ux.metric_row([("数据访问", "可用"), ("自动化需处理", failed), ("当前运行方式", "演示预览")])
-            st.caption("数据访问为本次页面查询结果；自动化异常请到自动化运营查看负责人和下一步。")
+            st.caption("数据访问为本次页面查询结果；自动化异常请到自动化运行查看负责人和下一步。")
         except SQLAlchemyError:
             st.error("暂时无法访问数据，请由管理员检查本机服务。")
         with c.section("集成状态", key="system-connections"):
             rows = integration_statuses()
             data_table(rows, [{"集成": title, "状态": state} for title,state,summary,mode in rows], key="system-integrations", selectable=False)
-            st.button("检查集成与数据", key="system-open-integrations", type="primary", on_click=_open_integrations)
+            st.button("检查数据与集成", key="system-open-integrations", type="primary", on_click=_open_integrations)
         with c.secondary_details("运行方式与责任边界"):
             st.info("当前为演示角色预览；角色切换不等于登录或权限认证。")
         with st.expander("操作记录"):
@@ -104,7 +101,7 @@ def workspace(app):
 def legacy_tools(app):
     """Explicit, discoverable home for retained historical UI capabilities."""
     with st.expander("高级信息 · 兼容工具"):
-        with st.expander("原平台工具目录"):
+        with st.container():
             from executive_health_ai.ui.pages.support_navigation import render_support_directory
             render_support_directory(app)
         st.caption("保留历史详细视图和管理工具。这里的操作仍使用原有业务服务；仅用于演示管理与核对。")
@@ -142,7 +139,7 @@ def legacy_tools(app):
 
 
 def _open_integrations():
-    st.session_state["ux-admin-navigation"] = "集成与数据"
+    st.session_state["ux-admin-navigation"] = "数据与集成"
 
 
 def _open_device():

@@ -121,7 +121,7 @@ def test_timeline_health_data_action_routes_without_mutating_live_widgets() -> N
     app.run(timeout=30)
     open_member(app)
     app.run(timeout=30)
-    next(button for button in app.button if button.label == "查看完整健康历程").click()
+    next(item for item in app.radio if item.label == "成员页面").set_value("历程")
     app.run(timeout=30)
     action = next(button for button in app.button if button.key and button.key.startswith("timeline-data-"))
     action.click()

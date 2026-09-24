@@ -17,10 +17,10 @@ from executive_health_ai.ui.status_dictionary import status_label
 from executive_health_ai.ui.presentation import data_table, preview, work_filter, WORK_FILTERS, task_records
 
 
-def approvals(app, patient_id, role="HEALTH_MANAGER"):
+def approvals(app, patient_id, role="HEALTH_MANAGER", selected_id=None):
     with SessionLocal() as session:
         rows = list(session.execute(select(AgentApprovalRequest, AgentGoal, AgentPlanStep).join(AgentGoal, AgentApprovalRequest.goal_id == AgentGoal.id).join(AgentPlanStep, AgentApprovalRequest.plan_step_id == AgentPlanStep.id).where(AgentGoal.member_id == patient_id, AgentApprovalRequest.status == "PENDING", AgentApprovalRequest.required_role == role)))
-    selected = data_table(rows, [{'安排': goal.title, '负责人': goal.owner, '状态': '待人工确认', '下一步': goal.next_action} for approval,goal,step in rows], key=f'approvals-{patient_id}-{role}', empty='暂无需要您确认的自动跟进安排。')
+    selected = next((r for r in rows if r[0].id == selected_id),None) if selected_id else data_table(rows, [{'安排': goal.title, '负责人': goal.owner, '状态': '待人工确认', '下一步': goal.next_action} for approval,goal,step in rows], key=f'approvals-{patient_id}-{role}', empty='暂无需要您确认的自动跟进安排。')
     for approval, goal, step in [selected] if selected else []:
         from executive_health_ai.agent.post_checkup import is_care_goal
         if is_care_goal(goal):
@@ -49,7 +49,7 @@ def today(app):
 
 
 
-def management(app, patient):
+def management(app, patient, action=None):
     ctx = app._member_management_context(patient.id)
     programs = ctx["programs"]
     from executive_health_ai.services.product_projection import current_program
@@ -66,7 +66,7 @@ def management(app, patient):
     if program:
         ux.next_action(program.main_goal, program.owner)
         st.caption(f"{app._label(program.status)} · {ux.when(program.start_date)} — {ux.when(program.end_date)}")
-    mode = st.radio("管理操作", ["工作进展", "建立 / 调整计划", "安排随访", "记录阶段结果"], horizontal=True, key=f"ux-management-{patient.id}")
+    mode = action or st.radio("管理操作", ["工作进展", "建立 / 调整计划", "安排随访", "记录阶段结果"], horizontal=True, key=f"ux-management-{patient.id}")
     if mode == "建立 / 调整计划":
         create = st.checkbox("建立新计划", value=program is None, key=f"ux-new-program-{patient.id}")
         with st.form(f"ux-plan-form-{patient.id}"):
@@ -146,8 +146,11 @@ def management(app, patient):
 def member_detail(app, patient):
     from executive_health_ai.ui.pages.manager import workflow
     ux.inject_design("manager")
-    if st.button("← 返回成员列表", key="back-to-dashboard"):
+    origin=st.session_state.get('member-return-origin','会员')
+    if st.button('← 返回'+origin, key="back-to-dashboard"):
         st.session_state.pop("focused_member_id", None)
+        st.session_state.pop('member-return-origin',None)
+        app.request_navigation(surface='运营后台',ops_page={'今日工作':'今日','年度管理':'年度管理','会员':'成员'}.get(origin,'成员'))
         st.rerun()
     ctx = app._member_summary_context(patient.id)
     with SessionLocal() as session:
@@ -155,7 +158,7 @@ def member_detail(app, patient):
     program, pending, baseline, rows = view.program, view.pending_doctor, view.baseline, view.observations
     tasks = view.active_tasks
     management_view=workflow.view_for(patient.id)
-    professional = (management_view.intake.professional_focus if management_view.intake else '') or '；'.join(p.title for p in ctx['problems'] if p.status!='CLOSED') or '待初评'
+    professional = (management_view.intake.professional_focus if management_view.intake else '') or '；'.join(p.title for p in ctx['problems'] if p.status!='CLOSED' and p.source!='post_checkup_care') or '待初评'
     concern = management_view.intake.member_concern if management_view.intake else '待填写'
     next_task = tasks[0] if tasks else None
     updated = [r.observed_at for r in rows]+[r.occurred_at for r in management_view.logs]
@@ -168,7 +171,7 @@ def member_detail(app, patient):
     section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
     if section == "概览":
         from executive_health_ai.ui.pages.manager.post_checkup import member_summary
-        member_summary(patient.id)
+
         st.markdown('**当前阶段**')
         if management_view.phases: workflow.phases(management_view)
         else: workflow.onboarding(management_view)
@@ -192,20 +195,9 @@ def member_detail(app, patient):
         with st.expander('年度目标与健康基线'):
             st.write(ux.business_text(program.main_goal) if program else '待建立年度方案')
             ux.baseline_summary(baseline,rows,compact=True)
-        with c.secondary_details("管理快捷操作"):
-            cols = st.columns(3)
-            for col, label, target in zip(cols, ["查看完整健康历程", "建立 / 调整计划", "医生协同"], ["历程", "管理", "医疗"]):
-                col.button(label, key=f"ux-overview-{target}-{patient.id}", on_click=app.request_navigation, kwargs={"surface": "运营后台", "ops_page": "成员", "member_id": patient.id, "member_section": target})
-            quick = st.columns(2)
-            for col, label in zip(quick, ["安排随访", "记录阶段结果"]):
-                if col.button(label, key=f"360-quick-{label}-{patient.id}"):
-                    st.session_state[f"ux-management-{patient.id}"] = label
-                    st.session_state[f"workflow-mode-{patient.id}"] = "原有计划 / 任务 / 自动跟进"
-                    app.request_navigation(surface="运营后台", ops_page="成员", member_id=patient.id, member_section="管理")
-        with st.expander("处理开放中的健康关注事项"):
-            app._render_current_risk_actions(patient)
-        with st.expander("近期服务"):
-            app.render_member_service_management(patient)
+        member_summary(patient.id,app=app)
+        st.markdown('**下一步**')
+        st.write((next_task.title+' · '+ux.when(next_task.due_at)+' · '+(next_task.assignee or view.owner)) if next_task else '责任健管确认下一阶段安排')
     elif section == "健康":
         from executive_health_ai.ui.pages.manager.workbench import archive
         archive(app,patient,management_view)
