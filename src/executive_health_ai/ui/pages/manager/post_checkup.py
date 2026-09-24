@@ -34,7 +34,7 @@ def command(goal_id, callback):
 
 
 def stepper(goal):
-    labels = ['报告接收', '系统整理', '健管确认', '医生复核', '行动确认', '完成']
+    labels = ['报告接收', '系统整理', '健管确认', '医生判断', '行动建立', '完成']
     current = {'REPORT_RECEIVED': 0, 'ANALYZING': 1, 'WAITING_MANAGER_REVIEW': 2,
                'WAITING_DOCTOR_REVIEW': 3, 'WAITING_ACTION_APPROVAL': 4, 'CREATING_ACTIONS': 4,
                'COMPLETED': 5, 'ESCALATED': 1, 'FAILED': 1}.get(goal.current_stage, 1)
@@ -125,8 +125,15 @@ def manager_detail(app, goal_id):
         st.rerun()
     context = goal.context_json
     st.header(context.get('member', {}).get('name', '会员')+' · 体检后健康管理')
-    c.summary_strip([('责任健管', goal.owner or '待确认'), ('当前状态', flow.LABELS.get(goal.current_stage, '需人工处理')),
-                     ('本次报告', context.get('report', {}).get('at', '')[:10])])
+    if goal.status == 'COMPLETED':
+        st.markdown('**健康管理助手已完成本次准备**')
+    elif goal.status in {'ESCALATED', 'FAILED', 'WAITING_INPUT'}:
+        st.markdown('**健康管理助手需要人工协助**')
+    else:
+        st.markdown('**健康管理助手正在处理**')
+    current_label = '等待健管确认' if goal.current_stage == 'WAITING_MANAGER_REVIEW' else flow.LABELS.get(goal.current_stage, '需人工处理')
+    st.write('当前：'+current_label)
+    st.caption(f"责任健管：{goal.owner or '待确认'} · 本次报告：{context.get('report', {}).get('at', '')[:10]}")
     stepper(goal)
     if goal.status == 'COMPLETED':
         st.success('本次体检后管理已完成')
@@ -144,7 +151,7 @@ def manager_detail(app, goal_id):
         st.info(f'责任医生：{review.doctor_name} · 提交时间：{ux.local_time(review.created_at)}')
         st.caption('报告、基线、趋势和会员背景已随本次问题交给医生，提交后会自动返回此处。')
     elif goal.current_stage == 'WAITING_ACTION_APPROVAL':
-        st.subheader('需要您处理')
+        st.subheader('现在需要你做')
         st.write('请核对负责人和日期，确认后一次建立后续安排。')
         if context.get('doctor_result'):
             st.caption('医生意见：'+context['doctor_result']['judgement'][:160])
@@ -167,27 +174,42 @@ def manager_detail(app, goal_id):
                         'owner': r.get('负责人'), 'evidence': r.get('依据'), 'service_code': catalog.get(r.get('服务项目'))} for r in edited.to_dict('records')]
             command(goal.id, lambda s, g: flow.approve_actions(HealthOpsAgentSupervisor(), s, g, actions=actions, actor=g.owner, role='HEALTH_MANAGER'))
     elif goal.status == 'WAITING_MANAGER':
-        st.subheader('需要您处理')
-        st.write('请核对本次指标及处理路径。确认后，提取资料按现有规则入档；需要医学判断时提交责任医生。')
+        st.subheader('现在需要你做')
+        findings_count = len(context.get('findings', []))
+        st.write(f'确认系统整理的 {findings_count} 项健康变化' if findings_count else '人工核对本次报告与处理路径')
         if context.get('llm_status') == 'UNAVAILABLE':
             st.caption('自动整理暂不可用；已保留规则提取资料，可人工核对后继续。')
         with st.form(f'care-initial-{goal.id}'):
+            confirm = st.form_submit_button('确认并继续', type='primary')
             with st.expander('修改整理结果 / 提交医生判断'):
                 summary = st.text_area('健管确认摘要', value=context.get('summary', ''))
                 doctor = st.text_input('责任医生', placeholder='填写本次负责判断的医生')
                 question = st.text_area('需要医生判断的问题', value='本次指标变化是否需要进一步医学处理？')
                 send = st.form_submit_button('提交医生判断')
-            confirm = st.form_submit_button('确认并继续', type='primary')
         if send or confirm:
             command(goal.id, lambda s, g: flow.manager_review(HealthOpsAgentSupervisor(), s, g, actor=g.owner,
                 role='HEALTH_MANAGER', summary=summary, doctor=doctor if send else None, question=question))
+        st.divider()
+        completed, upcoming = st.columns([1, 1])
+        with completed:
+            st.subheader('助手已经完成')
+            st.markdown('✓ 读取体检报告  \n'+
+                ('✓ 对比年度健康基线' if context.get('baseline') else '— 尚无已确认的年度健康基线')+'  \n'+
+                ('✓ 整理历史资料' if context.get('history_reports') or context.get('member', {}).get('history') else '— 暂无已记录的历史资料')+'  \n'+
+                ('✓ 准备知识依据' if context.get('knowledge') else '— 暂无匹配的已审核知识依据'))
+        with upcoming:
+            st.subheader('接下来')
+            st.write('如需医学判断 → 确认责任医生后自动提交')
+            st.write('无需医生 → 自动生成后续行动草稿')
+            st.caption('后续行动经你确认后正式建立。')
+        st.divider()
         with st.expander('核对或修正原报告资料'):
             if st.button('打开报告核对'):
                 app._open_report_review_from_worklist(goal.member_id, UUID(goal.source_id))
             if st.button('刷新已修改资料'):
                 command(goal.id, lambda s, g: flow.analyze(HealthOpsAgentSupervisor(), s, g))
     else:
-        st.subheader('需要您处理')
+        st.subheader('现在需要你做')
         st.warning(goal.next_action or '请人工核对报告资料。')
         if st.button('重新读取已补充资料', type='primary'):
             command(goal.id, lambda s, g: HealthOpsAgentSupervisor().resume_goal(s, g.id, actor=g.owner or '健康管理师'))

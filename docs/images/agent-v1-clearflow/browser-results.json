@@ -1,0 +1,56 @@
+{
+  "actual_browser": "Chromium",
+  "pages": [
+    {
+      "page": "01-manager-today",
+      "technical_terms": [],
+      "page_errors": 0
+    },
+    {
+      "page": "02-agent-manager-review",
+      "technical_terms": [],
+      "page_errors": 0
+    },
+    {
+      "page": "03-agent-evidence",
+      "technical_terms": [],
+      "page_errors": 0
+    },
+    {
+      "page": "04-doctor-worklist",
+      "technical_terms": [],
+      "page_errors": 0
+    },
+    {
+      "page": "05-doctor-review",
+      "technical_terms": [],
+      "page_errors": 0
+    },
+    {
+      "page": "06-manager-action-approval",
+      "technical_terms": [],
+      "page_errors": 0
+    },
+    {
+      "page": "07-agent-complete",
+      "technical_terms": [],
+      "page_errors": 0
+    },
+    {
+      "page": "08-member360-after-agent",
+      "technical_terms": [],
+      "page_errors": 0
+    },
+    {
+      "page": "09-admin-agent-monitor",
+      "technical_terms": "admin only",
+      "page_errors": 0
+    },
+    {
+      "page": "10-member-plan",
+      "technical_terms": [],
+      "page_errors": 0
+    }
+  ],
+  "errors": []
+}

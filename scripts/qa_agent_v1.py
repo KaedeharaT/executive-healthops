@@ -58,7 +58,9 @@ with sync_playwright() as p:
             button('进入 HealthOps 运营后台')
         select('今日事项筛选', '体检后管理'); search('查找待办', 'Demo Executive A')
         shot('01-manager-today'); row()
-        assert '需要您处理' in page.locator('body').inner_text()
+        assert '现在需要你做' in page.locator('body').inner_text()
+        assert '助手已经完成' in page.locator('body').inner_text()
+        assert '接下来' in page.locator('body').inner_text()
         shot('02-agent-manager-review')
         assert page.locator('.vega-embed').count() >= 2, 'Real historic trends must be present'
         page.get_by_role('heading', name='依据', exact=True).scroll_into_view_if_needed()
