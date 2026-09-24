@@ -55,7 +55,7 @@ with sync_playwright() as p:
     page.get_by_label('查找待办',exact=True).fill('');page.get_by_label('查找待办',exact=True).press('Enter');settle()
     radio('会员');shot('member-list')
     page.get_by_label('搜索成员',exact=True).fill('张先生');page.get_by_label('搜索成员',exact=True).press('Enter');settle()
-    button('查看成员');shot('member-360')
+    grid_row();shot('member-360')
     radio('健康档案');shot('member-health-record')
     radio('管理');shot('member-management')
     select('管理工作','管理日志');shot('management-log')

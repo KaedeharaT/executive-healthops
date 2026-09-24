@@ -4,6 +4,7 @@ from pathlib import Path
 
 from sqlalchemy import delete, select
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.models import HealthAssessment, Patient
@@ -40,7 +41,7 @@ def test_baseline_review_confirmation_and_member_reference_point_are_interaction
     try:
         doctor = AppTest.from_file(APP); doctor.run(timeout=30)
         _radio(doctor, "当前视图").set_value("医生工作台"); doctor.run(timeout=30)
-        next(item for item in doctor.checkbox if item.label == '使用下拉选择').check(); doctor.run(timeout=30)
+        select_table_row(doctor); doctor.run(timeout=30)
         assert "年度健康基线医学资料复核" in _visible_text(doctor)
         assert "2026年度健康基线医学摘要" in _visible_text(doctor)
         next(item for item in doctor.text_area if item.label == "医学资料复核说明").set_value("医学相关资料已人工核对")
@@ -49,7 +50,7 @@ def test_baseline_review_confirmation_and_member_reference_point_are_interaction
 
         manager = AppTest.from_file(APP); manager.run(timeout=30)
         _radio(manager, "工作区").set_value("成员"); manager.run(timeout=30)
-        next(item for item in manager.button if item.label == "查看成员").click(); manager.run(timeout=30)
+        open_member(manager); manager.run(timeout=30)
         member_section = next(item for item in manager.radio if item.key and item.key.startswith("member-section-"))
         member_section.set_value("健康"); manager.run(timeout=30)
         _radio(manager, "成员健康内容").set_value("基线"); manager.run(timeout=30)
@@ -73,7 +74,7 @@ def test_baseline_review_confirmation_and_member_reference_point_are_interaction
 def test_confirmed_baseline_visualizations_are_reachable_from_real_member_and_manager_navigation() -> None:
     manager = AppTest.from_file(APP); manager.run(timeout=30)
     _radio(manager, "工作区").set_value("成员"); manager.run(timeout=30)
-    next(item for item in manager.button if item.label == "查看成员").click(); manager.run(timeout=30)
+    open_member(manager); manager.run(timeout=30)
     member_section = next(item for item in manager.radio if item.key and item.key.startswith("member-section-"))
     member_section.set_value("健康"); manager.run(timeout=30)
     _radio(manager, "成员健康内容").set_value("基线"); manager.run(timeout=30)

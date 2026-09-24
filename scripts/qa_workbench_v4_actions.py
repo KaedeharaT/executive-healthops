@@ -31,7 +31,7 @@ with sync_playwright() as p:
         settle()
     page.goto('http://127.0.0.1:18514',wait_until='networkidle');settle()
     radio('会员');fill('搜索成员','张先生');page.get_by_label('搜索成员',exact=True).press('Enter');settle()
-    button('查看成员');radio('管理');button('新增管理记录')
+    page.locator('[data-testid="stDataFrame"]').first.click(position={'x':80,'y':55});settle();radio('管理');button('新增管理记录')
     fill('发生了什么',marker+'已与会员确认复查时间')
     fill('我做了什么','核对医生既有安排，联系会员确认')
     fill('本次结果','已确认')
@@ -55,7 +55,7 @@ with sync_playwright() as p:
     assert not page.get_by_role('button',name='关闭',exact=True).count()
     # Switching selected member must not retain another member's follow-up.
     button('← 返回成员列表');fill('搜索成员','Demo Executive A');page.get_by_label('搜索成员',exact=True).press('Enter');settle()
-    button('查看成员');radio('管理')
+    page.locator('[data-testid="stDataFrame"]').first.click(position={'x':80,'y':55});settle();radio('管理')
     assert marker not in page.locator('body').inner_text()
     (out/'action-results.json').write_text(json.dumps({'actual_browser':True,'log_saved':True,'next_task_created_once':True,'member_and_program_match':True,'drawer_closed':True,'member_switch_isolated':True},indent=2),encoding='utf8')
     browser.close()

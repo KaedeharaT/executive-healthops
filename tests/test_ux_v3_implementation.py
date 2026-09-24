@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 
 from executive_health_ai.services.product_projection import ManagerWorkView, Member360View
 
@@ -102,7 +103,7 @@ def test_doctor_history_and_member_360_details_keep_frozen_navigation_budget():
     radio(app, "复核工作", "已完成")
     radio(app, "当前视图", "运营后台")
     radio(app, "工作区", "成员")
-    next(b for b in app.button if b.label == "查看成员").click(); app.run(timeout=45)
+    open_member(app); app.run(timeout=45)
     assert len(next(r for r in app.radio if r.label == "成员页面").options) == 5
     radio(app, "成员页面", "健康")
     assert any(b.label == "查看年度健康基线" for b in app.button)

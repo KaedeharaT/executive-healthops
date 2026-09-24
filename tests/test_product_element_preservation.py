@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import select
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.models import DoctorReview, HealthProblem, Observation, Patient, ServiceRequest, AgentGoal, AgentApprovalRequest
 from executive_health_ai.services.product_projection import ProductProjectionService, current_program, pending_doctor_work
@@ -142,7 +143,7 @@ def test_actual_member_and_manager_baseline_and_owner_read_the_same_context():
         assert view.program.title in visible(member) and owner in visible(member)
     radio(member,'成员健康中心导航','健康')
     manager=AppTest.from_file(APP).run(timeout=45)
-    radio(manager,'工作区','成员');click(manager,'查看成员');radio(manager,'成员页面','健康')
+    radio(manager,'工作区','成员');open_member(manager).run(timeout=45);radio(manager,'成员页面','健康')
     assert owner in visible(manager)
     for app in [member,manager]:
         assert '年度健康基线' in visible(app) and '当前健康状态' in visible(app)

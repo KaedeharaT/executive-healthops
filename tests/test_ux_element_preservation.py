@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 from executive_health_ai.services.health_visualization import HealthPoint, HealthSeries
 from executive_health_ai.ui.charts.health import metric_trend_chart
 
@@ -73,11 +74,8 @@ def test_manager_selection_changes_inspector_and_keeps_processing_entry():
     assert len(app.dataframe) >= 1
     next(x for x in app.text_input if x.label == '查找待办').set_value('V2选择事项')
     app.run(timeout=30)
-    next(x for x in app.checkbox if x.label == '使用下拉选择').set_value(True)
-    app.run(timeout=30)
-    selector = next(x for x in app.selectbox if x.label == '选择待办')
-    assert len(selector.options) == 2
-    selector.set_value(1); app.run(timeout=30)
+    assert len(app.dataframe[0].value) == 2
+    select_table_row(app, 1).run(timeout=30)
     assert not app.exception
     assert any('V2选择事项1' in str(x.value) for x in app.markdown)
     assert any(b.label == '处理当前任务' for b in app.button)
@@ -89,7 +87,7 @@ def test_manager_selection_changes_inspector_and_keeps_processing_entry():
 
 def test_360_quick_actions_open_original_management_forms():
     app = AppTest.from_file(APP).run(timeout=30)
-    radio(app, "工作区", "成员"); button(app, "查看成员")
+    radio(app, "工作区", "成员"); open_member(app).run(timeout=30)
     button(app, "安排随访")
     assert next(x for x in app.radio if x.label == "管理操作").value == "安排随访"
     assert any(x.label == "需要完成什么" for x in app.text_area)

@@ -9,6 +9,7 @@ widget key.
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 
 import streamlit_app
 from executive_health_ai.ui.localization.zh_cn import observation, status
@@ -88,7 +89,7 @@ def test_ops_and_member_navigation_sweep_has_no_visible_placeholder_or_widget_fa
     app.run(timeout=30)
     _radio(app, "工作区").set_value("成员")
     app.run(timeout=30)
-    next(button for button in app.button if button.label == "查看成员").click()
+    open_member(app)
     app.run(timeout=30)
     _assert_clean(app)
 
@@ -118,7 +119,7 @@ def test_timeline_health_data_action_routes_without_mutating_live_widgets() -> N
     app.run(timeout=30)
     _radio(app, "工作区").set_value("成员")
     app.run(timeout=30)
-    next(button for button in app.button if button.label == "查看成员").click()
+    open_member(app)
     app.run(timeout=30)
     next(button for button in app.button if button.label == "查看完整健康历程").click()
     app.run(timeout=30)

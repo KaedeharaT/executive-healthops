@@ -4,6 +4,7 @@ from types import SimpleNamespace as Row
 
 import pytest
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 
 from executive_health_ai.ui.presentation import display_frame, preview, selected_record, work_filter, task_records
 
@@ -58,8 +59,7 @@ def table_page():
 def test_grid_keyboard_selection_and_search_reset_cannot_target_hidden_record():
     app = AppTest.from_function(table_page).run()
     assert not app.exception and len(app.dataframe[0].value) == 2
-    app.checkbox[0].set_value(True).run()
-    app.selectbox[0].set_value(1).run()
+    select_table_row(app, 1).run()
     assert any('乙的完整说明' in x.value for x in app.markdown)
     app.text_input[0].set_value('甲').run()
     assert len(app.dataframe[0].value) == 1
@@ -137,6 +137,5 @@ def test_configuration_grid_requires_explicit_selection():
         st.caption(selected or '尚未选择')
     app = AppTest.from_function(page).run()
     assert not app.exception and app.caption[-1].value == '尚未选择'
-    app.checkbox[0].check().run()
-    app.selectbox[0].select_index(1).run()
+    select_table_row(app, 1).run()
     assert not app.exception and app.caption[-1].value == 'device'

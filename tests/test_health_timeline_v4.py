@@ -9,6 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 
 from executive_health_ai.blood_pressure import TOKYO_TIMEZONE
 from executive_health_ai.models import Base, Observation, Patient
@@ -230,7 +231,7 @@ def test_timeline_range_slider_changes_the_user_path_without_widget_state_error(
     app.run(timeout=30)
     next(item for item in app.radio if item.label == "工作区").set_value("成员")
     app.run(timeout=30)
-    next(item for item in app.button if item.label == "查看成员").click()
+    open_member(app)
     app.run(timeout=30)
     next(item for item in app.button if item.label == "查看完整健康历程").click()
     app.run(timeout=30)
@@ -248,7 +249,7 @@ def test_timeline_shortcut_and_slider_remain_synchronized() -> None:
     app.run(timeout=30)
     next(item for item in app.radio if item.label == "工作区").set_value("成员")
     app.run(timeout=30)
-    next(item for item in app.button if item.label == "查看成员").click()
+    open_member(app)
     app.run(timeout=30)
     next(item for item in app.button if item.label == "查看完整健康历程").click()
     app.run(timeout=30)
@@ -425,7 +426,7 @@ def test_clicking_a_timeline_card_updates_the_inspector_without_a_view_button() 
     app.run(timeout=30)
     next(item for item in app.radio if item.label == "工作区").set_value("成员")
     app.run(timeout=30)
-    next(item for item in app.button if item.label == "查看成员").click()
+    open_member(app)
     app.run(timeout=30)
     next(item for item in app.button if item.label == "查看完整健康历程").click()
     app.run(timeout=30)

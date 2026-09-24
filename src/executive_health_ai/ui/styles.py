@@ -5,10 +5,11 @@ TOKENS = {"blue": "#185da8", "ink": "#20354c", "muted": "#52677d", "border": "#d
 
 def role_styles(role="manager"):
     width = "1120px" if role == "member" else "1180px" if role == "doctor" else "1440px"
-    return ROLE_STYLES.replace("__CONTENT_WIDTH__", width)
+    return ROLE_STYLES.replace("__CONTENT_WIDTH__", width).replace("__DEVELOPER_CONTROLS__", "revert" if role == "admin" else "none")
 
 
 ROLE_STYLES = """<style>
+[data-testid="stAppDeployButton"], [data-testid="stMainMenu"] {display:__DEVELOPER_CONTROLS__!important}
 .care-member-header {border-left:4px solid #185da8;padding:14px 20px;background:white;border-radius:8px;line-height:1.7}
 .care-member-header small {color:#52677d;font-size:12px}
 .care-focus {display:flex;gap:24px;flex-wrap:wrap;font-size:14px;margin:8px 0}

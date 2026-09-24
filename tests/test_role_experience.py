@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.models import Base, DoctorReview, HealthProblem, HealthProgram, Observation, OutcomeEvaluation, Patient, Task
@@ -81,7 +82,7 @@ def test_doctor_completion_leaves_pending_queue_and_returns_manager_task():
 def test_manager_can_create_adjust_schedule_and_record_outcome_through_normal_ui():
     app = AppTest.from_file(APP).run(timeout=30)
     _radio(app, "工作区").set_value("成员"); app.run(timeout=30)
-    _button(app, "查看成员").click(); app.run(timeout=30)
+    open_member(app); app.run(timeout=30)
     _radio(app, "成员页面").set_value("管理"); app.run(timeout=30)
     next(item for item in app.selectbox if item.label == '管理工作').set_value('原有计划 / 任务 / 自动跟进'); app.run(timeout=30)
     _radio(app, "管理操作").set_value("建立 / 调整计划"); app.run(timeout=30)

@@ -25,13 +25,14 @@ def display_frame(records):
 
 
 def selected_record(rows, selection):
-    indices = selection.get('selection', {}).get('rows', []) if selection else []
+    state = selection.get('selection', {}) if selection else {}
+    indices = state.get('rows', []) or [cell[0] for cell in state.get('cells', [])]
     index = indices[0] if indices else 0
     return rows[index] if rows and isinstance(index, int) and 0 <= index < len(rows) else (rows[0] if rows else None)
 
 
-def data_table(rows, records, *, key, label='选择记录', selectable=True, empty='暂无记录。', search=False, export=False, auto_select=True):
-    """Native sortable grid, bounded summaries, stable source identity and keyboard fallback.
+def data_table(rows, records, *, key, label='选择记录', selectable=True, empty='暂无记录。', search=False, export=False, auto_select=True, activate_on_cell=False):
+    """Native sortable grid with built-in keyboard selection and stable source identity.
 
     Streamlit returns original input indices even after client-side sorting. A data
     signature resets selection after filtering or refresh, preventing stale actions.
@@ -69,9 +70,9 @@ def data_table(rows, records, *, key, label='选择记录', selectable=True, emp
     if not selectable:
         st.dataframe(styled, **options)
         return None
-    event = st.dataframe(styled, on_select='rerun', selection_mode='single-row', **options)
+    event = st.dataframe(styled, on_select='rerun', selection_mode='single-cell' if activate_on_cell else 'single-row', **options)
     selected = selected_record(rows, event)
-    if not auto_select and not event.get('selection', {}).get('rows', []):
+    if not auto_select and not (event.get('selection', {}).get('rows', []) or event.get('selection', {}).get('cells', [])):
         selected = None
     if export:
         # Export full business text, not the deliberately shortened grid cells.
@@ -80,13 +81,6 @@ def data_table(rows, records, *, key, label='选择记录', selectable=True, emp
             return "'"+text if text.lstrip().startswith(('=', '+', '-', '@')) else text
         full = pd.DataFrame([{k:csv_value(v) for k,v in record.items()} for record in records])
         st.download_button('导出筛选记录（完整内容）', full.to_csv(index=False).encode('utf-8-sig'), file_name='management-records.csv', mime='text/csv', key=grid_key+'-export')
-    with st.expander('键盘选择 / 完整标题'):
-        use_keyboard = st.checkbox('使用下拉选择', key=grid_key+'-keyboard')
-        index = next((i for i, r in enumerate(rows) if r is selected), 0)
-        chosen = st.selectbox(label, range(len(rows)), index=index,
-            format_func=lambda i: ux.business_text(str(next(iter(records[i].values())))), key=grid_key+'-choice')
-        if use_keyboard:
-            selected = rows[chosen]
     return selected
 
 

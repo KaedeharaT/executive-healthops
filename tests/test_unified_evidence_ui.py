@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 
 import streamlit_app as app
 from executive_health_ai.models import Base, Document, Patient, ReportExtractionCandidate, ReportExtractionRun
@@ -155,7 +156,7 @@ def test_member_overview_timeline_opens_evidence_from_normal_navigation() -> Non
     app_test.run(timeout=30)
     next(item for item in app_test.radio if item.label == "工作区").set_value("成员")
     app_test.run(timeout=30)
-    next(item for item in app_test.button if item.label == "查看成员").click()
+    open_member(app_test)
     app_test.run(timeout=30)
     next(item for item in app_test.button if item.label == "查看完整健康历程").click()
     app_test.run(timeout=30)

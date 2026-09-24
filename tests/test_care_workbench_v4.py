@@ -4,6 +4,7 @@ from decimal import Decimal
 from types import SimpleNamespace as Row
 from pathlib import Path
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.models import Patient
 from executive_health_ai.models.management_workflow import IntakeAssessment
@@ -19,7 +20,7 @@ def test_today_drawer_requires_selection_and_close_resets_only_selection():
     app=AppTest.from_file(APP).run(timeout=45)
     assert not app.exception
     assert not any(b.label=='关闭' for b in app.button)
-    next(c for c in app.checkbox if c.label=='使用下拉选择').check().run(timeout=45)
+    select_table_row(app).run(timeout=45)
     assert not app.exception and any(b.label=='关闭' for b in app.button)
     next(b for b in app.button if b.label=='关闭').click().run(timeout=45)
     assert not app.exception and not any(b.label=='关闭' for b in app.button)

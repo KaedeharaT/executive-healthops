@@ -6,6 +6,7 @@ are unreliable across developer machines and databases.
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 
 
 APP = Path(__file__).resolve().parents[1] / "streamlit_app.py"
@@ -132,8 +133,7 @@ def test_member_card_opens_all_five_member_sections_without_widget_state_errors(
     app.run(timeout=30)
     _radio(app, "工作区").set_value("成员")
     app.run(timeout=30)
-    member_button = next(button for button in app.button if button.label == "查看成员")
-    member_button.click()
+    open_member(app)
     app.run(timeout=30)
     assert not app.exception
     section = next(radio for radio in app.radio if radio.key and radio.key.startswith("member-section-"))

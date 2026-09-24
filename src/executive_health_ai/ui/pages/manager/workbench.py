@@ -113,6 +113,10 @@ def directory(app, members):
     query, state, owner = c.filter_bar(key='member-list', search_label='搜索成员',
         statuses=sorted({status_label(r['program'].status) if r['program'] else '待建档' for r in rows}),
         owners=sorted({r['program'].owner if r['program'] else '待分配' for r in rows}))
+    scope = (query, state, owner)
+    if st.session_state.get('member-directory-scope') != scope:
+        st.session_state['member-directory-scope'] = scope
+        st.session_state['member-directory-epoch'] = st.session_state.get('member-directory-epoch', 0)+1
     workflow.enroll(app)
     rows = [r for r in rows if (not query or query in (app._member_display(r['member'])+r['focus']).casefold())
             and (state=='全部' or state==(status_label(r['program'].status) if r['program'] else '待建档'))
@@ -125,10 +129,11 @@ def directory(app, members):
             '主要管理重点':r['focus'] or '待初评','责任健管':p.owner if p else '待分配',
             '最近联系':ux.local_time(log.occurred_at) if log else None,'下一事项':t.title if t else '待确认安排',
             '下一日期':ux.local_time(t.due_at) if t else None,'状态':status_label(p.status) if p else '待建档'})
-    chosen = data_table(rows, records, key='member-directory',label='选择会员',empty='未找到匹配会员。')
+    chosen = data_table(rows, records, key='member-directory',label='选择会员',empty='未找到匹配会员。',auto_select=False,activate_on_cell=True)
     if chosen:
-        member=chosen['member']
-        st.button('查看成员',key=f'member-card-{member.id}',on_click=app._open_member,args=(member.id,),type='primary')
+        st.session_state['member-directory-epoch'] = st.session_state.get('member-directory-epoch', 0)+1
+        app._open_member(chosen['member'].id)
+        st.rerun()
 
 
 def archive(app, patient, view):

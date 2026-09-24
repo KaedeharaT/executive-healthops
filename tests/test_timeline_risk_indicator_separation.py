@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from streamlit.testing.v1 import AppTest
+from tests.ui_selection import open_member, select_table_row
 
 from executive_health_ai.services.longitudinal import (
     HealthTimelineService,
@@ -96,7 +97,7 @@ def test_timeline_normal_user_view_hides_internal_enum_and_synthetic_program_tit
     app.run(timeout=30)
     next(item for item in app.radio if item.label == "工作区").set_value("成员")
     app.run(timeout=30)
-    next(item for item in app.button if item.label == "查看成员").click()
+    open_member(app)
     app.run(timeout=30)
     assert not app.exception
     visible = "\n".join(
