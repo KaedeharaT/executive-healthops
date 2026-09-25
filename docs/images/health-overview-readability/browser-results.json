@@ -1,0 +1,51 @@
+{
+  "1366x768": {
+    "section_gaps": [
+      28.0,
+      28.0,
+      28.0
+    ],
+    "horizontal_overflow": false,
+    "bottom_columns": "side by side"
+  },
+  "1440x900": {
+    "section_gaps": [
+      28.0,
+      28.0,
+      28.0
+    ],
+    "horizontal_overflow": false,
+    "bottom_columns": "side by side"
+  },
+  "1920x1080": {
+    "section_gaps": [
+      28.0,
+      28.0,
+      28.0
+    ],
+    "horizontal_overflow": false,
+    "bottom_columns": "side by side"
+  },
+  "tooltip": "日期\t\n2026/09/25\n\n指标\t\n体重\n\n数值\t\n85.8\n\n单位\t\nkg\n\n类型\t\n当前\n\n来源\t\n健康数据",
+  "actual_browser": "Chromium",
+  "domains": 8,
+  "coverage_items": 6,
+  "focus_items": 4,
+  "retained_controls": [
+    "metric",
+    "time_window",
+    "baseline",
+    "current",
+    "delta",
+    "chart",
+    "evidence",
+    "focus_details",
+    "history",
+    "all_metrics",
+    "full_baseline",
+    "archive",
+    "reports",
+    "supplement"
+  ],
+  "errors": []
+}

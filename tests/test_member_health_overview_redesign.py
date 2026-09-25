@@ -64,8 +64,9 @@ def test_missing_domains_are_grouped_once_without_repeated_empty_paragraphs():
 def test_baseline_change_precedes_focus_and_all_details_follow_coverage():
     app = AppTest.from_function(render_example, args=(example_view(),)).run()
     headings = [e.value for e in app.subheader]
-    assert headings == ["2026年度健康基线", "从基线到现在", "重点关注", "健康概览", "资料待补充", "详细资料"]
+    assert headings == ["2026年度健康基线", "从年度基线到现在", "当前重点关注", "健康领域概览", "资料完整性"]
     assert len(app.get("vega_lite_chart")) == 1
+    assert "**详细资料**" in text(app)
     assert "已有检查发现待跟进" in text(app)
     assert "90 kg" in text(app) and "85.8 kg" in text(app) and "↓ 下降 4.2 kg" in text(app)
     assert "当前健康状态 · 所选指标最近记录：2026/09/01" in text(app)
@@ -100,8 +101,23 @@ def test_coverage_counts_only_fully_covered_categories_and_disclaims_score():
     content = text(app)
     assert "2 / 6 类资料已覆盖" in content
     assert "这是资料完整度，不代表健康评分。" in content
-    assert "连续健康数据</span><small>部分" in content
+    assert "连续健康数据</span>" in content and "待补充 · 部分覆盖" in content
     assert "健康评分 2" not in content
+
+
+def test_domain_table_preserves_missing_and_available_domains_with_source_statuses():
+    view = example_view()
+    original = view.health.baseline.domains
+    app = AppTest.from_function(render_example, args=(view,)).run()
+    assert not app.exception
+    table = next(e.value for e in app.markdown if '<table class="overview-domain-list"' in e.value)
+    assert table.count('<th scope="row">') == len(original)
+    for item in original:
+        assert f'<th scope="row">{item.label}</th>' in table
+    assert table.count('待补充资料') == 2
+    assert table.count('需要持续关注') == 1
+    assert table.count('资料已建立') == 1
+    assert view.health.baseline.domains == original
 
 
 def test_single_baseline_point_preserves_value_without_empty_chart():

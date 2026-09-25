@@ -5888,7 +5888,10 @@ def render_client_health_hub(patient: Patient, ctx: dict[str, list[object]]) -> 
     allowed = ["健康概览", "健康数据", "体检", "医疗档案"]
     if st.session_state.get(key) not in allowed:
         st.session_state[key] = "健康概览"
-    view = st.radio("健康内容", allowed, horizontal=True, label_visibility="collapsed", key=key, format_func=lambda x: {"体检":"体检与检查", "医疗档案":"健康档案"}.get(x, x))
+    from executive_health_ai.ui.styles import MEMBER_OVERVIEW_STYLES
+    st.markdown(MEMBER_OVERVIEW_STYLES, unsafe_allow_html=True)
+    with st.container(key="member-health-tabs"):
+        view = st.radio("健康内容", allowed, horizontal=True, label_visibility="collapsed", key=key, format_func=lambda x: {"体检":"体检与检查", "医疗档案":"健康档案"}.get(x, x))
     if view == "健康概览":
         _render_client_health_overview(patient, ctx)
     elif view == "健康数据":

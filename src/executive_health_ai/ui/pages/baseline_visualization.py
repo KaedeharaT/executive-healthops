@@ -124,9 +124,12 @@ def render_baseline_progress(view, *, key_prefix: str, layout: str = "default") 
         selected = tuple(replace(trend, points=tuple(p for p in trend.points if p.point_type == "BASELINE" or p.observed_at >= cutoff)) for trend in selected)
         st.caption("保留年度基线作为起点；后续记录按所选时间范围展示。")
     if layout == "member_overview":
+        st.divider()
         latest = max((p.observed_at for t in selected for p in t.points if p.point_type != "BASELINE"), default=None)
         st.caption("当前健康状态 · " + (f"所选指标最近记录：{latest:%Y/%m/%d}" if latest else "所选范围暂无后续记录"))
         comparison_rows(selected_comparisons(view, selected), maximum=len(selected))
+        st.divider()
+        st.markdown("**" + selected_label + "趋势**")
     chart = baseline_trend_chart(selected)
     if chart is None:
         st.caption("目前还没有足够的后续数据形成趋势。")
@@ -136,6 +139,13 @@ def render_baseline_progress(view, *, key_prefix: str, layout: str = "default") 
         st.altair_chart(chart, width="stretch", theme=None, key=f"{key_prefix}-trend-chart")
         st.caption("虚线 / 菱形：年度基线；末端圆点：当前有效记录。悬停查看日期、数值、单位和来源。")
 
+    if layout == "member_overview":
+        for item in selected_comparisons(view, selected):
+            current = f"{number_text(item.current)} {item.unit}" if item.delta is not None else "暂无后续数据"
+            st.caption(f"{item.label} · 年度基线 {number_text(item.baseline)} {item.unit} · 当前 {current} · 变化 {item.delta_text}")
+        sources = list(dict.fromkeys(p.source_type for trend in selected for p in trend.points))
+        if sources:
+            st.caption("数据来源：" + "、".join(sources))
     if layout == "default":
         _render_comparison_details(view)
 
