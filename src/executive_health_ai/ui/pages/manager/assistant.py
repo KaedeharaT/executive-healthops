@@ -15,28 +15,38 @@ def open_care(app, goal, origin='今日工作'):
 
 
 def assistant(app, people):
+    from executive_health_ai.ui.pages.manager import care_activity
+    care_activity.styles()
     with SessionLocal() as session:
         goals = [g for g in session.scalars(select(AgentGoal).order_by(AgentGoal.updated_at.desc())) if is_care_goal(g)]
     active = [g for g in goals if g.status not in {'COMPLETED', 'CANCELLED'}]
     recent = [g for g in goals if g.status == 'COMPLETED' and ux.local_time(g.updated_at) >= datetime.now(ux.LOCAL)-timedelta(days=7)]
     st.subheader('健康管理助手')
-    c.summary_strip([('正在自动处理', sum(g.status == 'RUNNING' for g in active)),
+    c.summary_strip([('正在运行', sum(g.status == 'RUNNING' for g in active)),
         ('等待我确认', sum(g.status in {'WAITING_MANAGER','WAITING_INPUT','ESCALATED','FAILED'} for g in active)),
         ('等待医生', sum(g.status == 'WAITING_DOCTOR' for g in active)), ('最近完成', len(recent))])
     if not active:
         st.caption('当前没有需要您处理的自动流程。')
         return
     priorities = {'WAITING_MANAGER':0,'WAITING_INPUT':1,'ESCALATED':1,'FAILED':1,'WAITING_DOCTOR':2,'RUNNING':3}
-    for goal in sorted(active, key=lambda g: priorities.get(g.status, 4))[:3]:
-        member, state, action = st.columns([2, 1.5, 1])
-        member.markdown('**'+app._member_display(people.get(goal.member_id))+' · 体检后健康管理**')
-        labels = {'WAITING_MANAGER':'等待您的确认','WAITING_DOCTOR':'正在等待医生判断','RUNNING':'正在自动整理',
-                  'WAITING_INPUT':'需要补充资料','ESCALATED':'需要人工核对','FAILED':'需要人工协助'}
-        state.write(labels.get(goal.status, '处理中'))
-        if goal.status in {'WAITING_MANAGER','WAITING_INPUT','ESCALATED','FAILED'}:
-            action.button('继续处理', key=f'assistant-open-{goal.id}', on_click=open_care, args=(app,goal))
-        else:
-            action.caption('无需您操作')
+    visible = sorted(active, key=lambda g: priorities.get(g.status, 4))[:3]
+    for index, (column, goal) in enumerate(zip(st.columns(len(visible)), visible)):
+        activity = care_activity.load(goal)
+        with column, st.container(border=True, key=f'assistant-card-{goal.id}'):
+            st.markdown('**'+app._member_display(people.get(goal.member_id))+' · 体检后健康管理**')
+            st.markdown('**当前：'+activity.current+'**')
+            st.caption('已完成')
+            if activity.done:
+                for work in activity.done[-3:]:
+                    st.write('✓ '+work.title)
+            else:
+                st.caption('工作已启动，完成记录将随实际处理更新。')
+            st.write('下一步：'+activity.next_action)
+            if goal.status in {'WAITING_MANAGER','WAITING_INPUT','ESCALATED','FAILED'}:
+                st.button('继续处理', key=f'assistant-open-{goal.id}', type='primary' if index==0 else 'secondary', on_click=open_care, args=(app,goal))
+            else:
+                st.caption('无需您操作')
+                st.button('查看进度',key=f'assistant-progress-{goal.id}',on_click=open_care,args=(app,goal))
 
 
 def progress(item):

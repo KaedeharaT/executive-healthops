@@ -1,0 +1,76 @@
+{
+  "actual_browser": "Chromium",
+  "states": {
+    "running": "real report reread command",
+    "waiting_manager": "PASS",
+    "waiting_doctor": "PASS",
+    "doctor_resume": "real doctor submission command",
+    "action_approval": "PASS",
+    "completed": "PASS",
+    "member360": "PASS",
+    "validation_error": "PASS: correction controls remain visible; no business transition"
+  },
+  "pages": [
+    {
+      "page": "01-today-assistant-cards",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "02-manager-confirmation",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "03-assistant-running",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "04-waiting-doctor",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "05-member360-waiting",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "06-doctor-return-processing",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "07-action-approval",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "08-completed-output",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "09-member360-completed",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    },
+    {
+      "page": "10-validation-keeps-work-visible",
+      "technical_terms": 0,
+      "nested_expanders": 0,
+      "page_errors": 0
+    }
+  ],
+  "errors": []
+}
