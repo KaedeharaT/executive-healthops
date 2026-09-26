@@ -14,6 +14,7 @@ from executive_health_ai.models import AgentGoal, AgentPlan, AgentPlanStep, Agen
 from executive_health_ai.models.base import utc_now
 from executive_health_ai.services.post_checkup import PostCheckupCareService, require_role
 from executive_health_ai.llm.local_llm_client import LocalLLMClient, sanitize_for_llm
+from executive_health_ai.agent import care_routing
 
 VERSION = 'post_checkup_v1'
 STAGES = ('REPORT_RECEIVED', 'ANALYZING', 'WAITING_MANAGER_REVIEW', 'WAITING_DOCTOR_REVIEW',
@@ -74,7 +75,10 @@ def handle_event(supervisor, session, event):
                 goal.context_json = {**goal.context_json, 'doctor_result': {'judgement': review.opinion,
                     'recommendation': review.opinion, 'recheck': False,
                     'suggested_date': date.today().isoformat(), 'followup_date': date.today().isoformat()}}
-            prepare_actions(supervisor, session, goal)
+            if care_routing.evaluate(session,goal).route_type == 'ESCALATE':
+                move(supervisor,session,goal,'ESCALATED','需要优先人工处理')
+            else:
+                prepare_actions(supervisor, session, goal)
             supervisor._trace(session, goal, event_id=event.id, action='resumed_after_doctor', status=goal.status,
                               summary='原报告流程已恢复，等待健管确认后续行动')
     else:
@@ -122,6 +126,12 @@ def tool(supervisor, session, goal, name, context=None, role=None):
 def move(supervisor, session, goal, stage, next_action, *, status=None):
     if stage not in STAGES:
         raise ValueError('未知流程阶段。')
+    decision = care_routing.route(session, goal, stage=stage)
+    if decision.route_type == 'ESCALATE':
+        stage, status = 'ESCALATED', 'ESCALATED'
+        next_action = '需要优先人工处理：'+decision.reason_summary
+    elif decision.route_type == 'DOCTOR' and stage in {'WAITING_ACTION_APPROVAL','CREATING_ACTIONS','COMPLETED'}:
+        raise ValueError('医生判断尚未完成，不能越过医学确认。')
     goal.current_stage, goal.next_action = stage, next_action
     goal.status = status or {'WAITING_MANAGER_REVIEW': 'WAITING_MANAGER', 'WAITING_ACTION_APPROVAL': 'WAITING_MANAGER',
         'WAITING_DOCTOR_REVIEW': 'WAITING_DOCTOR', 'COMPLETED': 'COMPLETED', 'ESCALATED': 'ESCALATED', 'FAILED': 'FAILED'}.get(stage, 'RUNNING')
@@ -166,13 +176,21 @@ def llm_summary(context):
 def analyze(supervisor, session, goal):
     if goal.status == 'COMPLETED':
         return goal
+    if goal.context_json.get('manager_confirmed'):
+        raise ValueError('报告已经确认，请继续当前人工节点，不能重新分析越过确认。')
     move(supervisor, session, goal, 'ANALYZING', '整理报告、历史资料与年度基线')
+    if goal.status == 'ESCALATED':
+        return goal
     try:
         context = tool(supervisor, session, goal, 'get_member_context')
         goal.context_json = {**goal.context_json, **context}
         goal.owner = context.get('owner')
         for name in ('get_report', 'get_baseline', 'get_health_history', 'get_current_management'):
             tool(supervisor, session, goal, name)
+        decision = care_routing.route(session, goal)
+        if decision.route_type == 'ESCALATE':
+            move(supervisor, session, goal, 'ESCALATED', decision.reason_summary)
+            return goal
         if not context['structured']:
             move(supervisor, session, goal, 'ESCALATED', '报告暂时无法自动整理，请人工查看。')
             return goal
@@ -208,7 +226,14 @@ def manager_review(supervisor, session, goal, *, actor, role, doctor=None, quest
         raise ValueError('请填写责任医生；资料将保留在待健管确认。')
     if goal.current_stage != 'WAITING_MANAGER_REVIEW' or goal.status != 'WAITING_MANAGER':
         raise ValueError('当前不在健管确认阶段。')
-    if goal.context_json.get('requires_medical_review') and not doctor:
+    codes = care_routing.medical_reasons(summary or '')
+    if doctor:
+        codes = (*codes, 'MANAGER_REQUEST', *care_routing.medical_reasons(question))
+    decision = care_routing.route(session, goal, codes=codes, actor=actor)
+    if decision.route_type == 'ESCALATE':
+        move(supervisor,session,goal,'ESCALATED',decision.reason_summary)
+        return goal
+    if decision.route_type == 'DOCTOR' and not doctor:
         raise ValueError('现有规则要求医学复核，请明确责任医生并提交判断。')
     with session.begin_nested():
         claim = session.execute(update(AgentGoal).where(AgentGoal.id == goal.id, AgentGoal.current_stage == 'WAITING_MANAGER_REVIEW',
@@ -218,6 +243,9 @@ def manager_review(supervisor, session, goal, *, actor, role, doctor=None, quest
         goal.context_json = {**goal.context_json, 'manager_confirmed': True, 'manager': actor,
                              'summary': (summary or goal.context_json['summary']).strip()[:1000]}
         confirmed = tool(supervisor, session, goal, 'confirm_report_preparation', {'actor': actor, 'role': role}, role)
+        if care_routing.route(session,goal,actor=actor).route_type == 'ESCALATE':
+            move(supervisor,session,goal,'ESCALATED','现有安全规则要求人工介入')
+            return goal
         if confirmed['requires_medical_review'] and not doctor:
             raise ValueError('现有风险规则要求医学复核，请填写责任医生后提交判断。')
         goal.context_json = {**goal.context_json, **confirmed}
@@ -236,6 +264,7 @@ def manager_review(supervisor, session, goal, *, actor, role, doctor=None, quest
 
 
 def prepare_actions(supervisor, session, goal):
+    care_routing.guard(session, goal, actions=True)
     context, today = goal.context_json, date.today()
     result = context.get('doctor_result', {})
     evidence = '已确认医生意见' if result else '健管确认的体检后管理安排'
@@ -264,6 +293,10 @@ def approve_actions(supervisor, session, goal, *, actions, actor, role):
     require_role(role, 'HEALTH_MANAGER', actor)
     if goal.status == 'COMPLETED':
         return goal
+    if care_routing.evaluate(session,goal).route_type == 'ESCALATE':
+        move(supervisor,session,goal,'ESCALATED','需要优先人工处理')
+        return goal
+    care_routing.guard(session, goal, actions=True)
     if goal.current_stage != 'WAITING_ACTION_APPROVAL':
         raise ValueError('当前不能建立后续安排。')
     with session.begin_nested():
@@ -280,6 +313,7 @@ def approve_actions(supervisor, session, goal, *, actions, actor, role):
 
 
 def complete(supervisor, session, goal):
+    care_routing.guard(session, goal, actions=True)
     tool(supervisor, session, goal, 'complete_agent_goal')
     goal.success_criteria = {'report_structured': True, 'manager_confirmed': True, 'doctor_completed_or_unneeded': True,
                             'actions_created': True, 'owners_and_dates': True, 'next_node_defined': True}

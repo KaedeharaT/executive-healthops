@@ -30,6 +30,8 @@ def command(goal_id, callback, *, activity="正在保存确认并继续后续管
             header.empty()
             st.markdown('<style>.st-key-care-human-action,.care-history .current,.care-history .next {display:none!important;}</style>', unsafe_allow_html=True)
         with (header.container() if panel is not None else st.container()):
+            if panel is not None:
+                c.summary_strip([('现在轮到','健康管理助手'),('当前状态','正在处理本次操作')])
             with st.status('健康管理助手继续工作', expanded=True) as running:
                 if received:
                     st.write('✓ '+received)
@@ -59,25 +61,28 @@ def command(goal_id, callback, *, activity="正在保存确认并继续后续管
 
 
 def stepper(goal):
-    labels = ['报告接收', '系统整理', '健管确认', '医生判断', '行动建立', '完成']
-    current = {'REPORT_RECEIVED': 0, 'ANALYZING': 1, 'WAITING_MANAGER_REVIEW': 2,
+    labels = ['报告接收', '系统分析', '责任分流', '专业确认', '行动建立', '完成']
+    current = {'REPORT_RECEIVED': 0, 'ANALYZING': 1, 'WAITING_MANAGER_REVIEW': 3,
                'WAITING_DOCTOR_REVIEW': 3, 'WAITING_ACTION_APPROVAL': 4, 'CREATING_ACTIONS': 4,
-               'COMPLETED': 5, 'ESCALATED': 1, 'FAILED': 1}.get(goal.current_stage, 1)
+               'COMPLETED': 5, 'ESCALATED': 2, 'FAILED': 2}.get(goal.current_stage, 1)
     pieces = []
     for index, label in enumerate(labels):
-        skipped = index == 3 and current > 3 and not goal.context_json.get('review_id')
+        skipped = False  # Professional confirmation includes the mandatory manager gate.
         status = '已跳过' if skipped else '已完成' if index < current or goal.status == 'COMPLETED' else '当前' if index == current else '待开始'
+        if index == 1 and goal.status in {'ESCALATED','FAILED'} and not goal.context_json.get('structured'):
+            status='需人工核对'
         mark = '—' if skipped else '✓' if status == '已完成' else '●' if status == '当前' else '○'
         pieces.append(f'<div role="listitem" class="flow-step {"active" if index == current else ""}"><b class="flow-dot">{mark}</b><span>{label}<br><small>{status}</small></span></div>')
     st.markdown('<div role="list" aria-label="体检后管理进度" class="v2-workflow">'+''.join(pieces)+'</div>', unsafe_allow_html=True)
 
 
-def evidence(goal, *, doctor=False):
+def evidence(goal, *, doctor=False, show_findings=True):
     context = goal.context_json
     findings = context.get('findings', [])
-    st.subheader('本次发现')
-    st.caption(('本次资料已由健管核对入档。' if context.get('manager_confirmed') else '本次报告提取值需人工核对。')+'变化表示数值差异，不代表医学判断。')
-    data_table(findings, [{'指标': f['label'], '本次': f"{f['value']:g} {f['unit']}",
+    if show_findings:
+        st.subheader('本次发现')
+        st.caption(('本次资料已由健管核对入档。' if context.get('manager_confirmed') else '本次报告提取值需人工核对。')+'变化表示数值差异，不代表医学判断。')
+        data_table(findings, [{'指标': f['label'], '本次': f"{f['value']:g} {f['unit']}",
         '年度基线': f"{f['baseline']:g} {f['unit']}" if f['baseline'] is not None else '尚无可比基线',
         '变化': f"{f['delta']:+g} {f['unit']}" if f['delta'] is not None else '—', '状态': '已核对' if context.get('manager_confirmed') else f['status']} for f in findings],
         key=f'care-findings-{goal.id}-{doctor}', selectable=False, empty='暂无可自动提取的指标，请人工查看原报告。')
@@ -151,29 +156,19 @@ def manager_detail(app, goal_id):
         if origin=='会员360':
             app._open_member(goal.member_id)
         st.rerun()
-    from executive_health_ai.ui.pages.manager import care_activity
-    activity = care_activity.load(goal)
-    care_activity.styles()
-    context = goal.context_json
-    st.header(context.get('member', {}).get('name', '会员')+' · 体检后健康管理')
-    with st.container(border=True, key='care-origin-summary'):
-        st.subheader('本次自动管理')
-        st.write('来源：'+care_activity.entry_text(activity))
-        st.caption('系统自动启动：体检后健康管理 · 责任健管：'+(goal.owner or '待确认'))
-        live = st.empty()
-        with live.container():
-            st.markdown('**'+activity.headline+'**\n\n当前：'+activity.current)
-    progress = st.empty()
-    with progress.container():
-        stepper(goal)
-    action, history = st.columns([1.25, 1], gap='large')
-    with history:
-        care_activity.timeline(activity)
-    with action:
-        with st.container(key='care-human-action'):
-            _manager_action(app, goal, activity, (live, progress))
-    st.divider()
-    evidence(goal)
+    from executive_health_ai.ui.pages.manager.operations_board import render
+    # A waiting board updates quietly every 30s; active processing is checked
+    # every 5s. Data is always re-read from the same persisted goal.
+    @st.fragment(run_every=5 if goal.status == 'RUNNING' else 30 if goal.status == 'WAITING_DOCTOR' else None)
+    def live_board():
+        with SessionLocal() as session:
+            current = session.get(AgentGoal, UUID(str(goal_id)))
+        if (current.status,current.current_stage) != (goal.status,goal.current_stage):
+            # Rebuild the interval when a wait ends. Human edit forms must not
+            # keep refreshing on the old doctor's waiting timer.
+            st.rerun()
+        render(app,current)
+    live_board()
 
 
 def _manager_action(app, goal, activity, live):
@@ -238,19 +233,29 @@ def _manager_action(app, goal, activity, live):
     elif goal.status == 'WAITING_MANAGER':
         st.subheader('现在需要你做')
         findings_count = len(context.get('findings', []))
-        st.markdown('**现在轮到您**')
         st.write(f'确认系统整理的 {findings_count} 项健康变化' if findings_count else '人工核对本次报告与处理路径')
-        st.info('确认后系统会自动继续。此处确认不代表整个流程结束。')
         st.caption(activity.after_confirmation)
+        from executive_health_ai.agent import care_routing
+        with SessionLocal() as session:
+            required_doctor=care_routing.evaluate(session,goal).route_type=='DOCTOR'
         if context.get('llm_status') == 'UNAVAILABLE':
             st.caption('自动整理暂不可用；已保留规则提取资料，可人工核对后继续。')
         with st.form(f'care-initial-{goal.id}'):
-            confirm = st.form_submit_button('确认并继续', type='primary')
-            with st.expander('修改整理结果 / 提交医生判断'):
-                summary = st.text_area('健管确认摘要', value=context.get('summary', ''))
-                doctor = st.text_input('责任医生', placeholder='填写本次负责判断的医生')
-                question = st.text_area('需要医生判断的问题', value='本次指标变化是否需要进一步医学处理？')
-                send = st.form_submit_button('提交医生判断')
+            if required_doctor:
+                send=st.form_submit_button('确认并提交医生',type='primary')
+                confirm=False
+                st.caption('现有依据需要医学判断，请明确责任医生；提交后助手会等待医生返回。')
+                doctor=st.text_input('责任医生',placeholder='填写本次负责判断的医生')
+                question=st.text_area('需要医生判断的问题',value='本次指标变化是否需要进一步医学处理？',height=68)
+                with st.expander('修改整理结果'):
+                    summary=st.text_area('健管确认摘要',value=context.get('summary',''))
+            else:
+                confirm = st.form_submit_button('确认并继续', type='primary')
+                with st.expander('修改整理结果 / 提交医生判断'):
+                    summary = st.text_area('健管确认摘要', value=context.get('summary', ''))
+                    doctor = st.text_input('责任医生', placeholder='填写本次负责判断的医生')
+                    question = st.text_area('需要医生判断的问题', value='本次指标变化是否需要进一步医学处理？')
+                    send = st.form_submit_button('提交医生判断')
         if send or confirm:
             command(goal.id, lambda s, g: flow.manager_review(HealthOpsAgentSupervisor(), s, g, actor=g.owner,
                 role='HEALTH_MANAGER', summary=summary, doctor=doctor if send else None, question=question), panel=live)
@@ -314,10 +319,14 @@ def member_summary(member_id,app=None):
     st.markdown('**自动跟进 · 体检后健康管理**')
     st.caption('开始：'+care_activity.entry_text(activity))
     st.write('当前：'+activity.current)
+    from executive_health_ai.services.care_board import project
+    with SessionLocal() as session:
+        board=project(session,goal)
+    st.caption('当前责任：'+board.owner+' · '+board.route.reason_summary)
     stepper(goal)
     st.write('最近系统完成：'+(activity.done[-1].title if activity.done else '尚无已完成工作记录'))
     st.info('下一步：'+activity.next_action)
     if goal.status=='WAITING_DOCTOR':st.caption('医生提交后系统会自动继续。')
     if app:
         from executive_health_ai.ui.pages.manager.assistant import open_care
-        st.button('查看处理进度',key=f'member-care-progress-{member_id}',on_click=open_care,args=(app,goal,'会员360'))
+        st.button('查看运行看板',key=f'member-care-progress-{member_id}',on_click=open_care,args=(app,goal,'会员360'))

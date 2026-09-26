@@ -23,13 +23,15 @@ def assistant(app, people):
     recent = [g for g in goals if g.status == 'COMPLETED' and ux.local_time(g.updated_at) >= datetime.now(ux.LOCAL)-timedelta(days=7)]
     st.subheader('健康管理助手')
     c.summary_strip([('正在运行', sum(g.status == 'RUNNING' for g in active)),
-        ('等待我确认', sum(g.status in {'WAITING_MANAGER','WAITING_INPUT','ESCALATED','FAILED'} for g in active)),
-        ('等待医生', sum(g.status == 'WAITING_DOCTOR' for g in active)), ('最近完成', len(recent))])
+        ('等待我确认', sum(g.status in {'WAITING_MANAGER','WAITING_INPUT'} for g in active)),
+        ('等待医生', sum(g.status == 'WAITING_DOCTOR' for g in active)),
+        ('需要优先处理',sum(g.status in {'ESCALATED','FAILED'} for g in active)), ('最近完成', len(recent))])
     if not active:
         st.caption('当前没有需要您处理的自动流程。')
-        return
+        if not recent:
+            return
     priorities = {'WAITING_MANAGER':0,'WAITING_INPUT':1,'ESCALATED':1,'FAILED':1,'WAITING_DOCTOR':2,'RUNNING':3}
-    visible = sorted(active, key=lambda g: priorities.get(g.status, 4))[:3]
+    visible = (sorted(active, key=lambda g: priorities.get(g.status, 4))+recent)[:3]
     for index, (column, goal) in enumerate(zip(st.columns(len(visible)), visible)):
         activity = care_activity.load(goal)
         with column, st.container(border=True, key=f'assistant-card-{goal.id}'):
@@ -43,10 +45,10 @@ def assistant(app, people):
                 st.caption('工作已启动，完成记录将随实际处理更新。')
             st.write('下一步：'+activity.next_action)
             if goal.status in {'WAITING_MANAGER','WAITING_INPUT','ESCALATED','FAILED'}:
-                st.button('继续处理', key=f'assistant-open-{goal.id}', type='primary' if index==0 else 'secondary', on_click=open_care, args=(app,goal))
+                st.button('查看运行看板', key=f'assistant-open-{goal.id}', type='primary' if index==0 else 'secondary', on_click=open_care, args=(app,goal))
             else:
                 st.caption('无需您操作')
-                st.button('查看进度',key=f'assistant-progress-{goal.id}',on_click=open_care,args=(app,goal))
+                st.button('查看运行看板',key=f'assistant-progress-{goal.id}',on_click=open_care,args=(app,goal))
 
 
 def progress(item):

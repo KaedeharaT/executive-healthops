@@ -62,6 +62,14 @@ class AgentToolRegistry:
 
     def execute(self, session: Session, name: str, goal: AgentGoal, context: dict[str, Any] | None = None, *, approved_role: str | None = None) -> dict[str, Any]:
         tool = self.get(name)
+        from executive_health_ai.agent.post_checkup import is_care_goal
+        if is_care_goal(goal):
+            from executive_health_ai.agent.care_routing import guard
+            if tool.mode == 'write':
+                # V1 can only write through its existing human-gated services.
+                if name not in {'confirm_report_preparation','create_doctor_review','create_care_arrangements'}:
+                    raise ValueError('此流程只能执行已确认的健康管理安排。')
+                guard(session, goal, actions=name == 'create_care_arrangements')
         if tool.permission == MANAGER_APPROVAL and approved_role not in {"HEALTH_MANAGER", "ADMIN"}:
             raise PermissionError("Health manager approval is required.")
         if tool.permission == DOCTOR_APPROVAL:

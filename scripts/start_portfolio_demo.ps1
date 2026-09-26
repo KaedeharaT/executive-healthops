@@ -40,6 +40,8 @@ $env:PYTHONPATH = (Join-Path $projectRoot "src")
 if ($LASTEXITCODE -ne 0) {
     throw "Portfolio Demo 数据库结构升级失败。请先执行 alembic upgrade head。"
 }
+& $python (Join-Path $projectRoot "scripts\record_care_responsibility.py")
+if ($LASTEXITCODE -ne 0) { throw "现有健康管理流程责任记录更新失败。" }
 
 function Test-LocalPort([int]$Port) {
     return [bool](Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)

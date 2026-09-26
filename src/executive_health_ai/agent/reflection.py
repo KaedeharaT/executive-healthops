@@ -21,6 +21,9 @@ class HealthOpsReflectionService:
         goal = session.get(AgentGoal, goal_id)
         if goal is None or goal.status in {"COMPLETED", "CANCELLED"}:
             raise ValueError("Active goal not found.")
+        from executive_health_ai.agent.post_checkup import is_care_goal
+        if is_care_goal(goal):
+            raise ValueError('体检后管理保留原人工责任节点，不能通过重新规划绕过。')
         old = session.get(AgentPlan, goal.current_plan_id)
         if old:
             old.status = "SUPERSEDED"

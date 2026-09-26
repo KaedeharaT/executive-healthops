@@ -40,6 +40,8 @@ class PostCheckupCareService:
     def confirm_report(self, session, goal, *, actor, role):
         """Explicit manager confirmation uses the existing candidate/risk service."""
         require_role(role, 'HEALTH_MANAGER', actor)
+        from executive_health_ai.agent.care_routing import guard
+        guard(session,goal)
         from executive_health_ai.services.report_parsing import ReportParsingService
         parser = ReportParsingService()
         context = goal.context_json
@@ -148,6 +150,8 @@ class PostCheckupCareService:
 
     def request_review(self, session, goal, *, actor, role, doctor, question):
         require_role(role, 'HEALTH_MANAGER', actor)
+        from executive_health_ai.agent.care_routing import guard
+        guard(session,goal)
         doctor = required(doctor, '责任医生')
         if doctor in {'待分配医生', '待分配', '内部医生'}:
             raise ValueError('请明确责任医生后提交。')
@@ -210,6 +214,13 @@ class PostCheckupCareService:
         clean = []
         for row in actions:
             kind = row.get('kind')
+            from executive_health_ai.agent.care_routing import medical_reasons
+            title = required(row.get('title'), '行动')
+            clinical = set(medical_reasons(title)) & {'MEDICATION','TREATMENT','REFERRAL','DIAGNOSIS','MEDICAL_RISK','DISEASE_CHANGE'}
+            recommendation = goal.context_json.get('doctor_result',{}).get('recommendation','')
+            quoted_title = title.removeprefix('随访：')
+            if clinical and quoted_title not in recommendation:
+                raise ValueError('涉及医学决定的行动必须依据责任医生原文，请提交医生判断，不得由健管新增医学决定。')
             if kind not in {'MANAGEMENT', 'FOLLOWUP', 'RECHECK', 'SERVICE'}:
                 raise ValueError('不支持此行动类型。')
             due = date.fromisoformat(str(row.get('due', '')))
@@ -229,6 +240,8 @@ class PostCheckupCareService:
 
     def create_actions(self, session, goal, *, actions, actor, role):
         require_role(role, 'HEALTH_MANAGER', actor)
+        from executive_health_ai.agent.care_routing import guard
+        guard(session,goal,actions=True)
         context = goal.context_json
         if goal.current_stage != 'CREATING_ACTIONS' or not context.get('manager_confirmed'):
             raise ValueError('请先完成报告确认和最终行动确认。')

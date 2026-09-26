@@ -55,6 +55,9 @@ def project(goal, traces=(), entry=None, review=None):
     summary = next((t for t in reversed(events) if t.action == 'summary_drafted' and t.status in {'AVAILABLE', 'UNAVAILABLE'}), None)
     if summary:
         done.append(WorkDone(f"整理 {len(ctx.get('findings', []))} 项待确认的健康信息", summary.completed_at or summary.started_at))
+    routed = next((t for t in reversed(events) if t.action == 'responsibility_routed'), None)
+    if routed:
+        done.append(WorkDone('核对责任分流与处理依据', routed.started_at))
     recorded('confirm_report_preparation', '已收到健管确认，核对报告资料入档')
     if 'create_doctor_review' in tools:
         record = tools['create_doctor_review']
@@ -90,9 +93,14 @@ def project(goal, traces=(), entry=None, review=None):
         action_gate = stage == 'WAITING_ACTION_APPROVAL'
         next_action = f"确认 {len(ctx.get('actions', []))} 项后续安排" if action_gate else f"确认 {len(ctx.get('findings', []))} 项健康变化"
         after = '确认后系统会自动建立安排、写入管理日志并明确下一节点。' if action_gate else '确认后系统会自动继续：需要医学判断时提交医生；无需医生时整理后续行动草稿。'
+    elif state == 'ESCALATED':
+        current, headline = '需要优先人工处理', '健康管理助手已暂停普通自动流程'
+        next_action, after = '责任人核对升级原因与关键资料', '安全条件解除并经人工确认前，只整理、记录与升级，不自动建立安排。'
     else:
         current, headline = '需要您补充资料或人工核对', '健康管理助手需要人工协助'
         next_action, after = '核对报告及会员资料', '补齐资料后继续原流程；未完成的工作不会标记为完成。'
+    # Sort real timestamps; undated legacy records remain explicitly undated.
+    done.sort(key=lambda work: work.at.timestamp() if work.at else float('inf'))
     return CareActivity(started, current, headline, next_action, after, tuple(done))
 
 

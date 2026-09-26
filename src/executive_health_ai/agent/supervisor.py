@@ -247,6 +247,33 @@ class HealthOpsAgentSupervisor:
         goal = self._goal(session, goal_id)
         from executive_health_ai.agent.post_checkup import is_care_goal, analyze, move, LABELS
         if is_care_goal(goal):
+            if goal.status in {'ESCALATED','FAILED','WAITING_INPUT'}:
+                from executive_health_ai.agent import care_routing
+                from executive_health_ai.services.post_checkup import PostCheckupCareService
+                if not actor or not actor.strip():
+                    raise ValueError('请记录核对资料的责任人。')
+                # This is an explicit human retry, not a model replan. Re-read
+                # authoritative data and keep the stop if any safety issue remains.
+                try:
+                    fresh = PostCheckupCareService().context(session,goal)
+                    goal.context_json = {**goal.context_json, **fresh}
+                except (ValueError,KeyError):
+                    return goal
+                stage = goal.context_json.get('paused_stage') or ('WAITING_DOCTOR_REVIEW' if goal.context_json.get('review_id') else 'ANALYZING')
+                decision = care_routing.evaluate(session,goal,stage=stage,actor=actor,
+                    escalation_cleared=True,ignore_pause=True)
+                care_routing.record(session,goal,decision)
+                if decision.route_type == 'ESCALATE':
+                    move(self,session,goal,'ESCALATED',decision.reason_summary)
+                    return goal
+                if not goal.automation_paused and goal.context_json.get('manager_confirmed'):
+                    _, review = care_routing.facts(session,goal)
+                    if review and review.status != 'CONFIRMED':
+                        move(self,session,goal,'WAITING_DOCTOR_REVIEW','等待责任医生提交判断')
+                        return goal
+                    if goal.context_json.get('actions'):
+                        move(self,session,goal,'WAITING_ACTION_APPROVAL','确认并创建后续安排')
+                        return goal
             if goal.automation_paused and goal.context_json.get('paused_stage') in LABELS:
                 goal.automation_paused = False
                 stage = goal.context_json['paused_stage']
