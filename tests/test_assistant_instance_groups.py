@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 
-from executive_health_ai.ui.pages.manager.assistant import project_assistant
+from executive_health_ai.ui.pages.manager.assistant import project_assistant, completed_values
 
 
 def goal(identity, status='COMPLETED', day=1, **overrides):
@@ -40,11 +40,12 @@ def test_uuid_representations_are_the_same_business_identity():
     assert len(groups.recent) == 1
 
 
-def test_recent_has_three_latest_completions_not_latest_audit_updates():
-    rows = [goal(str(day), day=day) for day in range(1, 6)]
+def test_recent_has_five_latest_completions_and_all_history_is_retained():
+    rows = [goal(str(day), day=day) for day in range(1, 8)]
     rows[0].updated_at += timedelta(days=25)
     groups = project_assistant(rows + [rows[-1]])
-    assert [g.id for g in groups.recent] == ['5', '4', '3']
+    assert [g.id for g in groups.recent] == ['7', '6', '5', '4', '3']
+    assert [g.id for g in groups.completed] == ['7', '6', '5', '4', '3', '2', '1']
 
 
 def test_all_four_active_states_stay_separate_from_completed_and_recovery():
@@ -68,3 +69,19 @@ def test_missing_completion_time_uses_updated_time_without_timezone_mismatch():
 def test_empty_groups_remain_empty():
     groups = project_assistant([])
     assert not (groups.active or groups.attention or groups.recent)
+
+
+def test_completed_history_distinguishes_reports_without_repeating_timeline():
+    rows = []
+    for day in ('23', '25'):
+        record = goal(day, context_json={'report': {'at': f'2026-09-{day}T09:00:00Z'},
+            'created': {'management_items': ['item']}, 'next_node': {'title': '沟通本次体检结果与管理重点'}})
+        rows.append(completed_values(record, 'Demo Executive A'))
+    assert [row[4] for row in rows] == ['2026-09-23', '2026-09-25']
+    assert all(row[5] == '后续安排已建立' for row in rows)
+    assert all(row[6] == '沟通本次体检结果与管理重点' for row in rows)
+
+
+def test_completed_history_does_not_invent_missing_outcomes_or_dates():
+    values = completed_values(goal('legacy', context_json={}), '会员')
+    assert values[4:] == ('未记录', '查看完成记录', '暂无后续节点')

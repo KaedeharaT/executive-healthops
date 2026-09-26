@@ -58,8 +58,13 @@ def section(title, *, key, description="", emphasis=False):
         yield
 
 
-def summary_strip(values):
-    items = ''.join(f"<div><small>{escape(str(label))}</small><strong>{escape(str(value))}</strong></div>" for label, value in values)
+def summary_strip(values, *, anchors=None):
+    items = ''
+    for label, value in values:
+        content = f"<small>{escape(str(label))}</small><strong>{escape(str(value))}</strong>"
+        if anchors and label in anchors:
+            content = f'<a href="#{escape(anchors[label], quote=True)}" target="_self" style="color:inherit;text-decoration:none;display:block">{content}</a>'
+        items += f'<div>{content}</div>'
     st.markdown(f"<div class='v2-summary'>{items}</div>", unsafe_allow_html=True)
 
 

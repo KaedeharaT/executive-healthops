@@ -1,6 +1,7 @@
 """Business progress from the existing goals; no second queue or state store."""
 from dataclasses import dataclass
 from datetime import timezone
+from html import escape
 from uuid import UUID
 import streamlit as st
 from sqlalchemy import select
@@ -15,6 +16,7 @@ class AssistantGroups:
     active: tuple
     attention: tuple
     recent: tuple
+    completed: tuple
 
 
 def _instant(value):
@@ -46,8 +48,8 @@ def project_assistant(goals):
     attention = sorted((g for g in unique.values() if g.status in {'WAITING_INPUT', 'FAILED'}),
                        key=lambda g: (-_instant(g.updated_at), str(g.id)))
     recent = sorted((g for g in unique.values() if g.status == 'COMPLETED'),
-                    key=lambda g: (-_instant(g.completed_at or g.updated_at), str(g.id)))[:3]
-    return AssistantGroups(tuple(active), tuple(attention), tuple(recent))
+                    key=lambda g: (-_instant(g.completed_at or g.updated_at), str(g.id)))
+    return AssistantGroups(tuple(active), tuple(attention), tuple(recent[:5]), tuple(recent))
 
 
 def open_care(app, goal, origin='今日工作'):
@@ -68,7 +70,8 @@ def assistant(app, people):
     c.summary_strip([('正在运行', sum(g.status == 'RUNNING' for g in active)),
         ('等待我确认', sum(g.status in {'WAITING_MANAGER','WAITING_INPUT'} for g in pending)),
         ('等待医生', sum(g.status == 'WAITING_DOCTOR' for g in active)),
-        ('需要优先处理',sum(g.status in {'ESCALATED','FAILED'} for g in pending)), ('最近完成', len(recent))])
+        ('需要优先处理',sum(g.status in {'ESCALATED','FAILED'} for g in pending)), ('最近完成', len(recent))],
+        anchors={'最近完成': 'assistant-recent'})
     st.markdown('#### 活动流程')
     if not pending:
         st.caption('当前没有需要您处理的自动流程。')
@@ -78,13 +81,62 @@ def assistant(app, people):
         st.markdown('#### 需要人工协助')
         with st.container(key='assistant-attention'):
             _cards(app, people, groups.attention)
-    st.markdown('#### 最近完成')
-    st.caption('按完成时间显示最近 3 条；每张卡片对应一次独立的报告管理流程。')
+    st.subheader('最近完成', anchor='assistant-recent')
     with st.container(key='assistant-recent'):
-        if recent:
-            _cards(app, people, recent)
+        show_all = st.session_state.get('assistant-history-all', False)
+        st.caption(f'共 {len(groups.completed)} 次完成记录 · 按完成时间倒序' if show_all else '最近 5 条 · 按完成时间倒序')
+        if groups.completed:
+            visible = recent
+            if show_all:
+                pages = max(1, (len(groups.completed) + 19) // 20)
+                page = st.number_input('历史页码', min_value=1, max_value=pages, value=1) if pages > 1 else 1
+                visible = groups.completed[(page-1)*20:page*20]
+            _completed_rows(app, people, visible)
+            st.button('收起历史' if show_all else '查看全部历史', key='assistant-history-toggle',
+                      on_click=_toggle_history)
         else:
             st.caption('暂无已完成的自动流程。')
+
+
+def _toggle_history():
+    st.session_state['assistant-history-all'] = not st.session_state.get('assistant-history-all', False)
+
+
+def completed_values(goal, member):
+    """Short history cells, retaining the real report date and actual outcome."""
+    ctx = goal.context_json or {}
+    report = ctx.get('report') or {}
+    at = goal.completed_at or goal.updated_at
+    return (ux.local_time(at).strftime('%Y-%m-%d %H:%M') if at else '—', member,
+            '体检后健康管理', '体检报告', str(report.get('at') or '')[:10] or '未记录',
+            '后续安排已建立' if any((ctx.get('created') or {}).values()) else '查看完成记录',
+            (ctx.get('next_node') or {}).get('title') or '暂无后续节点')
+
+
+def _completed_rows(app, people, goals):
+    # Native buttons preserve keyboard interaction and bind directly to each Goal.
+    # Completed history never loads or repeats the full activity timeline.
+    st.markdown('''<style>
+    .st-key-assistant-recent [class*="st-key-completed-row-"] {border-bottom:1px solid #e5eaf0;padding:4px 0;}
+    .st-key-assistant-recent [data-testid="stHorizontalBlock"] {gap:12px;flex-wrap:nowrap;}
+    .st-key-assistant-recent [data-testid="stColumn"] {min-width:0!important;}
+    .assistant-history-cell {font-size:13px;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .assistant-history-head {color:#64748b;font-size:12px;font-weight:600;}
+    .st-key-assistant-recent button {min-height:30px;padding:2px 6px;white-space:nowrap;}
+    .st-key-assistant-recent button p {white-space:nowrap;}
+    </style>''', unsafe_allow_html=True)
+    widths = [1.65, 1.6, 1.5, .85, 1.05, 1.4, 2.25, .75]
+    with st.container(key='completed-header'):
+        for col, title in zip(st.columns(widths, vertical_alignment='center'),
+                              ('完成时间', '会员', '流程', '来源', '报告日期', '最终产出', '下一步', '操作')):
+            col.markdown(f'<div class="assistant-history-head">{title}</div>', unsafe_allow_html=True)
+    for goal in goals:
+        with st.container(key=f'completed-row-{goal.id}'):
+            columns = st.columns(widths, vertical_alignment='center')
+            for col, value in zip(columns, completed_values(goal, app._member_display(people.get(goal.member_id)))):
+                value = escape(str(value), quote=True)
+                col.markdown(f'<div class="assistant-history-cell" title="{value}">{value}</div>', unsafe_allow_html=True)
+            columns[-1].button('查看', key=f'completed-view-{goal.id}', on_click=open_care, args=(app, goal))
 
 
 def _cards(app, people, goals):
