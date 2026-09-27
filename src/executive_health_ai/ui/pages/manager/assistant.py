@@ -174,7 +174,7 @@ def _cards(app, people, goals):
                 st.caption('已完成')
                 if activity.done:
                     for work in activity.done[-3:]:
-                        st.write('✓ '+work.title)
+                        st.write(work.mark+' '+work.title)
                 else:
                     st.caption('工作已启动，完成记录将随实际处理更新。')
             st.divider()

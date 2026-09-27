@@ -131,6 +131,8 @@ def technical(goal):
             'Wait':s.wait_event_type or '—','Retry':s.retry_count} for s in steps], hide_index=True, width='stretch')
         st.dataframe([{'时间':ux.local_time(t.started_at), 'Tool':t.tool_name or '—', 'Event / Resume':t.action,
             'State':t.status, 'Error':'有异常，请核对业务资料' if t.error_summary else '—'} for t in traces], hide_index=True, width='stretch')
+        from executive_health_ai.ui.pages.manager.ai_support import technical as support_technical
+        support_technical(traces)
         routes = [t.metadata_json['responsibility'] for t in traces if t.action == 'responsibility_routed']
         st.dataframe([{'Route':r['route_type'], 'Reason':r['reason_summary'], 'Rules':len(r['rule_refs']),
             'Evidence':len(r['evidence_refs']), 'Confirmed by':r['confirmed_by'] or '系统规则', 'Time':r['created_at']} for r in routes], hide_index=True, width='stretch')
@@ -142,6 +144,9 @@ def render(app, goal, *, admin=False):
     activity = care_activity.load(goal)
     with SessionLocal() as session:
         board = project(session, goal)
+        from executive_health_ai.services.agent_capabilities import load as load_support
+        support, support_traces = load_support(session, goal)
+    from executive_health_ai.ui.pages.manager import ai_support
     ctx = goal.context_json
     with st.container(border=True, key='board-header'):
         st.header('健康管理助手 · 运行看板')
@@ -156,6 +161,7 @@ def render(app, goal, *, admin=False):
     progress = st.empty()
     with progress.container(), st.container(key='soft-board-process'):
         stepper(goal)
+    ai_support.route(goal, support, support_traces)
     action_approval = goal.current_stage == 'WAITING_ACTION_APPROVAL' and not admin
     if action_approval:
         with st.container(border=True, key='care-human-action'):
@@ -164,6 +170,12 @@ def render(app, goal, *, admin=False):
         left, right = st.columns([1.35, 1], gap='large')
         with right, st.container(border=True, key='board-routing'):
             routing(board,goal,activity)
+            st.divider()
+            for item in support:
+                if item.key in {'summary','knowledge'}:
+                    st.caption(item.title+'：'+item.label+' · '+item.result)
+            if board.route.route_type == 'DOCTOR':
+                st.caption('医生需要做：医学判断。AI只整理资料，知识库只提供已审核依据。')
         with left, st.container(border=True, key='board-activity'):
             st.subheader('助手现在在做什么')
             st.caption('输入：本次报告、已有健康资料与年度基线 → 产出：已确认的后续安排' if goal.status == 'COMPLETED'
@@ -185,6 +197,7 @@ def render(app, goal, *, admin=False):
                 else:
                     with st.container(key='care-human-action'):
                         _manager_action(app, goal, activity, (live, progress))
+    ai_support.panel(goal, support)
     with st.container(key='board-clinical'):
         left, right = st.columns([1.35,1], gap='large')
         with left, st.container(border=True, key='board-findings'):

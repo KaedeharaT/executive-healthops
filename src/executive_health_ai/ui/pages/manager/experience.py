@@ -153,11 +153,12 @@ def member_detail(app, patient):
         app.request_navigation(surface='运营后台',ops_page={'今日工作':'今日','年度管理':'年度管理','会员':'成员'}.get(origin,'成员'))
         st.rerun()
     ctx = app._member_summary_context(patient.id)
+    management_view=workflow.view_for(patient.id)
     with SessionLocal() as session:
-        view = ProductProjectionService().member(session, patient.id, health=True)
+        view = ProductProjectionService().member(session, patient.id, health=True,
+            program_id=management_view.program.id if origin == '年度管理' and management_view.program else None)
     program, pending, baseline, rows = view.program, view.pending_doctor, view.baseline, view.observations
     tasks = view.active_tasks
-    management_view=workflow.view_for(patient.id)
     professional = (management_view.intake.professional_focus if management_view.intake else '') or '；'.join(p.title for p in ctx['problems'] if p.status!='CLOSED' and p.source!='post_checkup_care') or '待初评'
     concern = management_view.intake.member_concern if management_view.intake else '待填写'
     next_task = tasks[0] if tasks else None

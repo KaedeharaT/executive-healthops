@@ -146,6 +146,11 @@ class LocalLLMClient:
             return LocalLLMHealth(True, False, self.settings.provider, self.settings.model, self.settings.base_url, "无法连接 LLM Provider")
 
     def generate_structured(self, *, task: str, system_prompt: str, user_prompt: str, document_id: str, page: int) -> dict[str, Any]:
+        from executive_health_ai.llm.activity import observe_call
+        with observe_call(task, self.settings.provider):
+            return self._generate_structured(task=task, system_prompt=system_prompt, user_prompt=user_prompt, document_id=document_id, page=page)
+
+    def _generate_structured(self, *, task: str, system_prompt: str, user_prompt: str, document_id: str, page: int) -> dict[str, Any]:
         if not self.settings.enabled:
             raise LocalLLMUnavailable("本地语义模型未启用")
         if not self.settings.model:
@@ -172,6 +177,8 @@ class LocalLLMClient:
             raise LocalLLMUnavailable("不支持的 LLM Provider")
         started = time.perf_counter()
         try:
+            from executive_health_ai.llm.activity import request_started
+            request_started()
             response = self._http_post(url, json=payload, headers=headers, timeout=self.settings.timeout_seconds)
             response.raise_for_status()
             response_payload = response.json()

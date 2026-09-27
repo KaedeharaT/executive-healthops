@@ -12,7 +12,7 @@ target=ROOT/'.runtime'/('test-'+report.name)
 target.mkdir(parents=True,exist_ok=True)
 quiet = {'creationflags': subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {}
 paths=subprocess.check_output(['git','ls-files'],cwd=ROOT,text=True,**quiet).splitlines()
-paths += [p.relative_to(ROOT).as_posix() for p in (ROOT/'src/executive_health_ai/ui').rglob('*.py')]
+paths += [p.relative_to(ROOT).as_posix() for p in (ROOT/'src').rglob('*.py')]
 paths += [p.relative_to(ROOT).as_posix() for folder in ('scripts', 'tests') for p in (ROOT/folder).glob('*') if p.suffix in ('.py', '.ps1')]
 for name in paths:
     src=ROOT/name

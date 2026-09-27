@@ -18,6 +18,20 @@ def monitor():
             st.session_state.pop('admin-care-board',None)
             st.session_state['admin-care-epoch']=st.session_state.get('admin-care-epoch',0)+1
             st.rerun()
+        if goal.goal_type == 'PROFILE_INTAKE':
+            from executive_health_ai.services.agent_capabilities import load
+            from executive_health_ai.ui.pages.manager import ai_support
+            with SessionLocal() as session:
+                support,traces = load(session,goal)
+                member = session.get(Patient,goal.member_id)
+            st.header('健康资料导入 · 运行详情')
+            st.write(member.display_name if member else '会员')
+            st.write(goal.next_action)
+            ai_support.route(goal,support,traces)
+            ai_support.panel(goal,support)
+            with st.expander('技术详情'):
+                ai_support.technical(traces)
+            return
         render(None,goal,admin=True)
         if goal.status in {'ESCALATED','FAILED','WAITING_INPUT'}:
             if st.button('重新读取已补充资料',key='care-admin-retry'):
@@ -29,10 +43,10 @@ def monitor():
         return
     st.subheader('自动化运行')
     with SessionLocal() as session:
-        goals = [g for g in session.scalars(select(AgentGoal).order_by(AgentGoal.started_at.desc())) if is_care_goal(g)]
+        goals = [g for g in session.scalars(select(AgentGoal).order_by(AgentGoal.started_at.desc())) if is_care_goal(g) or g.goal_type == 'PROFILE_INTAKE']
         members = {p.id: p.display_name for p in session.scalars(select(Patient))}
-    selected = data_table(goals, [{'会员': members.get(g.member_id, '会员'), '流程': '体检后健康管理',
-        '入口事件': 'REPORT_UPLOADED', '当前状态': g.status, '当前业务步骤': LABELS.get(g.current_stage, g.current_stage),
+    selected = data_table(goals, [{'会员': members.get(g.member_id, '会员'), '流程': '健康资料导入' if g.goal_type == 'PROFILE_INTAKE' else '体检后健康管理',
+        '入口事件': 'HEALTH_DOCUMENT_UPLOADED' if g.goal_type == 'PROFILE_INTAKE' else 'REPORT_UPLOADED', '当前状态': g.status, '当前业务步骤': LABELS.get(g.current_stage, g.current_stage),
         '等待对象': '医生' if g.status == 'WAITING_DOCTOR' else '健管' if g.status in {'WAITING_MANAGER','WAITING_INPUT'} else '—',
         '启动时间': ux.local_time(g.started_at), '最后更新时间': ux.local_time(g.updated_at),
         '异常': g.context_json.get('error', '')} for g in goals], key=f"care-admin-runs-{st.session_state.get('admin-care-epoch',0)}", search=True, auto_select=False)

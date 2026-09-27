@@ -638,7 +638,10 @@ class ReportSemanticFallback:
             total_duration_ms += elapsed
             success_count += 1
             logger.info("report_llm_call provider=%s model=%s document_id=%s page=%s section=%s latency_ms=%s status=success", health.provider, health.model, document_id, page.page_number, section, elapsed)
-            drafts.extend(self._validated_drafts(payload, sanitized, page, section))
+            checked_drafts = self._validated_drafts(payload, sanitized, page, section)
+            drafts.extend(checked_drafts)
+            from executive_health_ai.llm.activity import result_checked
+            result_checked('report_semantic_fallback', sum(d.candidate_type != 'INCOMPLETE' and d.structured_data.get('candidate_quality', 'COMPLETE') == 'COMPLETE' for d in checked_drafts))
             self._emit_progress(progress_callback, "LLM_SECTION_COMPLETED", f"{label} 的本地AI辅助解析完成。", current=current, total=len(selected), section_name=label, call_duration_ms=elapsed)
         if success_count:
             return self._result(health, "USED", drafts=drafts, call_count=call_count, success_count=success_count, failure_count=failure_count, total_duration_ms=total_duration_ms, processed_sections=processed_sections)

@@ -132,16 +132,19 @@ class ProductProjectionService:
         confirmed = HealthAssessmentService().latest_baseline(session, patient_id, include_draft=False, cycle_year=cycle_year)
         return HealthStatusView(BaselineVisualizationService().build(session, patient_id, cycle_year=cycle_year) if confirmed else None, HealthVisualizationService().build(session, patient_id))
 
-    def member(self, session, patient_id, *, health=False):
+    def member(self, session, patient_id, *, health=False, program_id=None):
         programs = tuple(session.scalars(select(HealthProgram).where(HealthProgram.patient_id == patient_id).order_by(HealthProgram.created_at.desc())))
-        baseline = HealthAssessmentService().latest_baseline(session, patient_id)
-        program = current_program(programs)
-        return Member360View(patient_id, current_program(programs), programs,
+        program = next((p for p in programs if p.id == program_id), None) if program_id else current_program(programs)
+        if program_id and program is None:
+            raise ValueError('年度周期不属于此会员。')
+        year = (program.cycle_year or program.start_date.year) if program_id and program else None
+        baseline = HealthAssessmentService().latest_baseline(session, patient_id, cycle_year=year)
+        return Member360View(patient_id, program, programs,
             tuple(session.scalars(select(Task).where(Task.patient_id == patient_id).order_by(Task.due_at, Task.created_at))),
             tuple(session.scalars(select(ServiceRequest).where(ServiceRequest.patient_id == patient_id).order_by(ServiceRequest.requested_at.desc()))),
             tuple(pending_doctor_work(session, patient_id)), baseline,
             tuple(observations(session, patient_id)),
-            self.health(session, patient_id, cycle_year=baseline.cycle_year if baseline else None) if health else None,
+            self.health(session, patient_id, cycle_year=year or (baseline.cycle_year if baseline else None)) if health else None,
             tuple(session.scalars(select(OutcomeEvaluation).where(OutcomeEvaluation.patient_id == patient_id).order_by(OutcomeEvaluation.evaluation_date.desc()))),
             tuple(session.scalars(select(ProgramPhase).where(ProgramPhase.program_id == program.id).order_by(ProgramPhase.sequence))) if program else ())
 

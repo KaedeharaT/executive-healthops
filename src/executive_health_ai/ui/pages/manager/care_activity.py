@@ -16,6 +16,7 @@ from executive_health_ai.ui import experience as ux
 class WorkDone:
     title: str
     at: datetime | None = None
+    mark: str = '✓'
 
 
 @dataclass(frozen=True)
@@ -48,10 +49,10 @@ def project(goal, traces=(), entry=None, review=None):
     recorded('get_member_context', '整理会员健康资料与既往记录')
     comparable = any(f.get('baseline') is not None or len(f.get('points', [])) > 1 for f in ctx.get('findings', []))
     recorded('get_health_history', '比较本次指标与已有基线、历史变化' if comparable else '核对历史资料：暂无可比较记录')
-    if any(t.action == 'knowledge_unavailable' for t in events) and not ctx.get('knowledge'):
-        done.append(WorkDone('已检查知识服务：暂不可用，未生成替代依据'))
-    else:
-        recorded('retrieve_knowledge', '整理已审核知识依据' if ctx.get('knowledge') else '已查询知识库：暂无匹配的已审核依据')
+    from executive_health_ai.services.agent_capabilities import project as support_project
+    for activity in support_project(goal, events):
+        if activity.at and activity.status in {'SUCCESS','UNAVAILABLE','UNUSABLE'}:
+            done.append(WorkDone(activity.title+'：'+activity.label+' · '+activity.result,activity.at,activity.mark))
     summary = next((t for t in reversed(events) if t.action == 'summary_drafted' and t.status in {'AVAILABLE', 'UNAVAILABLE'}), None)
     if summary:
         done.append(WorkDone(f"整理 {len(ctx.get('findings', []))} 项待确认的健康信息", summary.completed_at or summary.started_at))
@@ -135,7 +136,7 @@ def timeline(activity):
     lines = []
     for work in activity.done:
         stamp = ux.local_time(work.at).strftime('%m/%d %H:%M') if work.at else ''
-        lines.append(f'<li><span class="mark">✓</span><time>{escape(stamp)}</time>{escape(work.title)}</li>')
+        lines.append(f'<li><span class="mark">{work.mark}</span><time>{escape(stamp)}</time>{escape(work.title)}</li>')
     if not lines:
         lines.append('<li>尚无已完成工作记录，不预先标记完成。</li>')
     lines.append(f'<li class="current"><span class="mark">●</span>当前：{escape(activity.current)}</li>')

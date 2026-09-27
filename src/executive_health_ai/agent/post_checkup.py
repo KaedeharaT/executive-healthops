@@ -15,6 +15,8 @@ from executive_health_ai.models.base import utc_now
 from executive_health_ai.services.post_checkup import PostCheckupCareService, require_role
 from executive_health_ai.llm.local_llm_client import LocalLLMClient, sanitize_for_llm
 from executive_health_ai.agent import care_routing
+from executive_health_ai.agent import activity_audit
+from executive_health_ai.llm.activity import collect_calls
 
 VERSION = 'post_checkup_v1'
 STAGES = ('REPORT_RECEIVED', 'ANALYZING', 'WAITING_MANAGER_REVIEW', 'WAITING_DOCTOR_REVIEW',
@@ -166,6 +168,8 @@ def llm_summary(context):
             user_prompt=sanitize_for_llm(json.dumps(payload, ensure_ascii=False))[:2600],
             document_id=context['report']['id'], page=0)
         summary = response.get('summary')
+        if isinstance(summary,str) and any(token in summary.lower() for token in ('<think','</think>','<analysis','chain_of_thought','reasoning_content')):
+            raise ValueError('Unusable draft')
         if not isinstance(summary, str) or not summary.strip() or len(summary) > 180 or any(x in summary for x in ('诊断为', '停药', '加量', '减量', 'RED', 'YELLOW', '转诊至', '处方')):
             raise ValueError('Unusable draft')
         return summary, 'AVAILABLE'
@@ -194,15 +198,28 @@ def analyze(supervisor, session, goal):
         if not context['structured']:
             move(supervisor, session, goal, 'ESCALATED', '报告暂时无法自动整理，请人工查看。')
             return goal
+        knowledge_started = utc_now()
         try:
             with session.begin_nested():
                 knowledge = tool(supervisor, session, goal, 'retrieve_knowledge')['citations']
+            activity_audit.record(session, goal, {'kind':'KNOWLEDGE','task':'retrieve_knowledge','status':'SUCCESS',
+                'started_at':knowledge_started.isoformat(),'completed_at':utc_now().isoformat(),
+                'input_sources':['本次体检指标'], 'knowledge_hit_count':len(knowledge), 'citations':knowledge,
+                'retrieval_policy':'Approved knowledge only · Keyword / lexical retrieval'})
         except Exception:
             knowledge = []
+            activity_audit.record(session, goal, {'kind':'KNOWLEDGE','task':'retrieve_knowledge','status':'UNAVAILABLE',
+                'started_at':knowledge_started.isoformat(),'completed_at':utc_now().isoformat(), 'input_sources':['本次体检指标']})
             supervisor._trace(session, goal, action='knowledge_unavailable', status='COMPLETED', summary='知识检索暂不可用，继续人工核对；不生成替代医学依据')
         goal.context_json = {**goal.context_json, 'knowledge': knowledge}
-        summary, llm_status = llm_summary(goal.context_json)
-        goal.context_json = {**goal.context_json, 'summary': summary, 'llm_status': llm_status}
+        with collect_calls() as calls:
+            summary, llm_status = llm_summary(goal.context_json)
+        activity_audit.llm_calls(session,goal,calls,accepted=llm_status=='AVAILABLE',
+            sources=['体检报告'] + (['年度基线'] if goal.context_json.get('baseline') else [])
+                + (['已确认历史'] if goal.context_json.get('member',{}).get('history') else [])
+                + (['已审核知识依据'] if knowledge else []))
+        goal.context_json = {**goal.context_json, 'summary': summary, 'llm_status': llm_status,
+                             'ai_summary_draft': summary if llm_status == 'AVAILABLE' else None}
         supervisor._trace(session, goal, action='summary_drafted', status=llm_status, summary=summary)
         if not context.get('program_id') or not goal.owner:
             move(supervisor, session, goal, 'WAITING_MANAGER_REVIEW', '请先建立本年度方案及责任健管，再继续整理', status='WAITING_INPUT')
@@ -276,15 +293,20 @@ def prepare_actions(supervisor, session, goal):
     # Optional language assistance can only reuse an exact doctor quote as a
     # follow-up title; types, dates, permissions and writes remain deterministic.
     if result:
+        accepted = False
+        calls = []
         try:
-            response = LocalLLMClient().generate_structured(task='post_checkup_action_draft',
-                system_prompt='从医生建议中提取一个随访主题。只返回 {"quote":"建议原文中连续的短句"}。不得新增医学决定、处方或日期。',
-                user_prompt=sanitize_for_llm(result['recommendation'])[:1800], document_id=goal.source_id, page=0)
+            with collect_calls() as calls:
+                response = LocalLLMClient().generate_structured(task='post_checkup_action_draft',
+                    system_prompt='从医生建议中提取一个随访主题。只返回 {"quote":"建议原文中连续的短句"}。不得新增医学决定、处方或日期。',
+                    user_prompt=sanitize_for_llm(result['recommendation'])[:1800], document_id=goal.source_id, page=0)
             quote = response.get('quote', '')
             if isinstance(quote, str) and 2 <= len(quote) <= 30 and quote in result['recommendation']:
                 actions[1]['title'] = '随访：'+quote
+                accepted = True
         except Exception:
             pass
+        activity_audit.llm_calls(session,goal,calls,accepted=accepted,sources=['已确认医生建议原文'])
     goal.context_json = {**context, 'actions': actions}
     move(supervisor, session, goal, 'WAITING_ACTION_APPROVAL', '确认并创建后续安排')
 

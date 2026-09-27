@@ -111,6 +111,9 @@ def render(app,session,goal):
     traces=list(session.scalars(select(AgentRunTrace).where(AgentRunTrace.goal_id==goal.id,
         AgentRunTrace.action.in_(('profile_activity','profile_exception'))).order_by(AgentRunTrace.started_at)))
     steps=list(session.scalars(select(AgentPlanStep).where(AgentPlanStep.plan_id==goal.current_plan_id).order_by(AgentPlanStep.step_order)))
+    from executive_health_ai.services.agent_capabilities import load as load_support
+    from executive_health_ai.ui.pages.manager import ai_support
+    support, support_traces = load_support(session,goal)
     with st.container(border=True, key='neu-profile-header'):
         st.header('健康管理助手 · 健康资料导入')
         st.subheader(app._member_display(patient))
@@ -120,6 +123,8 @@ def render(app,session,goal):
         cols=st.columns(6)
         for col,step in zip(cols,steps):
             col.markdown(('✓ ' if step.status=='COMPLETED' else '● ' if step.step_type==goal.current_stage else '○ ')+flow.LABELS[step.step_type])
+    ai_support.route(goal,support,support_traces)
+    ai_support.panel(goal,support,key='soft-profile-ai-support')
     if goal.status=='COMPLETED':
         st.success('本次健康资料已整理完成')
         out=goal.context_json['output']
@@ -194,6 +199,9 @@ def render(app,session,goal):
         for item in traces:
             marker='! ' if item.status=='FAILED' or item.action=='profile_exception' else '✓ '
             st.write(marker+ux.when(item.started_at)+' · '+item.result_summary)
+        for item in support:
+            if item.at and item.status in {'SUCCESS','UNAVAILABLE','UNUSABLE'}:
+                st.write(item.mark+' '+ux.when(item.at)+' · '+item.title+'：'+item.result)
     with right,st.container(border=True, key='neu-profile-next'):
         st.subheader('接下来')
         st.write('请先核对原文件，重新上传可读取版本或人工补充；处理完成后再继续档案确认。' if goal.status=='ESCALATED' else

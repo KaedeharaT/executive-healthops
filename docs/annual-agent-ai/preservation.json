@@ -1,0 +1,12 @@
+{
+  "reference": "backup/pre-annual-agent-ai-visibility",
+  "before_controls": 695,
+  "after_controls": 701,
+  "missing_control_identities": [],
+  "protected_files": 60,
+  "changed_safety_files": [],
+  "relocations": {
+    "annual-members": "workflow.py annual() -> annual.py render(); columns retained or explicitly renamed"
+  },
+  "scope": "Static control identities plus browser journeys; presentation text and layout may change."
+}

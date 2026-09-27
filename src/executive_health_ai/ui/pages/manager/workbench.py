@@ -123,9 +123,14 @@ def work_detail(app, item, member):
         app._open_member(member.id)
 
 
+def open_directory_member(app, member):
+    st.session_state['member-return-origin']='会员'
+    app.request_navigation(ops_page='成员',member_id=member.id,member_section='概览',rerun=False)
+
+
 def directory(app, members):
     from executive_health_ai.ui.pages.manager import workflow
-    c.page_shell('manager','会员','按年度进度找到会员，进入 Member 360 处理。')
+    c.page_shell('manager','会员','搜索和筛选会员，找到某个人，进入 Member360 概览。')
     workflow.flash()
     with SessionLocal() as session:
         rows = member_directory(session, members)
@@ -153,8 +158,7 @@ def directory(app, members):
     chosen = data_table(rows, records, key='member-directory',label='选择会员',empty='未找到匹配会员。',auto_select=False,activate_on_cell=True)
     if chosen:
         st.session_state['member-directory-epoch'] = st.session_state.get('member-directory-epoch', 0)+1
-        st.session_state['member-return-origin']='会员'
-        app._open_member(chosen['member'].id)
+        open_directory_member(app,chosen['member'])
         st.rerun()
 
 

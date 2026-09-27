@@ -29,7 +29,9 @@ def write(command):
 
 
 def view_for(member_id):
-    with SessionLocal() as session: return projection.member(session,member_id)
+    from uuid import UUID
+    selected = st.session_state.get(f'annual-program-{member_id}') if st.session_state.get('member-return-origin') == '年度管理' else None
+    with SessionLocal() as session: return projection.member(session,member_id,UUID(selected) if selected else None)
 
 
 def flash():
@@ -76,21 +78,8 @@ def enroll(app):
 
 
 def annual(app):
-    c.page_shell('manager','年度管理','围绕服务周期、当前阶段和下一节点推进会员管理。')
-    flash()
-    with SessionLocal() as session: rows=projection.annual(session)
-    rows=[(m,v) for m,v in rows if v.program]
-    c.summary_strip([('年度周期',len(rows)),('持续管理',sum(v.program.status=='ACTIVE' for _,v in rows)),('待建基线',sum(v.onboarding=='待建立基线' for _,v in rows))])
-    query,state,owner=c.filter_bar(key='annual-filter',statuses=sorted({status_label(v.program.status) for _,v in rows}),owners=sorted({v.owner for _,v in rows}))
-    rows=[(m,v) for m,v in rows if (not query or query in (m.display_name+v.program.main_goal).casefold()) and (state=='全部' or state==status_label(v.program.status)) and (owner=='全部' or owner==v.owner)]
-    chosen=data_table(rows,[{'会员': m.display_name,'服务周期': f'{v.program.start_date} — {v.program.end_date}', '当前阶段': v.current_phase.title if v.current_phase else v.onboarding if v.intake else app.display_program_phase(v.program.current_phase),
-        '年度目标': v.program.main_goal,'负责人':v.owner,'阶段状态':status_label(v.current_phase.status) if v.current_phase else v.onboarding,'下一节点':next((p.title for p in v.phases if v.current_phase and p.sequence>v.current_phase.sequence),'阶段复盘') if v.current_phase else '核对年度安排','下一日期':v.current_phase.end_date if v.current_phase else None} for m,v in rows],key='annual-members',label='选择年度会员',auto_select=False)
-    if chosen:
-        member,view=chosen
-        st.session_state['member-return-origin']='年度管理'
-        st.session_state[f'workflow-mode-{member.id}']='年度方案与阶段'
-        app._open_member_management(member.id)
-        st.rerun()
+    from executive_health_ai.ui.pages.manager.annual import render
+    render(app)
 
 
 
