@@ -10,13 +10,22 @@ def stylesheet(role):
         'doctor': '2px 2px 6px #20354c0b, -2px -2px 6px #ffffffcc',
         'admin': '1px 2px 4px #20354c08, -1px -1px 3px #ffffff99',
     }.get(role, '5px 5px 14px #20354c12, -4px -4px 12px #ffffffd9')
-    return '<style>' + CSS.replace('__ROLE_SHADOW__', shadow) + '</style>'
+    from executive_health_ai.ui.soft_surfaces import SURFACES
+    strength = {'doctor': '4px 4px 10px #b8c6d559,-4px -4px 10px #ffffffb3',
+                'admin': '2px 2px 6px #b8c6d540,-2px -2px 6px #ffffff99'}.get(role,
+                '8px 8px 18px #afbdcd80,-7px -7px 18px #ffffffcc')
+    return '<style>' + CSS.replace('__ROLE_SHADOW__', shadow) + SURFACES.replace('__SURFACE_SHADOW__', strength) + '</style>'
 
 
 def archive_summary(rows):
     """A read-only scan layer; the complete actionable archive table stays below."""
-    keys = {'家族健康史', '个人病史', '当前用药 / 营养补充', '过敏史', '生活方式', '环境与暴露'}
-    cells = ''.join('<div><strong>'+escape(r['title'])+'</strong><span>'+escape(r['summary'])+'</span></div>'
+    keys = {'家族健康史': ('家族史', '家族成员的疾病与健康背景'), '个人病史': ('个人病史', '本人既往疾病与管理记录'),
+            '当前用药 / 营养补充': ('用药', '当前用药与营养补充记录'), '过敏史': ('过敏', '过敏原与相关反应记录'),
+            '手术 / 住院史': ('手术 / 住院', '既往手术及住院经历'), '生活方式': ('生活方式', '睡眠、运动与日常习惯'),
+            '环境与暴露': ('环境暴露', '工作与生活环境相关记录')}
+    icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4V2h6v2M8 10h8M8 14h8M8 18h5"/></svg>'
+    cells = ''.join('<div><div class="soft-archive-title"><i>'+icon+'</i><strong>'+escape(keys[r['key']][0])+
+                    '</strong></div><b class="soft-archive-state">'+escape(r['summary'])+'</b><span>'+escape(keys[r['key']][1])+'</span></div>'
                     for r in rows if r['key'] in keys)
     st.markdown('<div class="neu-archive-grid" aria-label="健康档案分类摘要">'+cells+'</div>', unsafe_allow_html=True)
 

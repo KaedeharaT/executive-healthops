@@ -168,7 +168,8 @@ def member_detail(app, patient):
         phase=view.phase_title or management_view.onboarding, concern=concern or '待填写', focus=professional,
         next_action=(next_task.title+' · '+(next_task.assignee or view.owner)+' · '+ux.when(next_task.due_at)) if next_task else '核对健康资料，确认下一阶段安排 · '+view.owner,
         updated=ux.when(max(updated)) if updated else '暂无记录')
-    section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
+    with st.container(key='soft-member-navigation'):
+        section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
     if section == "概览":
         from executive_health_ai.ui.pages.manager.post_checkup import member_summary
         from executive_health_ai.ui.pages.manager import intake_entry

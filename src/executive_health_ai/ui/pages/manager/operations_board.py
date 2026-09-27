@@ -72,18 +72,20 @@ def routing(board, goal, activity):
 
 
 def human_history(board):
-    st.subheader('人工参与')
-    lines = []
-    for event in board.humans:
-        stamp = ux.local_time(event.at).strftime('%m/%d %H:%M') if event.at else ''
-        lines.append(f'<li><span class="mark">✓</span><time>{escape(stamp)}</time>{escape(event.title)} · {escape(event.owner)}</li>')
-    if not lines:
-        lines.append('<li>尚无已提交的人工确认。</li>')
-    st.markdown('<ol class="care-history" aria-label="人工参与记录">'+''.join(lines)+'</ol>', unsafe_allow_html=True)
+    with st.container(key='board-humans'):
+        st.subheader('人工参与')
+        lines = []
+        for event in board.humans:
+            stamp = ux.local_time(event.at).strftime('%m/%d %H:%M') if event.at else ''
+            lines.append(f'<li><span class="mark">✓</span><time>{escape(stamp)}</time>{escape(event.title)} · {escape(event.owner)}</li>')
+        if not lines:
+            lines.append('<li>尚无已提交的人工确认。</li>')
+        st.markdown('<ol class="care-history" aria-label="人工参与记录">'+''.join(lines)+'</ol>', unsafe_allow_html=True)
     st.divider()
-    st.subheader('接下来会发生什么')
-    for index, step in enumerate(board.next_steps, 1):
-        st.markdown(f'<div class="board-next"><b>{index:02d}</b>{escape(step)}</div>', unsafe_allow_html=True)
+    with st.container(key='soft-board-next'):
+        st.subheader('接下来会发生什么')
+        for index, step in enumerate(board.next_steps, 1):
+            st.markdown(f'<div class="board-next"><b>{index:02d}</b>{escape(step)}</div>', unsafe_allow_html=True)
 
 
 def clinical_boundary(board):
@@ -141,8 +143,8 @@ def render(app, goal, *, admin=False):
     with SessionLocal() as session:
         board = project(session, goal)
     ctx = goal.context_json
-    st.header('健康管理助手 · 运行看板')
     with st.container(border=True, key='board-header'):
+        st.header('健康管理助手 · 运行看板')
         st.subheader(ctx.get('member', {}).get('name', '会员')+' · 体检后健康管理')
         st.caption('开始原因：'+care_activity.entry_text(activity))
         hours, minutes = divmod(board.elapsed_minutes, 60)
@@ -152,7 +154,7 @@ def render(app, goal, *, admin=False):
                 ('运行时长（含等待）',f'{hours} 小时 {minutes} 分钟'),('当前状态',activity.current)])
             st.markdown(f'<div class="board-current"><strong>{escape(activity.headline)}</strong><p>当前：{escape(activity.current)}</p></div>', unsafe_allow_html=True)
     progress = st.empty()
-    with progress.container():
+    with progress.container(), st.container(key='soft-board-process'):
         stepper(goal)
     action_approval = goal.current_stage == 'WAITING_ACTION_APPROVAL' and not admin
     if action_approval:
@@ -183,12 +185,6 @@ def render(app, goal, *, admin=False):
                 else:
                     with st.container(key='care-human-action'):
                         _manager_action(app, goal, activity, (live, progress))
-    with st.container(key='board-history'):
-        left, right = st.columns([1.35,1], gap='large')
-        with left, st.container(border=True, key='board-timeline'):
-            care_activity.timeline(activity)
-        with right, st.container(border=True, key='board-humans'):
-            human_history(board)
     with st.container(key='board-clinical'):
         left, right = st.columns([1.35,1], gap='large')
         with left, st.container(border=True, key='board-findings'):
@@ -199,6 +195,12 @@ def render(app, goal, *, admin=False):
                        empty='暂无可可靠整理的指标，请人工查看报告。')
         with right, st.container(border=True, key='board-risk'):
             clinical_boundary(board)
+    with st.container(key='board-history'):
+        left, right = st.columns([1.35,1], gap='large')
+        with left, st.container(border=True, key='board-timeline'):
+            care_activity.timeline(activity)
+        with right, st.container(key='soft-board-human-column'):
+            human_history(board)
     with st.container(border=True, key='board-support'):
         st.subheader('智能辅助')
         names = {w.title for w in activity.done}

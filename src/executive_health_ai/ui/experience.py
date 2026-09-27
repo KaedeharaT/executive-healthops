@@ -78,11 +78,12 @@ def inject_design(role="manager"):
 
 
 def page_header(title, description="", eyebrow=""):
-    if eyebrow:
-        st.markdown(f"<div class='ux-eyebrow'>{html.escape(eyebrow)}</div>", unsafe_allow_html=True)
-    st.title(title)
-    if description:
-        st.caption(description)
+    with st.container(key='soft-page-header-'+title):
+        if eyebrow:
+            st.markdown(f"<div class='ux-eyebrow'>{html.escape(eyebrow)}</div>", unsafe_allow_html=True)
+        st.title(title)
+        if description:
+            st.caption(description)
 
 
 def status_badge(status):

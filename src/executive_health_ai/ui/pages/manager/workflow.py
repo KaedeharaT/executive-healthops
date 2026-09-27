@@ -131,9 +131,10 @@ def intake(app,patient,member=False,assessment_id=None):
             view=replace(view,intake=row,program=program)
     if not member:
         st.button('← 返回健康档案',key=f'intake-back-{patient.id}',on_click=intake_entry.return_to_archive,args=(app,patient))
-    st.subheader('初始健康评估')
-    c.summary_strip([('会员',patient.display_name),('当前年度',str(row.cycle_year if row else (view.program.cycle_year or view.program.start_date.year) if view.program else date.today().year)),
-                     ('责任健管',view.owner),('评估状态',intake_entry.state(row))])
+    with st.container(key='soft-intake-header'):
+        st.subheader('初始健康评估')
+        c.summary_strip([('会员',patient.display_name),('当前年度',str(row.cycle_year if row else (view.program.cycle_year or view.program.start_date.year) if view.program else date.today().year)),
+                         ('责任健管',view.owner),('评估状态',intake_entry.state(row))])
     if not row:
         st.button('开始评估',type='primary',on_click=intake_entry.open_intake,args=(patient,view));return
     st.caption('保存的是本人陈述，提交后由健管核对；症状评分不代表诊断。')
@@ -158,11 +159,12 @@ def intake(app,patient,member=False,assessment_id=None):
     resume_index=next((i for i,label in enumerate(wizard_steps[:-1]) if label not in row.responses or label=='当前用药 / 营养补充' and '最近用药' not in row.responses),len(wizard_steps)-1)
     index=st.session_state.get(f'intake-step-{patient.id}',resume_index)
     index=min(index,len(wizard_steps)-1)
-    chosen=st.selectbox('填写步骤',range(len(wizard_steps)),index=index,format_func=lambda i:f'{i+1}. {wizard_steps[i]}',key=f'intake-select-{patient.id}-{index}')
-    step=wizard_steps[chosen]
-    from executive_health_ai.ui.neumorphism import intake_steps
-    intake_steps(wizard_steps, chosen, row.responses)
-    st.progress(chosen/(len(wizard_steps)-1),text=f'第{chosen+1}步 / {len(wizard_steps)}步 · 可保存草稿后继续填写')
+    with st.container(key='soft-intake-progress'):
+        chosen=st.selectbox('填写步骤',range(len(wizard_steps)),index=index,format_func=lambda i:f'{i+1}. {wizard_steps[i]}',key=f'intake-select-{patient.id}-{index}')
+        step=wizard_steps[chosen]
+        from executive_health_ai.ui.neumorphism import intake_steps
+        intake_steps(wizard_steps, chosen, row.responses)
+        st.progress(chosen/(len(wizard_steps)-1),text=f'第{chosen+1}步 / {len(wizard_steps)}步 · 可保存草稿后继续填写')
     if step=='确认提交':
         missing=[x for x in STEPS[:-1] if x not in row.responses]
         st.write('尚未确认：'+'、'.join(missing) if missing else '各步骤已保存，请确认自述准确后提交。')
@@ -190,9 +192,11 @@ def intake(app,patient,member=False,assessment_id=None):
         if step=='当前用药 / 营养补充':
             st.markdown('**最近用药**')
             recent=st.data_editor(pd.DataFrame(row.responses.get('最近用药') or [],columns=TABLE_FIELDS['最近用药']),num_rows='dynamic',hide_index=True,key=f'intake-recent-{patient.id}').fillna('').to_dict('records')
-        left,right=st.columns(2)
-        save_only=left.form_submit_button('保存草稿')
-        save=right.form_submit_button('保存草稿并继续',type='primary')
+        st.divider()
+        with st.container(key='soft-intake-actions'):
+            left,right=st.columns(2)
+            save_only=left.form_submit_button('保存草稿')
+            save=right.form_submit_button('保存草稿并继续',type='primary')
     if save or save_only:
         try:
             with SessionLocal() as session:

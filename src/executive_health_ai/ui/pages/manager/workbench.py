@@ -32,19 +32,23 @@ def today(app):
         else:
             st.success('本次处理已完成，后续需要您处理的事情会重新进入今日工作。')
         return
-    c.page_shell('manager', '今日工作', '今天我需要处理什么？')
     with st.container(key='neu-today-summary'):
-        c.summary_strip([('待我处理',sum(i.status not in {'等待医生','等待成员','等待会员'} for i in items)),
-            ('已逾期',len(work_filter(items,'逾期',now))),('等待医生',len(work.pending_doctor)),
-            ('等待会员',len(work_filter(items,'等待会员',now))),('今天到期',len(work_filter(items,'今天',now)))])
+        heading, summary = st.columns([1, 3.2], vertical_alignment='center')
+        with heading:
+            c.page_shell('manager', '今日工作', '今天我需要处理什么？')
+        with summary:
+            c.summary_strip([('待我处理',sum(i.status not in {'等待医生','等待成员','等待会员'} for i in items)),
+                ('已逾期',len(work_filter(items,'逾期',now))),('等待医生',len(work.pending_doctor)),
+                ('等待会员',len(work_filter(items,'等待会员',now))),('今天到期',len(work_filter(items,'今天',now)))])
     with st.container(key='neu-assistant'):
         assistant(app, people)
     with st.container(key='neu-work'):
         st.subheader('工作事项')
-        a,b,d = st.columns([1,2,1])
-        scope = a.selectbox('工作筛选', ['全部','今天','医疗','复查','服务','管理','逾期','等待医生','等待会员'], key='v5-work-scope')
-        search = b.text_input('查找待办', placeholder='搜索会员或需要处理的事情', key='v2-work-search').strip().casefold()
-        owner = d.selectbox('负责人', ['全部']+sorted({i.owner or '待分配' for i in items}), key='today-owner')
+        with st.container(key='soft-filter-today'):
+            a,b,d = st.columns([1,2,1])
+            scope = a.selectbox('工作筛选', ['全部','今天','医疗','复查','服务','管理','逾期','等待医生','等待会员'], key='v5-work-scope')
+            search = b.text_input('查找待办', placeholder='搜索会员或需要处理的事情', key='v2-work-search').strip().casefold()
+            owner = d.selectbox('负责人', ['全部']+sorted({i.owner or '待分配' for i in items}), key='today-owner')
         scoped = work_filter(items,scope,now) if scope not in {'医疗','管理'} else [i for i in items if
             (i.source_type in {'doctor_review','consultation','baseline_review','legacy_medical_review','risk_event'}) == (scope=='医疗')]
         visible = [i for i in scoped if (owner=='全部' or (i.owner or '待分配')==owner)
@@ -186,8 +190,8 @@ def archive(app, patient, view):
                     args=(patient,view),kwargs={'step':selected})
         return
     from executive_health_ai.ui.pages.manager import profile_intake
-    profile_intake.entry(app,patient,view)
     intake_entry.card(patient,view)
+    profile_intake.entry(app,patient,view)
     profile_intake.confirmed_records(patient.id)
     responses=view.intake.responses if view.intake else {}
     entries=[('基础资料','基础资料','已建档'),('家族史','家族健康史',None),('既往史','个人病史',None),
@@ -202,13 +206,15 @@ def archive(app, patient, view):
         value=responses.get(key)
         rows.append({'title':title,'key':key,'summary':summary or (f'{len(value)} 项记录' if isinstance(value,list) and value else '已填写' if value else '待补充')})
     from executive_health_ai.ui.neumorphism import archive_summary
-    st.subheader('健康档案摘要')
-    st.caption('已核对的会员自述资料；正式医疗档案仍保留原有医学确认要求。' if intake_entry.state(view.intake)=='已完成'
-               else '以下自述资料尚待健管确认，可从上方继续初始健康评估。')
-    archive_summary(rows)
-    chosen=data_table(rows,[{'资料':r['title'],'摘要':r['summary']} for r in rows],key=section_key,auto_select=False,activate_on_cell=True)
-    if chosen:
-        st.session_state[section_key]=chosen['key'];st.rerun()
+    with st.container(key='soft-archive-summary'):
+        st.subheader('健康档案摘要')
+        st.caption('已核对的会员自述资料；正式医疗档案仍保留原有医学确认要求。' if intake_entry.state(view.intake)=='已完成'
+                   else '以下自述资料尚待健管确认，可从上方继续初始健康评估。')
+        archive_summary(rows)
+    with st.container(key='soft-archive-details'):
+        chosen=data_table(rows,[{'资料':r['title'],'摘要':r['summary']} for r in rows],key=section_key,auto_select=False,activate_on_cell=True)
+        if chosen:
+            st.session_state[section_key]=chosen['key'];st.rerun()
     profile_intake.history(app,patient)
 
 

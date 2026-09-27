@@ -1,0 +1,128 @@
+[
+  {
+    "page": "01-today-work",
+    "threshold_rgb": 16,
+    "changed_area_percent": 17.36,
+    "changed_tiles_over_10pct": 55,
+    "total_tiles": 108,
+    "changed_edges_percent": 34.43,
+    "mean_channel_max_difference": 17.37
+  },
+  {
+    "page": "01-today",
+    "threshold_rgb": 16,
+    "changed_area_percent": 13.27,
+    "changed_tiles_over_10pct": 38,
+    "total_tiles": 108,
+    "changed_edges_percent": 32.26,
+    "mean_channel_max_difference": 14.48
+  },
+  {
+    "page": "02-agent-panels",
+    "threshold_rgb": 16,
+    "changed_area_percent": 19.12,
+    "changed_tiles_over_10pct": 58,
+    "total_tiles": 108,
+    "changed_edges_percent": 36.56,
+    "mean_channel_max_difference": 19.24
+  },
+  {
+    "page": "02-agent",
+    "threshold_rgb": 16,
+    "changed_area_percent": 25.96,
+    "changed_tiles_over_10pct": 69,
+    "total_tiles": 108,
+    "changed_edges_percent": 41.4,
+    "mean_channel_max_difference": 20.93
+  },
+  {
+    "page": "03-member360",
+    "threshold_rgb": 16,
+    "changed_area_percent": 24.37,
+    "changed_tiles_over_10pct": 70,
+    "total_tiles": 108,
+    "changed_edges_percent": 39.75,
+    "mean_channel_max_difference": 18.86
+  },
+  {
+    "page": "04-archive-details",
+    "threshold_rgb": 16,
+    "changed_area_percent": 20.88,
+    "changed_tiles_over_10pct": 56,
+    "total_tiles": 108,
+    "changed_edges_percent": 31.34,
+    "mean_channel_max_difference": 14.35
+  },
+  {
+    "page": "04-archive",
+    "threshold_rgb": 16,
+    "changed_area_percent": 22.32,
+    "changed_tiles_over_10pct": 56,
+    "total_tiles": 108,
+    "changed_edges_percent": 34.54,
+    "mean_channel_max_difference": 18.39
+  },
+  {
+    "page": "05-assessment-form",
+    "threshold_rgb": 16,
+    "changed_area_percent": 17.95,
+    "changed_tiles_over_10pct": 44,
+    "total_tiles": 108,
+    "changed_edges_percent": 34.98,
+    "mean_channel_max_difference": 17.05
+  },
+  {
+    "page": "05-assessment",
+    "threshold_rgb": 16,
+    "changed_area_percent": 20.28,
+    "changed_tiles_over_10pct": 49,
+    "total_tiles": 108,
+    "changed_edges_percent": 34.82,
+    "mean_channel_max_difference": 18.59
+  },
+  {
+    "page": "06-trends-chart",
+    "threshold_rgb": 16,
+    "changed_area_percent": 15.86,
+    "changed_tiles_over_10pct": 46,
+    "total_tiles": 108,
+    "changed_edges_percent": 26.98,
+    "mean_channel_max_difference": 13.29
+  },
+  {
+    "page": "06-trends",
+    "threshold_rgb": 16,
+    "changed_area_percent": 17.25,
+    "changed_tiles_over_10pct": 52,
+    "total_tiles": 108,
+    "changed_edges_percent": 38.35,
+    "mean_channel_max_difference": 15.6
+  },
+  {
+    "page": "07-doctor-review",
+    "threshold_rgb": 16,
+    "changed_area_percent": 20.75,
+    "changed_tiles_over_10pct": 65,
+    "total_tiles": 108,
+    "changed_edges_percent": 40.44,
+    "mean_channel_max_difference": 17.46
+  },
+  {
+    "page": "07-doctor",
+    "threshold_rgb": 16,
+    "changed_area_percent": 11.59,
+    "changed_tiles_over_10pct": 35,
+    "total_tiles": 108,
+    "changed_edges_percent": 30.67,
+    "mean_channel_max_difference": 11.93
+  },
+  {
+    "page": "08-member-home",
+    "threshold_rgb": 16,
+    "changed_area_percent": 16.24,
+    "changed_tiles_over_10pct": 48,
+    "total_tiles": 108,
+    "changed_edges_percent": 30.71,
+    "mean_channel_max_difference": 15.05
+  }
+]

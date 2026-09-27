@@ -66,12 +66,13 @@ def assistant(app, people):
     groups = project_assistant(goals)
     active, recent = groups.active, groups.recent
     pending = active + groups.attention
-    st.subheader('健康管理助手')
-    c.summary_strip([('正在运行', sum(g.status == 'RUNNING' for g in active)),
-        ('等待我确认', sum(g.status in {'WAITING_MANAGER','WAITING_INPUT'} for g in pending)),
-        ('等待医生', sum(g.status == 'WAITING_DOCTOR' for g in active)),
-        ('需要优先处理',sum(g.status in {'ESCALATED','FAILED'} for g in pending)), ('最近完成', len(recent))],
-        anchors={'最近完成': 'assistant-recent'})
+    with st.container(key='soft-assistant-status'):
+        st.subheader('健康管理助手')
+        c.summary_strip([('正在运行', sum(g.status == 'RUNNING' for g in active)),
+            ('等待我确认', sum(g.status in {'WAITING_MANAGER','WAITING_INPUT'} for g in pending)),
+            ('等待医生', sum(g.status == 'WAITING_DOCTOR' for g in active)),
+            ('需要优先处理',sum(g.status in {'ESCALATED','FAILED'} for g in pending)), ('最近完成', len(recent))],
+            anchors={'最近完成': 'assistant-recent'})
     st.markdown('#### 活动流程')
     if not pending:
         st.caption('当前没有需要您处理的自动流程。')
@@ -161,18 +162,22 @@ def _cards(app, people, goals):
         with columns[index % 3], st.container(border=True, key=f'assistant-card-{goal.id}'):
             st.markdown('**'+app._member_display(people.get(goal.member_id))+' · 体检后健康管理**')
             report = (goal.context_json or {}).get('report') or {}
-            st.caption('来源：' + (report.get('title') or '新体检报告'))
-            if report.get('at'):
-                st.caption('报告日期：' + str(report['at'])[:10])
-            if goal.status == 'COMPLETED' and goal.completed_at:
-                st.caption('完成时间：' + ux.local_time(goal.completed_at).strftime('%Y-%m-%d %H:%M'))
-            st.markdown('**当前：'+activity.current+'**')
-            st.caption('已完成')
-            if activity.done:
-                for work in activity.done[-3:]:
-                    st.write('✓ '+work.title)
-            else:
-                st.caption('工作已启动，完成记录将随实际处理更新。')
+            context, completed = st.columns([1.2, 1], gap='large')
+            with context:
+                st.caption('来源：' + (report.get('title') or '新体检报告'))
+                if report.get('at'):
+                    st.caption('报告日期：' + str(report['at'])[:10])
+                if goal.status == 'COMPLETED' and goal.completed_at:
+                    st.caption('完成时间：' + ux.local_time(goal.completed_at).strftime('%Y-%m-%d %H:%M'))
+                st.markdown('**当前：'+activity.current+'**')
+            with completed:
+                st.caption('已完成')
+                if activity.done:
+                    for work in activity.done[-3:]:
+                        st.write('✓ '+work.title)
+                else:
+                    st.caption('工作已启动，完成记录将随实际处理更新。')
+            st.divider()
             st.write('下一步：'+activity.next_action)
             if goal.status in {'WAITING_MANAGER','WAITING_INPUT','ESCALATED','FAILED'}:
                 st.button('查看运行看板', key=f'assistant-open-{goal.id}', type='primary' if index==0 else 'secondary', on_click=open_care, args=(app,goal))

@@ -1,0 +1,25 @@
+{
+  "stepper": {
+    "display": "grid",
+    "columns": "161px 161px 161px 161px 161px 161px",
+    "steps": 11
+  },
+  "input_focus": {
+    "style": "solid",
+    "width": "3px"
+  },
+  "button_normal": "rgb(162, 181, 203) 4px 4px 8px 0px, rgba(255, 255, 255, 0.4) 1px 1px 1px 0px inset",
+  "button_hover": "rgb(154, 175, 200) 2px 2px 5px 0px, rgba(255, 255, 255, 0.4) 1px 1px 1px 0px inset",
+  "button_pressed": "rgb(11, 60, 115) 3px 3px 6px 0px inset, rgb(70, 128, 184) -2px -2px 5px 0px inset",
+  "reduced_motion": "0s",
+  "disabled": {
+    "background": "rgb(220, 230, 240)",
+    "color": "rgb(64, 91, 116)",
+    "shadow": "none"
+  },
+  "admin_no_duplicate_key": true,
+  "contrast": {
+    "checked": 13,
+    "findings": []
+  }
+}

@@ -96,10 +96,11 @@ def business_table(*args, **kwargs):
 
 
 def filter_bar(*, key, statuses=(), owners=(), search_label='搜索记录'):
-    columns = st.columns([2, 1, 1])
-    query = columns[0].text_input(search_label, key=key+'-query', placeholder='会员、事项或关键词')
-    status = columns[1].selectbox('状态', ['全部']+list(statuses), key=key+'-state')
-    owner = columns[2].selectbox('负责人', ['全部']+list(owners), key=key+'-owner')
+    with st.container(key='soft-filter-'+key):
+        columns = st.columns([2, 1, 1])
+        query = columns[0].text_input(search_label, key=key+'-query', placeholder='会员、事项或关键词')
+        status = columns[1].selectbox('状态', ['全部']+list(statuses), key=key+'-state')
+        owner = columns[2].selectbox('负责人', ['全部']+list(owners), key=key+'-owner')
     return query.strip().casefold(), status, owner
 
 
@@ -126,11 +127,13 @@ def detail_drawer(title, *, key, table_key):
 
 def member_header(name, *, cycle, owner, phase, concern, focus, next_action, updated):
     from executive_health_ai.ui.presentation import preview
-    st.markdown(f"<div class='care-member-header'><div class='care-name'><h1>{escape(name)}</h1><small>MEMBER 360 · 全周期健康管理</small></div>"
-                f"<div>{escape(cycle)}　·　责任健管：{escape(owner)}　·　{escape(phase)}　<small>更新：{escape(updated)}</small></div>"
+    st.markdown(f"<div class='care-member-header'><div class='soft-profile-top'>"
+                f"<div class='care-name'><span class='soft-profile-mark' aria-hidden='true'>H</span><div><small>MEMBER 360 · 全周期健康管理</small><h1>{escape(name)}</h1><small>更新：{escape(updated)}</small></div></div>"
+                f"<div class='soft-profile-meta'><div><small>当前年度</small><strong>{escape(cycle)}</strong></div>"
+                f"<div><small>责任健管：</small><strong>{escape(owner)}</strong></div><div><small>当前阶段</small><strong>{escape(phase)}</strong></div></div></div>"
                 f"<div class='care-focus'><span><b>会员本人关注</b> {escape(preview(concern, 70))}</span>"
                 f"<span><b>专业管理重点</b> {escape(preview(focus, 70))}</span></div>"
-                f"<div class='care-next'><b>下一步</b> {escape(preview(next_action, 95))}</div>"
+                f"<div class='care-next'><b>下一步</b><span>{escape(preview(next_action, 95))}</span></div>"
                 f"</div>", unsafe_allow_html=True)
 
 

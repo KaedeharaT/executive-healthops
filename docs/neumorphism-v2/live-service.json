@@ -1,0 +1,16 @@
+{
+  "url": "http://127.0.0.1:8501",
+  "before": {
+    "canvas": "#f4f7fa",
+    "summary": 0,
+    "header": 0
+  },
+  "after": {
+    "canvas": "#dce5ef",
+    "summary": 1,
+    "header": 1,
+    "exceptions": 0
+  },
+  "database_environment_preserved": true,
+  "other_services_changed": false
+}

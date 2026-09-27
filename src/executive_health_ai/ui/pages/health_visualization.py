@@ -52,14 +52,17 @@ def render_health_explorer(patient_id, *, key=None):
         with st.container(key="health-trend-filters"):
             st.markdown("**筛选条件**")
             st.caption(f"当前可查看 {len(options)} 项健康指标")
-            code = st.selectbox("选择健康指标", list(options), format_func=lambda c: option_label(c, options[c]), key=key)
+            metric_control, period_control = st.columns([1, 2], gap='large')
+            with metric_control:
+                code = st.selectbox("选择健康指标", list(options), format_func=lambda c: option_label(c, options[c]), key=key)
             group = options[code]
             window = st.session_state.get(f"health-data-window-{patient_id}")
             periods = (["时间轴范围"] if window else []) + list(PERIODS)
             period_key = f"ux-period-{patient_id}-{code}"
             if st.session_state.get(period_key) not in periods:
                 st.session_state[period_key] = "时间轴范围" if window else default_period(group)
-            period = st.segmented_control("时间范围", periods, required=True, key=period_key)
+            with period_control:
+                period = st.segmented_control("时间范围", periods, required=True, key=period_key)
         if period == "时间轴范围":
             try:
                 start = datetime.combine(datetime.fromisoformat(window["start"]).date(), time.min, LOCAL)
