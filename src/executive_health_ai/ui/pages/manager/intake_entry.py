@@ -29,8 +29,10 @@ def progress(row):
                for s in WIZARD_STEPS[:-1])
 
 
-def open_intake(patient, view, *, read_only=False, step=None):
-    if not view.intake:
+def open_intake(patient, view, *, read_only=False, step=None, assessment_id=None):
+    if assessment_id:st.session_state[f'intake-assessment-id-{patient.id}']=str(assessment_id)
+    else:st.session_state.pop(f'intake-assessment-id-{patient.id}',None)
+    if not view.intake and not assessment_id:
         with SessionLocal() as session:
             ManagementWorkflowService().start_intake(session, patient.id,
                 (view.program.cycle_year or view.program.start_date.year) if view.program else datetime.now().year,
@@ -45,6 +47,7 @@ def open_intake(patient, view, *, read_only=False, step=None):
 
 
 def return_to_archive(app, patient):
+    st.session_state.pop(f'intake-assessment-id-{patient.id}', None)
     st.session_state.pop(f'archive-content-{patient.id}', None)
     st.session_state.pop(f'intake-readonly-{patient.id}', None)
     st.session_state[f'archive-content-{patient.id}-epoch'] = st.session_state.get(f'archive-content-{patient.id}-epoch', 0) + 1

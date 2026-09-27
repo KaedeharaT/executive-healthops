@@ -41,6 +41,8 @@ def handle_event(supervisor,session,event):
                 source_type='health_document',source_id=event.source_id,status='RUNNING',current_stage='RECEIVED',
                 owner=event.metadata_json['uploaded_by'],created_by=event.metadata_json['uploaded_by'],
                 next_action='正在读取上传资料',context_json=dict(event.metadata_json),success_criteria={})
+            if event.metadata_json.get('intake_id'):
+                goal.title='整理本份资料并辅助完成初始健康评估'
             session.add(goal);session.flush()
             supervisor.planner.create_plan(session,goal,reason='收到健康资料后准备档案更新')
             trace(session,goal,'已接收'+doc.title,event_id=str(event.id))
@@ -101,6 +103,8 @@ def advance(supervisor,session,goal):
         goal.current_stage=following
         goal.status='WAITING_MANAGER' if following=='REVIEW' else 'RUNNING'
         goal.next_action='确认档案更新；有冲突的资料须逐项选择' if following=='REVIEW' else '正在'+LABELS[following]
+        if following=='REVIEW' and goal.context_json.get('intake_id'):
+            goal.next_action='回到初始健康评估，逐步核对来源、处理冲突并补充资料后提交'
         if following=='REVIEW':
             waiting=session.scalar(select(AgentPlanStep).where(AgentPlanStep.plan_id==goal.current_plan_id,AgentPlanStep.step_type=='REVIEW'))
             waiting.status='WAITING_MANAGER'
@@ -118,6 +122,8 @@ def advance(supervisor,session,goal):
 def confirm(supervisor,session,goal,decisions,*,actor,role):
     manager(role,actor)
     if goal.status=='COMPLETED':return goal
+    if goal.context_json.get('intake_id'):
+        raise ValueError('本次资料用于初评草稿，请回到初始评估核对各步骤后提交。')
     if not is_profile_goal(goal) or goal.status!='WAITING_MANAGER':raise ValueError('当前尚不能确认写入。')
     responsibility=latest(session,goal)
     if responsibility and responsibility.route_type in {'DOCTOR','ESCALATE'}:raise ValueError('请先完成医生判断或人工处理。')

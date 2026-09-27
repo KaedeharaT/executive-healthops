@@ -116,8 +116,8 @@ class ManagementWorkflowService:
                 if not isinstance(item, dict) or set(item) - set(TABLE_FIELDS[step]):
                     raise ValueError('问卷字段不匹配。')
                 item = {k:str(v or '').strip() for k,v in item.items()}
-                if step == '专项症状评估' and item.get('原始分数') not in {'0','1','2','3','4'}:
-                    raise ValueError('原始分数必须为0至4。')
+                if step == '专项症状评估' and item.get('原始分数','') not in {'','0','1','2','3','4'}:
+                    raise ValueError('原始分数须为0至4；原资料未提供时留空，不推算分数。')
                 clean.append(item)
             responses[step] = clean
         elif step in PROFILE_FIELDS:
@@ -136,9 +136,13 @@ class ManagementWorkflowService:
         missing = [s for s in STEPS[:-1] if s not in row.responses]
         if row.status != 'DRAFT' or missing:
             raise ValueError('请逐步确认问卷（无已知情况可保存空表）：' + '、'.join(missing))
+        from executive_health_ai.services.assessment_import import AssessmentImportService
+        imports = AssessmentImportService()
+        imports.validate_submit(session, row)
         row.status, row.submitted_at, row.review_status = 'SUBMITTED', utc_now(), 'READY_FOR_REVIEW'
-        row.review = {'member_statement':row.member_concern, 'lifestyle':row.responses.get('生活方式',{}),
+        row.review = {**row.review, 'member_statement':row.member_concern, 'lifestyle':row.responses.get('生活方式',{}),
             'history':row.responses.get('个人病史',[]), 'missing':['报告及自述资料均需人工核对'], 'confirmation':['问卷不是诊断，核对病史与用药来源']}
+        imports.finish(session, row, actor)
         audit(session, member_id, actor, 'intake_submitted', row, 'member')
         return row
 

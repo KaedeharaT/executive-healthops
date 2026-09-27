@@ -23,7 +23,7 @@ from executive_health_ai.services.report_parsing import (ReportParsingService, D
     GenericReportParser, ReportSemanticFallback, ReportTextReconstructor, _validate_report_upload)
 from executive_health_ai.llm.local_llm_client import LocalLLMClient, LocalLLMUnavailable, sanitize_for_llm
 
-TYPES = {'report': '体检报告', 'questionnaire': '健康问卷', 'history': '历史健康档案'}
+TYPES = {'report': '体检报告', 'questionnaire': '健康问卷', 'history': '历史健康档案', 'auto': '综合健康资料（自动识别内容）'}
 FIELD_LABELS={'concern':'本人希望改善的问题','display_name':'姓名','birth_date':'出生日期','sex':'性别'}
 SECTIONS = {**{s: set(fields) for s, fields in TABLE_FIELDS.items()},
             **{s: set(fields) for s, fields in PROFILE_FIELDS.items()},
@@ -74,8 +74,14 @@ def business_evidence(row):
 class ProfileIngestionService:
     storage_root = Path('report_uploads')
 
-    def upload(self, session, member_id, filename, content, document_type, *, actor, role):
+    def upload(self, session, member_id, filename, content, document_type, *, actor, role, intake_id=None):
         manager(role, actor)
+        from executive_health_ai.services.member_archive import require_active
+        require_active(session,member_id)
+        if intake_id:
+            from executive_health_ai.services.management_workflow import owned
+            assessment=owned(session,IntakeAssessment,intake_id,member_id)
+            if assessment.status!='DRAFT':raise ValueError('请先将初评退回补充，再导入资料。')
         if document_type not in TYPES or not session.get(Patient, member_id):
             raise ValueError('资料类型或会员无效。')
         # Native exports are plain JSON; all other formats use the existing file
@@ -92,6 +98,7 @@ class ProfileIngestionService:
         # uploads; source id is the winning immutable document id.
         from executive_health_ai.models import AgentEvent
         key = f'profile:{member_id}:{digest}'
+        if intake_id:key+=':intake:'+str(intake_id)
         old = session.scalar(select(AgentEvent).where(AgentEvent.dedup_key == key))
         if old:
             return session.scalar(select(AgentGoal).where(AgentGoal.source_id == old.source_id,
@@ -111,7 +118,7 @@ class ProfileIngestionService:
             event_type='HEALTH_DOCUMENT_UPLOADED', member_id=member_id, source_type='health_document',
             source_id=str(doc.id), dedup_key=key, payload_summary='收到'+TYPES[document_type],
             metadata={'document_id':str(doc.id), 'document_type':document_type, 'run_id':str(run.id),
-                'uploaded_by':actor, 'uploaded_at':utc_now().isoformat()})
+                'uploaded_by':actor, 'uploaded_at':utc_now().isoformat(), **({'intake_id':str(intake_id)} if intake_id else {})})
         audit(session, member_id, actor, 'health_document_uploaded', doc)
         return goal, False
 
@@ -149,6 +156,9 @@ class ProfileIngestionService:
             raise ValueError('解析记录不属于本次会员资料。')
         if run.status == 'COMPLETED':
             return {'count': run.candidate_count}
+        if goal.context_json.get('intake_id'):
+            from executive_health_ai.services.intake_extraction import extract
+            return extract(session,goal,doc,run,client=client)
         content = Path(doc.storage_reference).read_bytes()
         dtype = run.metadata_json['document_type']
         native = None
@@ -351,6 +361,11 @@ class ProfileIngestionService:
 
     def match(self, session, goal):
         rows = candidates(session, goal)
+        if goal.context_json.get('intake_id'):
+            from executive_health_ai.services.assessment_import import AssessmentImportService
+            view=AssessmentImportService().project(session,goal.member_id,UUID(goal.context_json['intake_id']))
+            goal.context_json={**goal.context_json,'intake_candidate_count':len(rows)}
+            return {'count':len(rows),'conflicts':sum(g['conflict'] for g in view['groups'])}
         snapshot = {str(r.id): self.classify(session, goal, r) for r in rows}
         goal.context_json = {**goal.context_json, 'comparison':snapshot}
         # Prefill only missing draft sections; confirmed/imported facts remain
@@ -395,6 +410,8 @@ class ProfileIngestionService:
         intake.responses = responses
 
     def approve(self, session, goal, decisions, *, actor, role):
+        if goal.context_json.get('intake_id'):
+            raise ValueError('初评资料须在初始健康评估中核对并提交，不能直接写入正式档案。')
         manager(role, actor)
         if goal.status!='WRITING':raise ValueError('请通过本次档案更新确认流程写入。')
         if goal.context_json.get('review_id'):

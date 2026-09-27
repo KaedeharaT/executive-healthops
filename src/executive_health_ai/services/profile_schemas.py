@@ -11,6 +11,7 @@ class ProfileFact(BaseModel):
     value: str = Field(min_length=1, max_length=500)
     source_date: date | None = None
     evidence: str = Field(min_length=1, max_length=2000)
+    record: dict[str, str] = Field(default_factory=dict, max_length=16)
 
 
 class QuestionnaireExtraction(BaseModel):
@@ -31,4 +32,4 @@ class ReportExtraction(BaseModel):
     facts: list[ProfileFact] = Field(default_factory=list, max_length=200)
 
 
-SCHEMAS = {'report': ReportExtraction, 'questionnaire': QuestionnaireExtraction, 'history': HistoryExtraction}
+SCHEMAS = {'report': ReportExtraction, 'questionnaire': QuestionnaireExtraction, 'history': HistoryExtraction, 'auto': HistoryExtraction}

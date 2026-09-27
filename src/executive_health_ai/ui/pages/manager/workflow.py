@@ -106,6 +106,7 @@ def phase_detail(view,phase,*,key):
 
 
 def intake(app,patient,member=False,assessment_id=None):
+    assessment_id=assessment_id or st.session_state.get(f'intake-assessment-id-{patient.id}')
     from executive_health_ai.ui.pages.manager import intake_entry
     flash();view=view_for(patient.id);row=view.intake
     if assessment_id:
@@ -144,6 +145,8 @@ def intake(app,patient,member=False,assessment_id=None):
             intake_entry.answers(row)
         if not member:manager_assessment(patient,view)
         return
+    from executive_health_ai.ui.pages.manager import assessment_import as document_ui
+    imported=document_ui.panel(patient,row,view.owner) if not member else None
     wizard_steps=[label for label in STEPS if label!='最近用药']
     resume_index=next((i for i,label in enumerate(wizard_steps[:-1]) if label not in row.responses or label=='当前用药 / 营养补充' and '最近用药' not in row.responses),len(wizard_steps)-1)
     index=st.session_state.get(f'intake-step-{patient.id}',resume_index)
@@ -161,12 +164,16 @@ def intake(app,patient,member=False,assessment_id=None):
         if st.button('提交初始评估',disabled=bool(missing) or not consent,type='primary'):
             write(lambda s:service.submit_intake(s,patient.id,row.id,'会员本人' if member else view.owner))
         return
+    source_item=document_ui.evidence(imported,step) if imported and imported['goals'] else None
     with st.form(f'intake-form-{patient.id}-{chosen}'):
-        old=row.responses.get(step)
+        old=document_ui.service.form_data(imported,step) if imported else row.responses.get(step)
         if step=='基础资料':
             name=st.text_input('姓名 / 称呼',value=patient.display_name or '')
-            birth=st.date_input('出生日期（未知可留空）',value=patient.birth_date,min_value=date(1900,1,1),max_value=date.today())
-            sex=st.selectbox('性别',['未提供','male','female'],index=['未提供','male','female'].index(patient.sex) if patient.sex in {'male','female'} else 0,format_func=lambda x:{'male':'男','female':'女'}.get(x,x))
+            proposed=(imported or {}).get('prefill',{}).get('基础资料',{})
+            birth_value=patient.birth_date or (date.fromisoformat(proposed['birth_date']) if proposed.get('birth_date') else None)
+            sex_value=patient.sex or proposed.get('sex')
+            birth=st.date_input('出生日期（未知可留空）',value=birth_value,min_value=date(1900,1,1),max_value=date.today())
+            sex=st.selectbox('性别',['未提供','male','female'],index=['未提供','male','female'].index(sex_value) if sex_value in {'male','female'} else 0,format_func=lambda x:{'male':'男','female':'女'}.get(x,x))
             st.caption('身高与体重使用已有健康观测，联系方式通过家庭联系人维护。')
             data={'display_name':name,'birth_date':birth.isoformat() if birth else None,'sex':None if sex=='未提供' else sex}
         elif step in TABLE_FIELDS:
@@ -176,11 +183,16 @@ def intake(app,patient,member=False,assessment_id=None):
         elif step in PROFILE_FIELDS:
             data={k:st.text_input(k,value=(old or {}).get(k,'')) for k in PROFILE_FIELDS[step]}
         else:
-            data={'concern':st.text_area('会员自己最想改善什么',value=row.member_concern)}
+            data={'concern':st.text_area('会员自己最想改善什么',value=row.member_concern or (old or {}).get('concern',''))}
         recent=None
         if step=='当前用药 / 营养补充':
             st.markdown('**最近用药**')
-            recent=st.data_editor(pd.DataFrame(row.responses.get('最近用药') or [],columns=TABLE_FIELDS['最近用药']),num_rows='dynamic',hide_index=True,key=f'intake-recent-{patient.id}').fillna('').to_dict('records')
+            recent_data=document_ui.service.form_data(imported,'最近用药') if imported else row.responses.get('最近用药')
+            recent=st.data_editor(pd.DataFrame(recent_data or [],columns=TABLE_FIELDS['最近用药']),num_rows='dynamic',hide_index=True,key=f'intake-recent-{patient.id}').fillna('').to_dict('records')
+        sources_checked=False;review_note=''
+        if source_item:
+            sources_checked=st.checkbox('已核对本步骤原始资料，确认当前填写或保留未知',value=source_item['checked'],disabled=imported['processing'])
+            review_note=st.text_input('冲突处理 / 暂不采用说明（存在冲突时必填）')
         st.divider()
         with st.container(key='soft-intake-actions'):
             left,right=st.columns(2)
@@ -189,8 +201,9 @@ def intake(app,patient,member=False,assessment_id=None):
     if save or save_only:
         try:
             with SessionLocal() as session:
-                service.save_intake(session,patient.id,row.cycle_year,step,data,'会员本人' if member else view.owner)
+                saved=service.save_intake(session,patient.id,row.cycle_year,step,data,'会员本人' if member else view.owner)
                 if recent is not None:service.save_intake(session,patient.id,row.cycle_year,'最近用药',recent,'会员本人' if member else view.owner)
+                if sources_checked:document_ui.service.record_review(session,saved,step,view.owner,review_note)
                 session.commit()
             st.session_state[f'intake-step-{patient.id}']=min(chosen+1,len(wizard_steps)-1) if save else chosen
             st.session_state['workflow-flash']='草稿已保存，可继续填写。';st.rerun()

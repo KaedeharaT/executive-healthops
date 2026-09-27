@@ -31,8 +31,20 @@ def entry(app,patient,view):
     if st.session_state.get(key):
         with st.container(border=True, key='neu-import'):
             st.subheader('导入健康资料')
+            use_intake=st.radio('资料用途',['辅助填写初始健康评估（支持多份混合资料）','更新正式健康档案（原有逐份确认流程）'],key=key+'-purpose')
+            if use_intake.startswith('辅助'):
+                from executive_health_ai.ui.pages.manager import assessment_import, intake_entry
+                if view.intake and view.intake.status=='DRAFT':
+                    assessment_import.uploader(patient,view.intake,view.owner,key+'-batch')
+                    st.button('进入初评核对与补充',key=key+'-intake',on_click=intake_entry.open_intake,args=(patient,view))
+                elif not view.intake:
+                    st.button('开始初评并上传资料',key=key+'-start',on_click=intake_entry.open_intake,args=(patient,view))
+                else:st.info('本年度初评已提交。可使用下方原有档案更新流程，或先从初评入口退回补充。')
+                if st.button('取消上传',key=key+'-cancel'):
+                    st.session_state[key]=False;st.rerun()
+                return
             st.caption(app._member_display(patient)+' · 上传后自动整理；确认前不会成为正式健康事实。')
-            dtype=st.radio('请选择资料类型',list(TYPES),format_func=TYPES.get,horizontal=True,key=key+'-type')
+            dtype=st.radio('请选择资料类型',[t for t in TYPES if t!='auto'],format_func=TYPES.get,horizontal=True,key=key+'-type')
             st.caption('支持含文字的 PDF、图片、Word、表格、文本和原生问卷文件。无法可靠读取时会保留原文件并提示人工处理。')
             file=st.file_uploader('上传资料',type=['pdf','png','jpg','jpeg','docx','xlsx','csv','txt','json'],key=key+'-file')
             if st.button('上传并整理资料',type='primary',disabled=file is None,key=key+'-submit'):
@@ -125,6 +137,20 @@ def render(app,session,goal):
             col.markdown(('✓ ' if step.status=='COMPLETED' else '● ' if step.step_type==goal.current_stage else '○ ')+flow.LABELS[step.step_type])
     ai_support.route(goal,support,support_traces)
     ai_support.panel(goal,support,key='soft-profile-ai-support')
+    if goal.context_json.get('intake_id'):
+        st.info('本份资料用于初始健康评估草稿。请在初评各步骤核对来源、处理冲突并补充缺失资料；不直接写入医学结论。')
+        st.write(goal.next_action)
+        if rows:st.dataframe(pd.DataFrame([{'步骤':r.source_section,'内容':r.summary or r.raw_value,'原文':r.evidence_text,'位置':r.structured_data_json.get('source_locator','')} for r in rows]),hide_index=True,width='stretch')
+        path=Path(doc.storage_reference)
+        if path.is_file():st.download_button('查看原始资料',path.read_bytes(),file_name=doc.title)
+        if st.button('继续初始健康评估',type='primary'):
+            from executive_health_ai.ui.pages.manager import intake_entry, workflow
+            intake_entry.open_intake(patient,workflow.view_for(patient.id),assessment_id=goal.context_json['intake_id'])
+            st.session_state.pop('care-detail',None)
+            app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='健康',rerun=False);st.rerun()
+        st.subheader('处理历程')
+        for item in traces:st.write(ux.when(item.started_at)+' · '+item.result_summary)
+        return
     if goal.status=='COMPLETED':
         st.success('本次健康资料已整理完成')
         out=goal.context_json['output']

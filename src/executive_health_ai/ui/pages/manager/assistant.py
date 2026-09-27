@@ -110,7 +110,7 @@ def completed_values(goal, member):
     if getattr(goal,'goal_type',None) == 'PROFILE_INTAKE':
         from executive_health_ai.services.profile_ingestion import TYPES
         return (ux.local_time(goal.completed_at or goal.updated_at).strftime('%Y-%m-%d %H:%M'), member, '健康资料导入', TYPES[ctx['document_type']],
-            ctx.get('source_date') or '未注明', '已更新健康档案', goal.next_action)
+            ctx.get('source_date') or '未注明', '初评资料已核对并提交' if ctx.get('intake_submitted') else '已更新健康档案', goal.next_action)
     report = ctx.get('report') or {}
     at = goal.completed_at or goal.updated_at
     return (ux.local_time(at).strftime('%Y-%m-%d %H:%M') if at else '—', member,

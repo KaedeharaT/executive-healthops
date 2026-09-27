@@ -175,7 +175,7 @@ class ProductProjectionService:
         for goal in session.scalars(select(AgentGoal).where(AgentGoal.goal_type == 'PROFILE_INTAKE', AgentGoal.status.in_(('WAITING_MANAGER','ESCALATED')))):
             items.append(OperationalWorkItem(goal.member_id, 'profile_intake', goal.id, 1 if goal.status=='ESCALATED' else 2,
                 '待处理', '新健康资料已整理' if goal.status=='WAITING_MANAGER' else '健康资料需要人工处理',
-                f"已识别 {len(goal.context_json.get('comparison',{}))} 项资料并核对档案" if goal.status=='WAITING_MANAGER' else '已保存原文件，等待人工核对', goal.next_action or '确认档案更新', goal.due_at,
+                f"已识别 {goal.context_json.get('intake_candidate_count',len(goal.context_json.get('comparison',{})))} 项资料并核对档案" if goal.status=='WAITING_MANAGER' else '已保存原文件，等待人工核对', goal.next_action or '确认档案更新', goal.due_at,
                 owner=goal.owner, route_target='profile_intake', created_at=goal.started_at))
         # Approval is a human responsibility, not a second editable goal/task.
         approvals = session.execute(select(AgentApprovalRequest, AgentGoal).join(AgentGoal, AgentApprovalRequest.goal_id == AgentGoal.id).where(AgentApprovalRequest.status == "PENDING"))

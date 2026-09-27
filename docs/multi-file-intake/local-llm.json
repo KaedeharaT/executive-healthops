@@ -1,0 +1,16 @@
+{
+  "provider": "local Ollama",
+  "synthetic_only": true,
+  "goal_status": "WAITING_MANAGER",
+  "calls": [
+    {
+      "task": "parse_health_intake",
+      "status": "SUCCESS",
+      "request_sent": true,
+      "accepted": true,
+      "result_count": 2
+    }
+  ],
+  "candidate_count": 2,
+  "manual_check_required": false
+}
