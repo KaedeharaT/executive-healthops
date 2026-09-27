@@ -150,7 +150,7 @@ def test_member_and_manager_shared_health_entry_actually_emits_chart(chart_membe
     assert len(member_app.get("vega_lite_chart")) == len(manager_app.get("vega_lite_chart")) == 1
     assert member_app.get("vega_lite_chart")[0].proto.spec == manager_app.get("vega_lite_chart")[0].proto.spec
     member_app.selectbox[0].set_value("sleep_duration"); member_app.run()
-    assert not member_app.exception and json.loads(member_app.get("vega_lite_chart")[0].proto.spec)["encoding"]["y"]["title"] == "小时"
+    assert not member_app.exception and json.loads(member_app.get("vega_lite_chart")[0].proto.spec)["layer"][0]["encoding"]["y"]["title"] == "小时"
 
 
 def _render_review(member_id, factory):

@@ -6,7 +6,7 @@ import streamlit as st
 
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.services.health_visualization import HealthVisualizationService, PERIODS, LOCAL, default_period, filter_period, option_label, series_options
-from executive_health_ai.ui.charts.health import render_metric_trend, render_blood_pressure_trend, render_sleep_trend, render_activity_trend, render_compact_sparkline, render_report_comparison
+from executive_health_ai.ui.charts.health import render_metric_trend, render_compact_sparkline, render_report_comparison
 
 
 def load_series(patient_id):
@@ -33,53 +33,55 @@ def render_previews(patient_id, *, key, open_trend, maximum=2, series=None, shar
 
 
 def render_health_explorer(patient_id, *, key=None):
-    options = series_options(load_series(patient_id))
-    if not options:
-        st.caption("暂无已确认健康数据。上传报告或导入数据后可查看趋势。")
-        return
-    key = key or f"ux-metric-{patient_id}"
-    pending = st.session_state.pop(f"health-metric-pending-{patient_id}", None)
-    if pending in options:
-        st.session_state[key] = pending
-    if st.session_state.get(key) not in options:
-        st.session_state[key] = next(iter(options))
-    code = st.session_state[key]
-    group = options[code]
-    from executive_health_ai.ui.components import summary_strip
-    summary_strip([(s.label + " · 当前有效记录", f"{s.points[-1].value:g} {s.unit}") for s in group if s.points])
-    st.caption("；".join(s.comparison for s in group if s.points))
-    st.selectbox("选择健康指标", list(options), format_func=lambda c: option_label(c, options[c]), key=key)
-    window = st.session_state.get(f"health-data-window-{patient_id}")
-    periods = (["时间轴范围"] if window else []) + list(PERIODS)
-    period = st.radio("时间范围", periods, index=0 if window else periods.index(default_period(group)), horizontal=True, key=f"ux-period-{patient_id}-{code}")
-    if period == "时间轴范围":
-        try:
-            start = datetime.combine(datetime.fromisoformat(window["start"]).date(), time.min, LOCAL)
-            end = datetime.combine(datetime.fromisoformat(window["end"]).date(), time.max, LOCAL)
-            visible = filter_period(group, "全部", start=start, end=end)
-            st.info(f"时间轴选择的时间段：{start:%Y年%m月%d日} — {end:%Y年%m月%d日}")
-        except (ValueError, KeyError, TypeError):
-            st.caption("时间范围无效，请选择其他时间范围。")
-            return
-    else:
-        visible = filter_period(group, period)
-    latest = max(p.at for s in group for p in s.points)
-    st.caption(f"最后记录：{latest:%Y/%m/%d} · 历史数据可用不代表设备当前已连接")
-    renderer = render_blood_pressure_trend if code == "blood_pressure" else render_sleep_trend if "sleep" in code else render_activity_trend if code in {"steps", "exercise_minutes", "active_calories"} else render_metric_trend
+    from executive_health_ai.ui.pages import health_trend_panel as panel
     from executive_health_ai.services.baseline_visualization import BaselineVisualizationService
-    with SessionLocal() as session:
-        try: baseline=BaselineVisualizationService().build(session,patient_id)
-        except ValueError: baseline=None
-    metrics=baseline.metrics if baseline else ()
-    renderer(visible, key=f"{key}-chart",baseline_metrics=metrics)
-    if any(m.value is not None and any(s.code==m.code and s.unit==m.unit for s in visible) for m in metrics):
-        st.caption('虚线：已确认年度健康基线；不是医学目标值。')
-    for item in visible:
-        if item.has_trend:
-            st.caption(item.label + " · " + item.comparison)
-    with st.expander("数据来源与记录"):
-        records = [{"时间": p.at.strftime("%Y/%m/%d %H:%M"), "指标": s.label, "数值": float(p.value), "单位": s.unit, "来源": p.source} for s in visible for p in s.points]
-        st.dataframe(pd.DataFrame(records), hide_index=True, width="stretch")
+    options = panel.ordered_options(series_options(load_series(patient_id)))
+    st.markdown(panel.STYLES, unsafe_allow_html=True)
+    with st.container(border=True, key="health-trend-panel"):
+        st.subheader("健康趋势")
+        st.caption("查看不同健康指标在所选时间范围内的变化。")
+        if not options:
+            st.caption("暂无已确认健康数据。上传报告或导入数据后可查看趋势。")
+            return
+        key = key or f"ux-metric-{patient_id}"
+        pending = st.session_state.pop(f"health-metric-pending-{patient_id}", None)
+        if pending in options:
+            st.session_state[key] = pending
+        if st.session_state.get(key) not in options:
+            st.session_state[key] = next(iter(options))
+        with st.container(key="health-trend-filters"):
+            st.markdown("**筛选条件**")
+            st.caption(f"当前可查看 {len(options)} 项健康指标")
+            code = st.selectbox("选择健康指标", list(options), format_func=lambda c: option_label(c, options[c]), key=key)
+            group = options[code]
+            window = st.session_state.get(f"health-data-window-{patient_id}")
+            periods = (["时间轴范围"] if window else []) + list(PERIODS)
+            period_key = f"ux-period-{patient_id}-{code}"
+            if st.session_state.get(period_key) not in periods:
+                st.session_state[period_key] = "时间轴范围" if window else default_period(group)
+            period = st.segmented_control("时间范围", periods, required=True, key=period_key)
+        if period == "时间轴范围":
+            try:
+                start = datetime.combine(datetime.fromisoformat(window["start"]).date(), time.min, LOCAL)
+                end = datetime.combine(datetime.fromisoformat(window["end"]).date(), time.max, LOCAL)
+                visible = filter_period(group, "全部", start=start, end=end)
+                st.caption(f"时间轴选择的时间段：{start:%Y年%m月%d日} — {end:%Y年%m月%d日}")
+            except (ValueError, KeyError, TypeError):
+                st.caption("时间范围无效，请选择其他时间范围。")
+                return
+        else:
+            visible = filter_period(group, period)
+        with SessionLocal() as session:
+            try:
+                baseline = BaselineVisualizationService().build(session, patient_id)
+            except ValueError:
+                baseline = None
+        metrics = baseline.metrics if baseline else ()
+        st.divider()
+        panel.render_result(visible, group, metrics, code=code, key=key, period_key=period_key)
+        with st.expander("数据来源与记录"):
+            records = [{"时间": p.at.strftime("%Y/%m/%d %H:%M"), "指标": s.label, "数值": float(p.value), "单位": s.unit, "来源": p.source} for s in visible for p in s.points]
+            st.dataframe(pd.DataFrame(records), hide_index=True, width="stretch")
 
 
 def render_report_trends(patient_id, *, key):
