@@ -90,7 +90,7 @@ def work_detail(app, item, member):
         from executive_health_ai.ui.pages.manager.medical import review_detail
         review_detail(app,member,item.source_id,item.source_type)
     elif item.source_type=='intake_review':
-        workflow.intake(app,member)
+        workflow.intake(app,member,assessment_id=item.source_id)
     elif item.source_type=='risk_event':
         with SessionLocal() as session:
             risk = session.get(RiskEvent,item.source_id)
@@ -153,14 +153,17 @@ def directory(app, members):
 
 def archive(app, patient, view):
     from executive_health_ai.ui.pages.manager import workflow
+    from executive_health_ai.ui.pages.manager import intake_entry
     section_key=f'archive-content-{patient.id}'
     selected=st.session_state.get(section_key)
     if selected:
+        if selected=='初始评估':
+            workflow.intake(app,patient)
+            return
         if st.button('← 返回健康档案摘要',key=section_key+'-back'):
             st.session_state.pop(section_key,None)
             st.session_state[section_key+'-epoch']=st.session_state.get(section_key+'-epoch',0)+1;st.rerun()
-        if selected=='初始评估':workflow.intake(app,patient)
-        elif selected=='医疗档案':app._render_client_medical_archive(patient)
+        if selected=='医疗档案':app._render_client_medical_archive(patient)
         elif selected=='家庭关系':workflow.family(patient,view)
         elif selected in {'报告','基线','健康数据'}:
             desired={'报告':'体检','基线':'基线','健康数据':'数据'}[selected]
@@ -169,14 +172,19 @@ def archive(app, patient, view):
         else:
             value=(view.intake.responses if view.intake else {}).get(selected)
             st.subheader(selected)
-            if isinstance(value,list):data_table(value,value,key=section_key+'-answers',selectable=False)
-            elif isinstance(value,dict):
+            if view.intake and intake_entry.state(view.intake) != '已完成':
+                st.caption('会员自述 · 尚待健管确认')
+            if isinstance(value,list) and value:data_table(value,value,key=section_key+'-answers',selectable=False)
+            elif isinstance(value,dict) and value:
                 data_table(list(value),[{'项目':k,'记录':v or '待补充'} for k,v in value.items()],key=section_key+'-answers',selectable=False)
-            else:st.caption('暂无已确认记录，请在初始评估中补充。')
+            else:
+                st.caption('暂无已确认记录。')
+                st.button('去补充初始评估',key=section_key+'-intake',on_click=intake_entry.amend,
+                    args=(patient,view),kwargs={'step':selected})
         return
+    intake_entry.card(patient,view)
     responses=view.intake.responses if view.intake else {}
-    entries=[('初始评估','初始评估',status_label(view.intake.status) if view.intake else '待建立'),
-        ('基础资料','基础资料','已建档'),('家族史','家族健康史',None),('既往史','个人病史',None),
+    entries=[('基础资料','基础资料','已建档'),('家族史','家族健康史',None),('既往史','个人病史',None),
         ('手术 / 住院','手术 / 住院史',None),('过敏','过敏史',None),('用药','当前用药 / 营养补充',None),
         ('最近用药','最近用药',None),('生活方式','生活方式',None),('环境暴露','环境与暴露',None),
         ('会员关注','会员重点关注',view.intake.member_concern if view.intake else '待填写'),
@@ -188,6 +196,8 @@ def archive(app, patient, view):
         value=responses.get(key)
         rows.append({'title':title,'key':key,'summary':summary or (f'{len(value)} 项记录' if isinstance(value,list) and value else '已填写' if value else '待补充')})
     st.subheader('健康档案摘要')
+    st.caption('已核对的会员自述资料；正式医疗档案仍保留原有医学确认要求。' if intake_entry.state(view.intake)=='已完成'
+               else '以下自述资料尚待健管确认，可从上方继续初始健康评估。')
     chosen=data_table(rows,[{'资料':r['title'],'摘要':r['summary']} for r in rows],key=section_key,auto_select=False,activate_on_cell=True)
     if chosen:
         st.session_state[section_key]=chosen['key'];st.rerun()

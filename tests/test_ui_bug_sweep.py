@@ -128,4 +128,5 @@ def test_timeline_health_data_action_routes_without_mutating_live_widgets() -> N
     app.run(timeout=30)
     _assert_clean(app)
     assert any(item.value == "健康数据" for item in app.subheader)
-    assert any("时间轴选择的时间段" in str(item.value) for item in app.info)
+    # The trend panel presents this same route context as quiet filter metadata.
+    assert any("时间轴选择的时间段" in str(item.value) for item in [*app.info, *app.caption])

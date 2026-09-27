@@ -116,24 +116,42 @@ def phase_detail(view,phase,*,key):
 
 
 
-def intake(app,patient,member=False):
+def intake(app,patient,member=False,assessment_id=None):
+    from executive_health_ai.ui.pages.manager import intake_entry
     flash();view=view_for(patient.id);row=view.intake
-    if not row:
-        st.info('尚未进入年度入组；请健康管理师建立服务周期。');return
+    if assessment_id:
+        from dataclasses import replace
+        from executive_health_ai.models.management_workflow import IntakeAssessment
+        from executive_health_ai.services.management_workflow import owned
+        from executive_health_ai.services.member_management_projection import intake_program
+        with SessionLocal() as session:
+            row=owned(session,IntakeAssessment,assessment_id,patient.id)
+            program=intake_program(session,row)
+            view=projection.member(session,patient.id,program.id) if program else view
+            view=replace(view,intake=row,program=program)
+    if not member:
+        st.button('← 返回健康档案',key=f'intake-back-{patient.id}',on_click=intake_entry.return_to_archive,args=(app,patient))
     st.subheader('初始健康评估')
+    c.summary_strip([('会员',patient.display_name),('当前年度',str(row.cycle_year if row else (view.program.cycle_year or view.program.start_date.year) if view.program else date.today().year)),
+                     ('责任健管',view.owner),('评估状态',intake_entry.state(row))])
+    if not row:
+        st.button('开始评估',type='primary',on_click=intake_entry.open_intake,args=(patient,view));return
     st.caption('保存的是本人陈述，提交后由健管核对；症状评分不代表诊断。')
+    if st.session_state.get(f'intake-readonly-{patient.id}') and not assessment_id:
+        intake_entry.answers(row)
+        if row.status=='DRAFT':
+            st.button('继续填写',type='primary',on_click=intake_entry.open_intake,args=(patient,view))
+        elif row.status=='CONFIRMED':
+            st.write('会员自述关注：'+row.member_concern)
+            st.write('专业管理重点：'+row.professional_focus)
+            if not member:
+                st.button('补充/修正',on_click=intake_entry.amend,args=(patient,view))
+        return
     if row.status!='DRAFT':
         st.success('问卷已提交' if row.status=='SUBMITTED' else '初评已确认')
-        st.write('会员自己关注：'+ux.business_text(row.member_concern))
+        st.write('会员自述关注：'+ux.business_text(row.member_concern))
         with st.expander('查看已提交资料'):
-            for label,data in row.responses.items():
-                st.markdown('**'+label+'**')
-                if label=='基础资料':st.caption('使用会员现有基础档案；身高、体重沿用健康数据入口。')
-                elif isinstance(data,list):st.dataframe(pd.DataFrame(data),hide_index=True) if data else st.caption('本次未提供已知记录，仍需核对。')
-                elif isinstance(data,dict):
-                    data_table(list(data), [{'项目': k,'回答':v or '待补充'} for k,v in data.items()],key=f'intake-summary-{row.id}-{label}',selectable=False)
-                    with st.container():
-                        for k,v in data.items():st.write(f'{k}：{v or "待补充"}')
+            intake_entry.answers(row)
         if not member:manager_assessment(patient,view)
         return
     wizard_steps=[label for label in STEPS if label!='最近用药']

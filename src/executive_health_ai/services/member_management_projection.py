@@ -83,13 +83,22 @@ class MemberManagementProjection:
         return case,session.get(Encounter,case.encounter_id),tuple(session.scalars(select(ClinicalRecommendation).where(ClinicalRecommendation.encounter_id==case.encounter_id).order_by(ClinicalRecommendation.created_at)))
 
 
+def intake_program(session, intake):
+    """Legacy annual programs use their start year when cycle_year is unset."""
+    from executive_health_ai.services.product_projection import current_program
+    programs = list(session.scalars(select(HealthProgram).where(HealthProgram.patient_id == intake.patient_id)
+                                   .order_by(HealthProgram.created_at.desc())))
+    programs = [p for p in programs if (p.cycle_year or p.start_date.year) == intake.cycle_year]
+    return current_program(programs) or next(iter(programs), None)
+
+
 def management_work_items(session,now):
     """Due projection runs on each queue read; no scheduler/second facts required."""
     from executive_health_ai.services.operational_worklist import OperationalWorkItem
     items=[]
     for row in session.scalars(select(IntakeAssessment).where(IntakeAssessment.status=='SUBMITTED',IntakeAssessment.review_status!='WAITING_MEDICAL_REVIEW')):
-        program=session.scalar(select(HealthProgram).where(HealthProgram.patient_id==row.patient_id,HealthProgram.cycle_year==row.cycle_year))
-        items.append(OperationalWorkItem(row.patient_id,'intake_review',row.id,2,'待处理','完成会员初评','初始问卷已提交，需人工核对资料与重点。','核对问卷并记录专业初评',row.submitted_at,owner=program.owner if program else '待分配',route_target='member_management'))
+        program=intake_program(session,row)
+        items.append(OperationalWorkItem(row.patient_id,'intake_review',row.id,2,'待处理','初始健康评估已提交','初始问卷已提交，需人工核对资料与重点。','完成健管确认',row.submitted_at,owner=program.owner if program else '待分配',route_target='member_management'))
     for row in session.scalars(select(RecheckPlan).where(RecheckPlan.status!='CLOSED',RecheckPlan.planned_at<=now+timedelta(days=1))):
         state={'WAITING_REPORT':'待结果','WAITING_REVIEW':'待结果','PENDING_CONFIRMATION':'待处理','TO_BOOK':'等待检查','BOOKED':'等待检查','TO_EXECUTE':'待复查','COMPLETED':'待结果'}[row.status]
         items.append(OperationalWorkItem(row.patient_id,'recheck',row.id,2,state,row.title,row.reason,'推进预约、检查、报告与复核',row.planned_at,document_id=row.document_id,owner=row.owner,route_target='member_management'))

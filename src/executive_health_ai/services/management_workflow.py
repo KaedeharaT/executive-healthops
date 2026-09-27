@@ -57,6 +57,20 @@ def task(session, member_id, program_id, title, instruction, owner, due, source)
 
 
 class ManagementWorkflowService:
+    def start_intake(self, session, member_id, year, actor):
+        """Open the existing member/year questionnaire, including legacy members."""
+        if not session.get(Patient, member_id):
+            raise ValueError('会员不存在。')
+        if not isinstance(year, int) or not 1900 <= year <= 2200:
+            raise ValueError('评估年度无效。')
+        row = session.scalar(select(IntakeAssessment).where(
+            IntakeAssessment.patient_id == member_id, IntakeAssessment.cycle_year == year))
+        if row is None:
+            row = IntakeAssessment(patient_id=member_id, cycle_year=year)
+            session.add(row)
+            audit(session, member_id, actor, 'intake_started', row)
+        return row
+
     def enroll(self, session, *, name, start, end, owner, goal, advisor='', member_id=None):
         if end < start:
             raise ValueError('服务结束日期不能早于开始日期。')
@@ -170,6 +184,8 @@ class ManagementWorkflowService:
             # never an underlying diagnosis, risk or other health problem.
             if reviewed and reviewed.status=='CONFIRMED' and problem and problem.source=='intake_review':
                 problem.status='CLOSED'
+        if row.review_status == 'CONFIRMED':
+            row.review = {**row.review, 'confirmed_at': utc_now().isoformat()}
         audit(session,member_id,actor,'intake_manager_reviewed',row)
         return row
 

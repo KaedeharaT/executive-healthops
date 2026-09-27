@@ -171,7 +171,14 @@ def member_detail(app, patient):
     section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
     if section == "概览":
         from executive_health_ai.ui.pages.manager.post_checkup import member_summary
-
+        from executive_health_ai.ui.pages.manager import intake_entry
+        if intake_entry.state(management_view.intake) != '已完成':
+            reminder, action = st.columns([4,1])
+            reminder.caption('初始健康评估尚未完成 · '+intake_entry.state(management_view.intake))
+            if action.button('继续评估',key=f'overview-intake-{patient.id}'):
+                intake_entry.open_intake(patient,management_view)
+                app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='健康')
+                st.rerun()
         st.markdown('**当前阶段**')
         if management_view.phases: workflow.phases(management_view)
         else: workflow.onboarding(management_view)
