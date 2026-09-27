@@ -1,222 +1,253 @@
 # Executive HealthOps
 
-**Proactive Longitudinal Health Operations Platform with Bounded Agentic Automation**
+**Agent-assisted longitudinal health management workbench for members, health managers, doctors, and operations teams**
 
 English | [简体中文](README_zh.md)
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
-![Streamlit](https://img.shields.io/badge/Product_UI-Streamlit-2563EB?logo=streamlit&logoColor=white)
-![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
-![Human in the loop](https://img.shields.io/badge/Workflow-Human--in--the--loop-205C9E)
-![Risk engine](https://img.shields.io/badge/Risk-Deterministic-A76513)
 [![CI](https://github.com/KaedeharaT/executive-healthops/actions/workflows/ci.yml/badge.svg)](https://github.com/KaedeharaT/executive-healthops/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)
+![Human governed](https://img.shields.io/badge/Workflow-Human_governed-205C9E)
 
-Executive HealthOps connects **health reports, continuous health data, deterministic risk triage, health-manager operations, doctor collaboration, care plans, offline services, and longitudinal health records** into one responsibility-driven workflow. The product is organized around three questions: **What happens next? Who owns it? When must it be completed?**
+Executive HealthOps turns fragmented health reports, questionnaires, measurements, care tasks and medical reviews into a continuous, human-governed health-management workflow.
 
-![Executive HealthOps health-manager workbench](docs/images/manager-today.png)
+**Health managers work from Today + Member360.** The system brings pending human actions to Today; Member360 holds the complete member workspace. Agents organize source material, prepare reviews and resume confirmed workflows. Doctors retain medical judgment.
 
-*The synthetic Portfolio Demo shows a prioritized operational worklist, explicit ownership, due work, and doctor collaboration.*
+> **Research / Portfolio Prototype · Synthetic Demo Data.** This is not a medical device, an autonomous diagnosis or prescription system, or a production clinical decision-support system. All screenshots and demo member records use synthetic data.
 
-> **Research / Portfolio Prototype.** This repository demonstrates product and engineering architecture. It is not a medical device, an autonomous diagnosis system, or a production clinical decision-support system.
+![Today: assistant progress and work requiring a named owner](docs/images/readme/manager-today.png)
 
-## Responsibility Loop
+*The current Chinese-language UI. These screenshots come from real Streamlit + Chromium sessions, not interface mockups.*
+
+## Product at a glance
+
+| Product question | Current implementation |
+|---|---|
+| What needs a person now? | Today combines confirmations, doctor returns, rechecks, follow-ups, services and annual-management work. |
+| Where is the complete member context? | Member360 connects the health record, current management, medical collaboration and history. |
+| What does the Agent take over? | Organizing supported documents, matching existing records, preparing review context, drafting follow-up actions and continuing after human decisions. |
+| What is the annual reference? | A confirmed annual baseline remains separate from later measurements and current health. |
+| How far does this go today? | Executable assessment, document-ingestion and post-checkup workflows, with persisted records, human gates, member-facing views and regression tests. |
+
+The core unit of work is an owned next action with a member, reason and due date. A report, doctor decision or service result becomes useful when the team can see what follows and record its completion. The prototype demonstrates that operational loop; it does not establish clinical effectiveness.
+
+## How the product is used
+
+Health managers have two everyday starting points: **Today (今日工作)** to find work, and **Members (会员) → Member360** to find a person. Annual Management, Medical Collaboration and Services provide cross-member views leading back to the same member or business detail.
+
+Today gathers report confirmations, Agent approval gates, submitted initial assessments, doctor returns, rechecks, follow-ups, services, annual-management matters and other tasks. Each row answers **who, what happened, what the system has done, what needs doing now, who owns it and when it is due**. Selecting a row opens the relevant action. Search, owner and work filters narrow the queue; the default view also retains future arrangements.
+
+The health-management assistant is visible inside Today. Active workflows and recent completions are separated. Staff continue a pending confirmation from its workflow rather than search for separate Report, Risk, Task or Agent modules.
+
+Members use **Home, Health, Plan, Services and History**. Doctors use **Awaiting my judgment (待我判断)** and **History (历史)**. Administrators inspect system status, automation, integrations, rules and knowledge. Role switching is a demo preview, not authentication.
+
+## Longitudinal care workflow
+
+```mermaid
+flowchart TD
+    A[Member onboarding] --> B[Initial assessment]
+    B --> C[Health record]
+    C --> D[Manager review]
+    D --> E[Confirmed annual baseline]
+    E --> F[Annual plan and phase]
+    F --> G[Daily management]
+    G --> H[Recheck, service and doctor collaboration]
+    H --> I[Stage review]
+    I --> J[Next phase]
+    J --> G
+    I --> K[Annual review]
+    K --> L[Next management cycle]
+    L --> B
+```
+
+This is the supported human-led lifecycle, not a claim that one Agent autonomously runs the entire year. Annual plans, phases, logs, rechecks, services and stage reviews provide the business structure. The bounded Agent paths below assist document intake and post-checkup work within that structure.
+
+## Member360
+
+Member360 is the **single complete member workspace for the care team**. Its header keeps the annual cycle, responsible manager, current phase, member concerns, professional priorities and next step in view. Cross-member navigation opens this same workspace rather than a second member detail page.
+
+| Visible tab | What the team does there |
+|---|---|
+| **Overview / 概览** | Review the phase, priorities, indicator previews, open work, recent logs and assistant progress. |
+| **Health Record / 健康档案** | Start or continue the initial assessment, import documents, inspect reports, measurements, baseline and history. |
+| **Management / 管理** | Work through the annual plan, phases, management items, logs, rechecks and stage review. |
+| **Medical / 医疗** | Follow medical questions, doctor reviews and consultation context. |
+| **History / 历程** | Inspect the longitudinal record and results of earlier work. |
+
+![Member360 overview with five tabs and an assessment reminder](docs/images/readme/member360.png)
+
+*Member concerns remain distinct from professional priorities. Indicator previews link to the shared health-data view.*
+
+## Initial health assessment
+
+The first block in **Member360 → Health Record** is **Initial Health Assessment (初始健康评估)**. Its ten information sections cover basic details, family history, personal medical history, surgery/hospitalization, allergies, current and recent medication/supplements, lifestyle, environmental exposure, member concerns and targeted symptom assessment. The wizard presents these sections plus a final submission step.
+
+Managers can start an assessment, save a draft, continue later, review submitted answers and request supplementation. Submission places the assessment in Today for confirmation. Medical questions retain the doctor-review gate. Completed assessments show confirmation information, concerns and professional priorities, with routes to view or amend the existing assessment.
+
+The health record reads the same answers. Questionnaire statements and symptom scores do not become diagnoses, prescriptions or formal risk levels through submission or manager review. Imported material can prefill a draft with source references; unfilled sections still require attention.
+
+![Initial assessment with member, year, owner and save-and-continue controls](docs/images/readme/initial-assessment.png)
+
+## Agent-assisted health-record ingestion
+
+The manager path is **Members → Member360 → Health Record → ＋ 导入健康资料**. Three document types reuse the existing supervisor, documents, extraction candidates and business records:
+
+| Input | Implemented behavior |
+|---|---|
+| **Health checkup report** | Extract supported measurements, normalize indicators and units, compare existing observations and prepare confirmation. |
+| **Health questionnaire** | Map native structured questionnaire fields deterministically; organize supported text and prefill the existing assessment draft. |
+| **Historical health record** | Organize supported history, medication, surgery and profile fields, retaining source material and original dates when supplied. |
+
+![Upload with report, questionnaire and historical-record choices](docs/images/readme/health-record-ingestion.png)
 
 ```mermaid
 flowchart LR
-    A[Collect<br/>Data and reports] --> B[Judge<br/>Rules and assisted drafts]
-    B --> C[Triage<br/>Green / Yellow / Red / Gray]
-    C --> D[Human confirmation]
-    D --> E[Action<br/>Plan / task / service / referral]
-    E --> F[Result writeback]
-    F --> G[Periodic review<br/>Monthly / quarterly / yearly]
-    G --> H[Next cycle]
-    H --> A
+    U[Upload] --> P[Parse]
+    P --> N[Normalize]
+    N --> M[Match existing record]
+    M --> C[Detect new, update or conflict]
+    C --> H[Manager confirmation]
+    H --> W[Persist confirmed records]
+    W --> S[Member360 and Member UI sync]
 ```
 
-The system can detect change, assemble context, prioritize work, and draft low-risk content. Health managers verify and coordinate. Licensed doctors retain diagnosis, prescription, investigation, treatment, and referral decisions. Members authorize, act, and report outcomes. Every meaningful result returns to the health record and the next operating cycle.
+Text-bearing PDF, Word, spreadsheets, text and native questionnaire files reuse existing readers. Free-form text may use the configured LLM. Returned fields and evidence must be verifiable in the source; knowledge retrieval cannot manufacture member facts. Images and scans without a usable text layer are retained for manual handling when reliable extraction is unavailable.
 
-## Three Product Views
+The review compares existing content, proposed content, source and status. Consistent information is not inserted again. Conflicts require adopting new information, retaining the current record or deferring confirmation; deferral creates follow-up work. A medical question can use the existing doctor-review flow, after which the **same import workflow** returns to manager confirmation.
 
-### Member
+![Agent review showing proposed additions and a smoking-history conflict](docs/images/readme/agent-review.png)
 
-Sees current status, today's actions, plan progress, upcoming services, the responsible person, and long-term change—without internal operational or technical details.
+Confirmation writes accepted records and preserves provenance: document, excerpt, extraction method, confidence, confirmer, confirmation time and target record. Same-member file hashes prevent duplicate imports; measurement checks compare indicator, date, unit and value across files. Repeated confirmation does not recreate the records.
 
-### Health Manager
+**Automation replaces preparation work:** reading supported reports, extracting indicators, organizing questionnaires/history, matching fields, comparing records, finding conflicts, prefilling assessments, preparing doctor context and drafting later actions. **People retain responsibility:** managers verify sources, resolve conflicts, coordinate communication and submit medical questions; doctors make medical decisions. Historical medication extraction records a source statement, not a new prescription.
 
-Works from one `Operational Worklist` that brings together risk follow-up, report review, due tasks, doctor dependencies, service delivery, and outcome review. Each item exposes priority, owner, SLA or due date, reason, and next action.
+Member360 and the Member UI read the same confirmed records. Unconfirmed import candidates are excluded from the member's formal archive. Confirmed measurements feed the existing health-data series; import completion does not overwrite the annual baseline.
 
-### Doctor
+![Member-facing health record after confirmed ingestion](docs/images/readme/member-sync.png)
 
-Receives a focused medical-review context: the question requiring judgement, relevant member facts, medications, report evidence, risk context, and actions already taken. The decision returns to the health manager for execution and follow-up.
+## Visible bounded Agent workflow
 
-## Annual Management Cadence
-
-| Cadence | Product responsibility |
-|---|---|
-| **First month** | Establish the baseline and annual plan from reports, history, medications, health data, lifestyle, and member goals. |
-| **Monthly** | Monitor trends, execute tasks, coordinate services, and write back results. |
-| **Quarterly** | Compare key indicators, reassess risk, review outcomes, and recalibrate the plan. |
-| **Yearly** | Compare annual reports, summarize major events and services, record annual outcomes, and prepare the next-year plan. |
-
-## Longitudinal Health Baseline
-
-A Health Baseline is the **human-confirmed reference point at the start of an annual management cycle**. It is deliberately separate from the Current Health Profile, which continues to change as later observations arrive.
+The post-checkup assistant handles a concrete care-team sequence:
 
 ```text
-Baseline Draft → Human Review → Doctor Review when required → Confirmed
-      → Monthly / Quarterly Comparison → Annual Review → Next-year Draft
+New checkup report → Agent preparation → Manager confirmation
+→ Doctor review when required → Doctor submits → Original Agent resumes
+→ Follow-up action drafts → Manager confirmation
+→ Management items / Recheck / Follow-up → Workflow complete
 ```
 
-For example, a 2026 baseline weight of `90.0 kg` remains `90.0 kg` when the latest confirmed weight becomes `85.8 kg`. The change belongs to comparison, outcome, and timeline views; it does not rewrite the historical baseline.
+The assistant assembles findings, existing health context, available baseline/history and approved supporting knowledge. It prepares a medical question when needed. A doctor's submitted decision resumes the original goal; the manager checks action content, owners and dates before arrangements are created through existing services.
 
-- Confirmed baselines are frozen; factual corrections create traceable amendments.
-- New observations update the Current Profile, never the confirmed starting point.
-- Important baseline items retain report/observation evidence.
-- Missing or stale data remains explicit and is never presented as normal.
-- Medical conclusions preserve their doctor or formal-source boundary.
-- The UI renders report-derived reference ranges, Baseline → Current trends, six-category data coverage, and compact comparisons without inventing a health score.
+Completion means that confirmed arrangements and the next responsible step have been created. It does **not** mean a future recheck has happened or the member's health problem has resolved. Those results belong to subsequent management work.
 
-![Evidence-backed annual health baseline](docs/images/member-health.png)
+The run view explains **why it started, what it has done, where it is now, whom it awaits, what comes next and what it created**. Business activity comes from recorded events, successful tools, confirmations and doctor decisions. Ordinary member, manager and doctor pages do not expose prompts, token counts, tool calls, raw JSON or chain-of-thought. Technical execution traces belong to administrator views; activity summaries are not model reasoning transcripts.
 
-*The synthetic demo shows six confirmed baseline metrics, report-derived reference metadata, later observations, and a frozen annual reference point.*
+![Completed workflow with actual output counts, next owner and links to created work](docs/images/readme/agent-workflow.png)
 
-## Key Capabilities
+*This synthetic acceptance run created three management items, one recheck and one follow-up, with zero service requests. Counts describe this run, not a fixed output template.*
 
-1. **Health Report Intelligence** — parses report content into reviewable findings, observations, and follow-up candidates; AI output does not become a health fact without confirmation.
-2. **Evidence Traceability** — links displayed facts to the original document, page, table row, excerpt, device record, or human record when available.
-3. **Canonical Health Data** — normalizes report, device, and manual observations while preserving raw provenance and explicit units.
-4. **Deterministic Risk Engine** — governed code rules create `RiskEvent` records and explicit insufficient-data/gray states; LLMs do not assign risk.
-5. **Operational Worklist** — provides one prioritized operational contract for ownership, SLA, next action, doctor dependencies, and service follow-up.
-6. **Health Manager / Doctor Collaboration** — keeps operational ownership with health managers and medical judgement with licensed doctors.
-7. **Plan / Task / Service / Outcome** — turns findings into owned actions, tracks delivery, captures evidence and results, and starts the next follow-up step.
-8. **Longitudinal Health Timeline** — projects reports, baseline change, risk, medications, important medical events, doctor decisions, plans, services, and outcomes into a long-term record.
-9. **Lightweight Integration Center** — lets administrators validate, preview, and confirm CSV, XLSX, ZIP, or JSON data packages without exposing database internals.
-10. **Grounded AI & Governed Feedback** — requires traceable sources for user-visible AI explanations and keeps reviewed corrections in an offline, human-approved improvement pipeline.
+The supervisor persists events, goals, plan steps, tools, approvals and waiting state. A lightweight worker continues eligible work. Human gates, responsibility routing, duplicate protection, bounded retry and manual escalation constrain execution. These are specific workflow policies inside one supervisor, not a general multi-agent clinical team.
 
-## Product Experience
+## Health baseline & trends
 
-### Health Manager Workbench
+**Annual Baseline ≠ Current Health.** The confirmed baseline is the reference at the start of an annual cycle. Later accepted measurements update current health and comparisons while preserving that historical reference. Corrections use traceable amendments. A baseline value is not automatically a medical target.
 
-![Health Manager Workbench](docs/images/manager-today.png)
+The shared series view supports **weight, BMI, blood pressure, glucose, HbA1c, LDL-C, ALT, heart rate, steps, exercise time, active calories, sleep duration, deep sleep, REM sleep and awake time** when records exist. The current synthetic demo provides these fifteen selectable groups; availability depends on the member's data.
 
-The workbench answers who needs attention today, why, who owns the next step, and when it is due.
+Filters select indicator and time range. The summary shows the latest value within that range, confirmed annual baseline where available, change relative to baseline and measurement time. Charts and source details preserve units and dates; missing baselines remain explicit.
 
-### Member Health Overview
+![Blood pressure: annual baseline and later measurements](docs/images/readme/health-trends.png)
 
-![Member Health Overview](docs/images/member-360.png)
+Two points are a **historical comparison**, not a long-term trend. The demo's HbA1c and ALT examples have two points. Multi-point series support longitudinal viewing over their recorded interval. Empty or single-point windows explain the lack of data instead of drawing an empty trend. Observed change is not proof that a service caused improvement.
 
-Member context combines confirmed health facts, active problems, plans, tasks, and the next owned action.
+## Health manager / doctor collaboration
 
-### Doctor Review and Evidence
+Doctors enter **Awaiting my judgment** and revisit completed decisions in **History**. A review provides the explicit question, relevant data and trends where available, report evidence, history, medications and actions already taken. Imported-record reviews retain the original document and extracted source text.
 
-![Doctor Review and Evidence](docs/images/doctor-review.png)
+![Doctor history with the imported source statement and submitted judgment](docs/images/readme/doctor-review.png)
 
-Doctors review an explicit question with linked evidence and return a human medical decision to the operational workflow.
+The doctor supplies medical judgment. The Agent and manager organize execution: continuing the waiting workflow, preparing drafts, confirming ownership, arranging rechecks or follow-ups and recording results. The manager does not need to search for the returned decision or create a replacement Agent run.
 
-### Longitudinal Health Record
+## Management workflow
 
-![Longitudinal Health Record](docs/images/member-timeline.png)
+An **annual plan** establishes the period, responsible manager and focus. **Phases** describe current work and its review point. **Management items** make execution concrete with an owner, status and date. **Management logs** record contacts, services and results; saving a log can prepare the next task for confirmation.
 
-The timeline explains what happened, what evidence supported it, who acted, what was delivered, and what followed.
-
-## Integration Center
-
-The administrator path is **Operations → More → System → Integration & Data**. Structured partner and device files use one guarded flow:
-
-![Lightweight Integration Center](docs/images/admin-integrations.png)
-
-```text
-Upload → Validate → Preview → Confirm → Normalize → Persist
-```
-
-- Data packages support **CSV, XLSX, ZIP, and JSON**, duplicate protection, member matching, unit/date checks, and an audit record.
-- Device batches and future partner APIs converge on the same canonical import and validation layer instead of creating separate business logic.
-- The device adapter boundary covers Apple Health, blood pressure, CGM, weight, heart rate, sleep, and activity. Real vendor APIs remain future integrations.
-- External medical knowledge is consumed through a Partner Knowledge Adapter. HealthOps retains source validation, citation rendering, usage audit, local-SOP fallback, and no-source refusal rather than copying an entire medical library.
-
-## Offline Service Loop
-
-Professional services follow an owned delivery lifecycle:
-
-```text
-Trigger → Review → Decision → Schedule → Delivery → Result → Writeback
-```
-
-Service work retains the member, owner, provider when available, appointment, SLA, completion evidence, result, and next step. A completed service returns to the member record, plan, timeline, and follow-up queue when needed.
-
-## Bounded Long-Running HealthOps Agent
-
-The Agent Supervisor provides **bounded, long-running workflow autonomy—not autonomous medical decision-making**. V1 demonstrates one complete post-checkup management path:
-
-```text
-Report uploaded → Goal → Report confirmation → Baseline → Deterministic risk
-→ Manager work → Doctor review when required → Plan / Task / Service
-→ Follow-up → Outcome → Timeline → Goal complete
-```
-
-Its template-guided orchestration supports:
-
-- event-driven execution and durable goals;
-- versioned plans and governed read/write tools;
-- manager and doctor approval gates;
-- waiting for people, services, events, or scheduled time;
-- resume, bounded retry, reflection, and auditable replan;
-- execution trace, idempotency protection, and manual takeover.
-
-The Agent cannot diagnose, prescribe, change medication, decide clinical risk, modify thresholds or `RiskRule` records, or bypass doctor review. Agent goals, plans, and traces describe orchestration state; they are not a second health-record database.
+**Rechecks** track confirmation, booking, execution, report return and review. **Services** track arrangements, delivery and results. **Stage reviews** collect evidence and a decision before continuing or moving to the next phase. Results return to member history and management context instead of ending in an isolated note. Staff use Today for pending actions and Member360 for the whole cycle.
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-    M[Member UI] --> A[HealthOps application layer]
-    H[Health Manager UI] --> A
-    D[Doctor UI] --> A
-
-    A --> C[Report / Baseline / Observation / Evidence]
-    A --> R[Deterministic RiskEvent / Worklist]
-    A --> W[Doctor Review / Plan / Task / Service / Outcome]
-    A --> T[Longitudinal Timeline]
-
-    S[Agent Supervisor<br/>Event / Goal / Plan / Tool / Approval<br/>Wait-Resume / Retry / Replan / Trace] -. orchestrates through services .-> A
-
-    C --> DB[(SQLAlchemy persistence)]
-    R --> DB
-    W --> DB
-
-    AI[Local or compatible LLM adapter] -. semantic assistance .-> A
-    K[Partner knowledge + approved local SOP] -. grounded retrieval .-> A
-    V[Device and data-package adapters] --> C
+    subgraph UI[Role-specific interfaces]
+        MU[Member UI]
+        HU[Health Manager UI]
+        DU[Doctor UI]
+        AU[Admin UI]
+    end
+    MU --> APP[Application and service layer]
+    HU --> APP
+    DU --> APP
+    AU --> APP
+    subgraph DOMAIN[Business entities are the source of truth]
+        HR[Health record and source evidence]
+        OB[Observation]
+        BA[Annual baseline]
+        MW[Management workflow]
+        DR[Doctor review]
+        SV[Service and results]
+    end
+    APP --> HR
+    APP --> OB
+    APP --> BA
+    APP --> MW
+    APP --> DR
+    APP --> SV
+    DOMAIN --> DB[(SQLAlchemy persistence)]
+    DB --> PV[Read-only projections and timeline]
+    PV --> UI
+    AS[Agent Supervisor: workflow orchestration<br/>Event / Goal / Plan / Tool / Approval<br/>Wait and Resume / Trace] -. invokes governed services .-> APP
+    AS --> DB
+    WK[Agent worker] --> AS
+    LLM[LLM adapter: semantic assistance] -. bounded extraction and drafts .-> APP
+    KN[Knowledge adapter and approved local sources] -. supporting evidence .-> APP
+    IN[Device and file ingestion] --> APP
+    OB --> RE[Deterministic Risk Engine]
+    RE --> RF[Risk events]
+    RF --> DB
 ```
 
-The business entities are the sources of truth. Dashboards and timelines are projections; UI session state and AI output are not clinical facts. See the [architecture documentation](docs/architecture/README.md) and [BP product alignment](docs/BP_PRODUCT_ALIGNMENT.md).
+The UI and FastAPI routes call application services. Business records hold health facts and results; read-only projections assemble role views. Agent state describes orchestration. LLM output remains a proposal until applicable checks and human gates succeed. Neither is a parallel clinical record. Risk rules execute independently of LLM text.
 
-Representative APIs include `/agent/events`, `/agent/goals`, and `/agent/approvals`; the complete FastAPI surface is available from `/docs` when the demo service is running.
+## Safety boundaries
 
-## Grounded AI and Safety
+| Participant | Responsibility | Boundary |
+|---|---|---|
+| **Agent / LLM** | Coordination; supported extraction, source matching, summaries and drafts | Cannot assign formal risk, diagnose, prescribe, change medication or bypass required review. |
+| **Health manager** | Verify sources, resolve conflicts, confirm actions, coordinate and follow up | Confirmation does not turn self-report into a medical diagnosis. |
+| **Doctor** | Medical judgment and medical decisions | Decisions retain a human source; execution returns to the care team. |
+| **Deterministic Risk Engine** | Formal risk events from eligible observations and governed rules | No LLM-generated risk level or automatic rule modification; clinical validation remains incomplete. |
 
-The configurable LLM interface supports local models and OpenAI-compatible APIs. It may assist with semantic extraction, summarization, drafting, and knowledge explanation. It cannot diagnose, prescribe, stop or change medication, decide referrals, or assign GREEN/YELLOW/RED/GRAY risk.
+**不自动诊断、不开药、不停药、不调整剂量，也不替代医生判断。** Every formal Clinical RiskRule requires separate medical review and version governance.
 
-Safety boundary: **不自动诊断、不开药、不停药、不调整剂量，也不替代医生判断**. A formal Clinical RiskRule requires separate medical review and version governance.
-
-- Member-specific statements require **Fact Evidence**.
-- Medical, health, or workflow explanations require approved **Knowledge Evidence**.
-- Missing approved knowledge triggers **no-source refusal**, not completion from model memory.
-- Clinical risk rules have separate version and review governance; AI feedback cannot create or activate them.
-- Human-confirmed corrections may enter a reviewed, de-identified, immutable offline evaluation or prompt-optimization dataset. There is no online learning or automatic deployment.
+Fact evidence describes what is known about a member; knowledge evidence supports interpretation. Grounded explanations require eligible approved sources and validated citations. Without sufficient approved knowledge, the system refuses unsupported explanation. Extraction instead cites the original material. Human feedback can enter a reviewed, de-identified offline evaluation pipeline; there is no online learning or automatic model deployment.
 
 ## Engineering
 
-| Area | Implementation |
+| Area | Repository implementation |
 |---|---|
-| Product UI | Streamlit member center and operations workbench |
-| API | FastAPI |
-| Persistence | SQLAlchemy and Alembic; isolated SQLite demo, PostgreSQL-ready connection layer |
-| AI | Configurable local / compatible LLM interface with evidence-grounded answer contract |
-| Integrations | Shared adapters for files, devices, and partner knowledge |
-| Quality | pytest regression suite plus Streamlit interaction tests |
+| Runtime and UI | Python 3.11+, Streamlit, Altair charts |
+| API and services | FastAPI; shared commands and read-only projections |
+| Persistence | SQLAlchemy, Alembic migrations, isolated SQLite demo |
+| PostgreSQL readiness | Configurable SQLAlchemy connection layer; driver setup and production verification remain required |
+| Agent execution | Database-backed supervisor and lightweight Agent worker |
+| Language and knowledge | Local/OpenAI-compatible LLM adapter; partner knowledge adapter and approved local fallback |
+| Ingestion | Document readers, indicator/unit normalization, device adapters; administrative CSV/XLSX/ZIP/JSON package validation and confirmation |
+| Verification | pytest, Streamlit AppTest, Chromium/Playwright scripts and screenshot acceptance records |
+
+Browser QA is separate from the pytest CI job. Optional Playwright tooling is not installed by the default development extra.
 
 ## Quick Start
+
+Use **Windows, Python 3.11+ and PowerShell 7 (pwsh)**. Run from the repository root:
 
 ```powershell
 git clone https://github.com/KaedeharaT/executive-healthops.git
@@ -226,48 +257,53 @@ python -m venv .venv
 pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
 ```
 
-The launcher creates only the isolated `data/portfolio_demo.db` and starts Streamlit at `http://127.0.0.1:8501` and FastAPI docs at `http://127.0.0.1:8000/docs`. Demo members, reports, observations, knowledge, and workflows are synthetic and de-identified.
+The launcher builds **data/portfolio_demo.db**, applies migrations, records workflow responsibility and starts three background processes:
 
-The launcher also starts the lightweight demo Agent worker. For isolated development, it can be run separately with `python scripts/run_agent_worker.py`; a distributed production worker is intentionally outside V1.
+| Process | Local entry |
+|---|---|
+| Streamlit | <http://127.0.0.1:8501> |
+| FastAPI / API reference | <http://127.0.0.1:8000/docs> |
+| Agent worker | scripts/run_agent_worker.py, using the same isolated database |
+
+**-Rebuild** resets the disposable synthetic demo. Omit it to check and reuse a compatible demo; outdated fixtures may be rebuilt. Add **-NoBrowser** to suppress opening a browser. Ports 8501 and 8000 must be free; occupied ports are rejected. Stop the corresponding demo Python processes when finished.
+
+Enter the operations workbench, inspect Today, then select a member to open Member360. In Health Record, open the assessment or import a synthetic document. Use the role switch to inspect the doctor queue or member-facing result. Seeded workflows demonstrate manager and doctor waits. Deterministic extraction and workflow paths can run without a live model; free-form semantic extraction needs a configured LLM or falls back to manual handling. See [.env.example](.env.example) for configuration.
 
 ## Testing
+
+**Latest full regression: 703 passed / 0 failed.** Rechecked against the current application code on 2026-09-27 in an isolated checkout. This is engineering regression evidence, not clinical validation.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Current regression suite: **432 passed / 0 failed**.
+Use a disposable checkout: an existing migration test rebuilds that checkout's synthetic portfolio database. Coverage includes ingestion confirmation/provenance, duplicate protection, assessment states, doctor wait/resume, action creation, risk separation, baseline preservation and UI contracts. Acceptance documents also record real Chromium journeys. CI installs the package, builds synthetic data and runs pytest on Python 3.11.
 
 ## Current Limitations
 
-- Formal clinical-rule governance and clinical validation are not complete.
-- Real device-vendor APIs and Apple Health real-device verification are pending.
-- A real partner knowledge service is not connected in the Portfolio Demo.
-- Production Auth/RBAC, TLS, secrets management, and multi-user PostgreSQL deployment are pending.
-- Production distributed scheduling/worker infrastructure and failover are pending; V1 uses a lightweight database-backed worker.
-- Hospital-system integration, payment, and production service-provider connections are outside this prototype.
+- Images and pure scanned reports have no reliably configured production OCR path. Unreadable files, unavailable semantic services and unverifiable extraction require manual handling; originals remain available.
+- Clinical rules and management logic have not completed formal clinical validation. This is not a validated clinical service.
+- Device adapters, imports and Apple Health bridge code exist; real vendor APIs and real-device validation remain limited or pending. Historical data does not prove a live connection.
+- The demo does not connect a real partner medical knowledge service or provide a complete clinical RAG library. Approved local sources and adapter contracts demonstrate the boundary.
+- Role previews and service-level gates do not provide production authentication/RBAC. TLS, secrets operations, multi-user PostgreSQL deployment and production hardening remain unfinished.
+- The worker is lightweight; distributed scheduling, failover and production operational guarantees are not delivered.
+- Dedicated Stage/Recheck Agents, general multi-agent orchestration, hospital integrations, payments and live service-provider connections are not shipped capabilities. Stage and recheck workflows remain human-led.
 
 ## Documentation
 
-- [Architecture](docs/architecture/README.md)
-- [BP product alignment](docs/BP_PRODUCT_ALIGNMENT.md)
-- [AI grounding and citation policy](docs/AI_GROUNDING_AND_CITATION_POLICY.md)
-- [AI feedback and offline improvement](docs/AI_FEEDBACK_AND_IMPROVEMENT.md)
-- [Knowledge adapter contract](docs/KNOWLEDGE_ADAPTER_CONTRACT.md)
-- [Chinese resume project entry](portfolio/RESUME_PROJECT_ENTRY_ZH.md)
-- [Portfolio release notes](portfolio/PORTFOLIO_RELEASE_NOTES.md)
+| Evidence / reference | Purpose |
+|---|---|
+| [Current product acceptance](docs/product-logic-v5/ACCEPTANCE.md) | Today, Member360, doctor navigation and care-team journeys |
+| [Health-record ingestion](docs/profile-intake-agent.md) | Three inputs, conflicts, confirmation, doctor return and member sync |
+| [Initial assessment](docs/intake-assessment-entry-verification.md) | Draft, continuation, review and record integration |
+| [Visible assistant workflow](docs/assistant-visibility.md) | Business activity, human waits and completion output |
+| [Agent routing acceptance](docs/agent-dashboard-v2/verification.md) | Responsibility routing and run visibility |
+| [Health-trend verification](docs/health-trend-ui-verification.md) | Indicator coverage and sparse-data behavior |
+| [Architecture reference](docs/architecture/README.md) | Service/entity background; its older navigation audit predates the current UI, so use the acceptance links above for navigation |
+| [AI grounding](docs/AI_GROUNDING_AND_CITATION_POLICY.md) | Fact/knowledge evidence, citations and refusal |
+| [AI feedback](docs/AI_FEEDBACK_AND_IMPROVEMENT.md) | Reviewed offline improvement and risk-rule separation |
+| [Knowledge adapter](docs/KNOWLEDGE_ADAPTER_CONTRACT.md) | Partner contract, approved fallback and usage audit |
 
-## License and Data
+## License & Data
 
-The repository contains no real member records, original health reports, databases, uploads, or secrets（仓库不包含真实成员资料、原始健康报告、数据库、上传文件或密钥）. Portfolio data is reproducible synthetic fixture data. Code is released under the [MIT License](LICENSE). Third-party medical sources retain their own licensing and attribution requirements.
-
-## Role-based product experience
-
-Members start with today's action; health managers start with an owned work queue; doctors start with a review question and evidence; administrators start with connection and runtime status. Role switching remains a **demo preview**, not authentication.
-
-- [Product references](docs/PRODUCT_UX_BENCHMARK.md)
-- [Information architecture and navigation inventory](docs/PRODUCT_INFORMATION_ARCHITECTURE.md)
-- [Before / after changes](docs/UX_REDESIGN_CHANGELOG.md)
-- [Browser and visual QA](docs/UX_VISUAL_QA.md)
-
-A five-minute walkthrough: Member home → annual baseline → Manager today / member 360 → plan, follow-up and outcome → Doctor review / return to manager → longitudinal record. Connection setup is a separate administrator workspace.
+Code is released under the [MIT License](LICENSE). Fixtures and selected screenshots use **Synthetic Demo Data**. Real member records, original private reports, databases, uploads and secrets do not belong in Git（不提交真实成员资料、原始私人报告、数据库、上传文件或密钥）. Third-party sources retain their own licensing and attribution requirements.
