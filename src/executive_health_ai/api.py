@@ -58,7 +58,7 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
 
     def member_or_404(session: Session, member_id: UUID) -> Patient:
         member = session.get(Patient, member_id)
-        if member is None:
+        if member is None or member.archived_at is not None:
             raise HTTPException(status_code=404, detail="Member not found")
         return member
 
@@ -159,7 +159,7 @@ def create_app(session_factory: Callable[[], Session] = SessionLocal) -> FastAPI
 
     @app.get("/members", response_model=list[MemberOut])
     def list_members(session: Session = Depends(get_session)) -> list[Patient]:
-        return list(session.scalars(select(Patient).order_by(Patient.created_at.desc())))
+        return list(session.scalars(select(Patient).where(Patient.archived_at.is_(None)).order_by(Patient.created_at.desc())))
 
     @app.get("/members/{member_id}", response_model=MemberOut)
     def get_member(member_id: UUID, session: Session = Depends(get_session)) -> Patient:

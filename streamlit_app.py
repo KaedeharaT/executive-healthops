@@ -1321,10 +1321,12 @@ def render_yellow_risk_operations(patient: Patient, event: RiskEvent) -> None:
                 st.caption(f"{_fmt_dt(item.created_at)} · {_role_label(item.actor_role, name=item.actor)} · {get_audit_action_display(item.action)}")
 
 
-def _members() -> list[Patient]:
+def _members(*, include_archived=False) -> list[Patient]:
     try:
         with SessionLocal() as session:
-            return list(session.scalars(select(Patient).order_by(Patient.display_name, Patient.created_at)))
+            query=select(Patient).order_by(Patient.display_name,Patient.created_at)
+            if not include_archived:query=query.where(Patient.archived_at.is_(None))
+            return list(session.scalars(query))
     except SQLAlchemyError:
         return []
 
@@ -2868,7 +2870,10 @@ def render_simple_medical_records(patient: Patient, ctx: dict[str, list[object]]
 
 def render_members_workspace(members):
     from executive_health_ai.ui.pages.manager.workbench import directory
-    directory(_ui_adapter(), members)
+    # A stable page boundary prevents other routes' positional delta blocks
+    # from being reused while Streamlit replaces the member directory.
+    with st.container(key='member-directory-page'):
+        directory(_ui_adapter(), members)
 
 
 
@@ -4266,6 +4271,14 @@ def render_member_medical_workspace(patient: Patient, ctx: dict[str, list[object
 
 
 def render_member_detail(patient):
+    from executive_health_ai.services.member_archive import require_active
+    with SessionLocal() as session:
+        try:require_active(session,patient.id)
+        except ValueError:
+            st.session_state.pop('focused_member_id',None)
+            st.info('成员已归档，历史资料由管理员查阅。')
+            render_members_workspace(_members())
+            return
     manager_pages.member_detail(_ui_adapter(), patient)
 
 
@@ -6280,7 +6293,7 @@ def main() -> None:
         return
     # Member records are unnecessary for the default workbench and are loaded only when needed.
     members = _navigation_stage("member list", _members)
-    if not members:
+    if not members and page != '成员':
         st.title("企业高管健康运营中心")
         st.warning("尚未初始化演示数据。请先完成数据库迁移和演示数据初始化。")
         if NAVIGATION_PROFILE_ENABLED: LOGGER.warning("[PERF] total %.1f ms", (perf_counter() - started) * 1000)

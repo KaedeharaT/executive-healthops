@@ -116,6 +116,10 @@ def workspace(app, members, *, patient=None, read_only=False):
         st.session_state['doctor-navigation-last']=mode
     people={m.id:m for m in members}
     selected=st.session_state.get('doctor-selected-work')
+    if selected and UUID(selected[2]) not in people:
+        st.session_state.pop('doctor-selected-work',None)
+        st.info('该成员已归档或不在当前工作范围，历史记录由管理员查阅。')
+        selected=None
     if selected:
         if st.button('← 返回'+mode):
             st.session_state.pop('doctor-selected-work',None)

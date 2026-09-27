@@ -122,6 +122,8 @@ SURFACES = r'''
 .capability-route span{padding:6px 10px;border:1px solid transparent;border-radius:8px;color:#405b74;}
 .capability-route .used{color:#226548;background:#e7f3ec;border-color:#b4cfbd;}
 .capability-route .current{color:#fff;background:#185da8;border-color:#185da8;font-weight:600;}
+[data-testid="stMain"] .st-key-member-delete-danger button,.st-key-member-delete-confirm-danger button{color:#9b2424;border:1px solid #b74747;background:#fff4f3;}
+.st-key-member-delete-confirm-danger button:disabled{color:#704b4b;border-color:#cdb7b7;background:#f0e6e6;}
 @media(max-width:1100px) {.soft-profile-top{grid-template-columns:1fr;}.neu-archive-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;}}
 @media(max-width:760px) {
  [data-testid="stMainBlockContainer"]{padding:4.5rem 1rem 2rem!important;}

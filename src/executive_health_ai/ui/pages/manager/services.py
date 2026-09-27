@@ -11,8 +11,9 @@ def services(app):
     app._page_header("服务", "审核服务申请、安排执行并跟进服务结果。", eyebrow="服务工作台")
     members = app._patient_map()
     with SessionLocal() as session:
+        from executive_health_ai.services.member_archive import active_ids
         requests = list(session.scalars(
-            select(ServiceRequest).order_by(ServiceRequest.requested_at.desc())
+            select(ServiceRequest).where(ServiceRequest.patient_id.in_(active_ids())).order_by(ServiceRequest.requested_at.desc())
         ))
         service_names = {item.id: item.name for item in session.scalars(select(ServiceCatalogItem))}
     app._status_strip(

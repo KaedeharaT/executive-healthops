@@ -6,6 +6,9 @@ from executive_health_ai.services.product_projection import current_program
 
 
 def member_directory(session, members):
+    from executive_health_ai.services.member_archive import active_ids
+    active=set(session.scalars(active_ids()))
+    members=[m for m in members if m.id in active]
     ids = [m.id for m in members]
     if not ids:
         return []

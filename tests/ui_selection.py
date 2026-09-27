@@ -30,7 +30,9 @@ def select_table_row(app, index=0, *, prefix=None):
 
 
 def open_member(app):
-    return select_table_row(app, prefix='member-directory-')
+    select_table_row(app, prefix='member-directory-').run(timeout=45)
+    next(b for b in app.button if b.label == '查看会员 / 进入Member360').click()
+    return app
 
 
 def open_archive(app, title):

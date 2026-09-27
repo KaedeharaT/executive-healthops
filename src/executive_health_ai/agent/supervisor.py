@@ -41,6 +41,15 @@ class HealthOpsAgentSupervisor:
         self.default_max_retries = max(0, int(os.getenv("AGENT_MAX_RETRIES", "3")))
 
     def receive_event(self, session: Session, event: AgentEvent) -> AgentGoal | None:
+        from executive_health_ai.services.member_archive import is_archived
+        if is_archived(session,event.member_id):
+            # A replay must not rewrite the history of a previously processed
+            # or archive-cancelled event. Only a new/unprocessed receipt changes.
+            if event.status in {None,'PENDING'} or (event.status=='IGNORED' and event.processed_at is None):
+                event.status,event.processed_at='IGNORED',utc_now()
+                event.metadata_json={**(event.metadata_json or {}),'stop_reason':'MEMBER_ARCHIVED'}
+                session.flush()
+            return None
         from executive_health_ai.agent.profile_intake import handle_event as profile_event
         handled, profile_goal = profile_event(self, session, event)
         if handled:
@@ -73,6 +82,8 @@ class HealthOpsAgentSupervisor:
         return event, self.receive_event(session, event), created
 
     def start_goal(self, session: Session, *, member_id: UUID, goal_type: str, source_type: str, source_id: str | UUID, title: str, event_id: UUID | None = None, created_by: str = "agent_supervisor") -> AgentGoal:
+        from executive_health_ai.services.member_archive import require_active
+        require_active(session,member_id)
         source = str(source_id)
         existing = session.scalar(select(AgentGoal).where(AgentGoal.goal_type == goal_type, AgentGoal.source_type == source_type, AgentGoal.source_id == source))
         if existing:
@@ -97,6 +108,9 @@ class HealthOpsAgentSupervisor:
 
     def execute_next_step(self, session: Session, goal_id: UUID, *, event_id: UUID | None = None) -> AgentGoal:
         goal = self._goal(session, goal_id)
+        from executive_health_ai.services.member_archive import is_archived
+        if is_archived(session,goal.member_id):
+            return goal
         from executive_health_ai.agent.profile_intake import is_profile_goal, advance
         if is_profile_goal(goal):
             return advance(self, session, goal)
@@ -256,6 +270,8 @@ class HealthOpsAgentSupervisor:
 
     def resume_goal(self, session: Session, goal_id: UUID, *, actor: str = "admin", reason: str = "人工确认恢复") -> AgentGoal:
         goal = self._goal(session, goal_id)
+        from executive_health_ai.services.member_archive import require_active
+        require_active(session,goal.member_id)
         if goal.goal_type == "PROFILE_INTAKE":
             raise ValueError("请在资料导入详情处理，不能绕过档案确认。")
         from executive_health_ai.agent.post_checkup import is_care_goal, analyze, move, LABELS

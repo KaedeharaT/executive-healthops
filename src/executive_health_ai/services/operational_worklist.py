@@ -192,6 +192,9 @@ class OperationalWorklistService:
 
         from executive_health_ai.services.member_management_projection import management_work_items
         items.extend(management_work_items(session, now))
+        from executive_health_ai.services.member_archive import active_ids
+        active=set(session.scalars(active_ids()))
+        items=[item for item in items if item.member_id in active]
         return sorted(items, key=lambda item: (item.priority, item.due_at or now, item.event_at or now, item.title))
 
     @staticmethod

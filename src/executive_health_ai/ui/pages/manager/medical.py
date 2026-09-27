@@ -42,7 +42,9 @@ def medical_rows(session, member_id=None, history=False, doctor=False):
             if member_id and goal.member_id!=member_id:continue
             rows.append({'kind':'approval','record':approval,'member_id':goal.member_id,'question':goal.next_action or goal.title,
                 'source':'医学确认','change':'已有资料待确认','doctor':'责任医生','at':goal.started_at,'state':'待判断'})
-    return rows
+    from executive_health_ai.services.member_archive import active_ids
+    active=set(session.scalars(active_ids()))
+    return [row for row in rows if row['member_id'] in active]
 
 
 def review_detail(app, member, record_id, kind='doctor_review', doctor=False):

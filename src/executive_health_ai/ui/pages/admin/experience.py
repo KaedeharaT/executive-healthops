@@ -89,10 +89,14 @@ def workspace(app):
         with c.secondary_details("运行方式与责任边界"):
             st.info("当前为演示角色预览；角色切换不等于登录或权限认证。")
         with st.expander("操作记录"):
-            members = app._members()
+            include_archived = st.checkbox('显示已归档成员')
+            members = app._members(include_archived=include_archived)
             if members:
                 member = st.selectbox("选择成员", members, format_func=app._member_display)
                 app.render_audit(app._audit_context(member.id))
+                if member.archived_at:
+                    from executive_health_ai.ui.pages.admin.member_history import render
+                    render(app, member)
         with st.expander("AI质量治理（高级）"):
             app.render_ai_improvement(app.SessionLocal)
         legacy_tools(app)

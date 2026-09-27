@@ -112,7 +112,18 @@ def write_state(path, state):
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_suffix(f".{os.getpid()}.tmp")
     temp.write_text(json.dumps(state, indent=2), encoding="utf-8")
-    os.replace(temp, path)
+    # A controller can be reading the PID registry while the supervisor writes
+    # it. Windows readers briefly deny rename/delete sharing. Keep the previous
+    # complete registry until replacement succeeds; never truncate it in place.
+    deadline = time.monotonic() + 2
+    while True:
+        try:
+            os.replace(temp, path)
+            return
+        except PermissionError:
+            if os.name != 'nt' or time.monotonic() >= deadline:
+                raise
+            time.sleep(.02)
 
 
 def read_state(path):

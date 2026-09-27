@@ -63,6 +63,8 @@ class AgentToolRegistry:
             raise ValueError("Agent tool is not allowed.") from exc
 
     def execute(self, session: Session, name: str, goal: AgentGoal, context: dict[str, Any] | None = None, *, approved_role: str | None = None) -> dict[str, Any]:
+        from executive_health_ai.services.member_archive import require_active
+        require_active(session,goal.member_id)
         tool = self.get(name)
         from executive_health_ai.agent.profile_intake import is_profile_goal
         profile_tools = {"parse_profile_document", "match_profile_document", "approve_profile_document", "request_profile_review"}

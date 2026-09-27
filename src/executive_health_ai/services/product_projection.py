@@ -37,9 +37,10 @@ def observations(session, patient_id, metric=None, since=None):
 
 
 def pending_doctor_work(session, patient_id=None):
-    reviews = select(DoctorReview).where(DoctorReview.status == "PENDING")
-    baselines = select(HealthAssessment).where(HealthAssessment.status == "WAITING_MEDICAL_REVIEW")
-    alerts = select(Alert).where(Alert.status == "WAITING_DOCTOR_REVIEW", Alert.health_problem_id.is_not(None))
+    from executive_health_ai.services.member_archive import active_ids
+    reviews = select(DoctorReview).where(DoctorReview.status == "PENDING",DoctorReview.patient_id.in_(active_ids()))
+    baselines = select(HealthAssessment).where(HealthAssessment.status == "WAITING_MEDICAL_REVIEW",HealthAssessment.patient_id.in_(active_ids()))
+    alerts = select(Alert).where(Alert.status == "WAITING_DOCTOR_REVIEW", Alert.health_problem_id.is_not(None),Alert.patient_id.in_(active_ids()))
     if patient_id:
         reviews = reviews.where(DoctorReview.patient_id == patient_id)
         baselines = baselines.where(HealthAssessment.patient_id == patient_id)

@@ -145,3 +145,26 @@ def test_stale_pid_record_never_terminates_reused_process(group):
 def test_instance_name_cannot_escape_runtime_directory():
     with pytest.raises(ValueError):
         manager.state_path("../outside")
+
+
+def test_pid_registry_replacement_waits_for_windows_reader(tmp_path):
+    from threading import Timer
+    path=tmp_path/'process.json'
+    manager.write_state(path,{'pid':1})
+    reader=path.open('r',encoding='utf-8')
+    release=Timer(.15,reader.close)
+    release.start()
+    try:
+        manager.write_state(path,{'pid':2})
+        assert manager.read_state(path)=={'pid':2}
+    finally:
+        release.cancel();reader.close()
+
+
+def test_pid_registry_persistent_lock_preserves_previous_state(tmp_path):
+    path=tmp_path/'process.json'
+    manager.write_state(path,{'pid':1})
+    with path.open('r',encoding='utf-8'):
+        with pytest.raises(PermissionError):
+            manager.write_state(path,{'pid':2})
+    assert manager.read_state(path)=={'pid':1}

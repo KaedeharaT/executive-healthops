@@ -25,6 +25,10 @@ class EventService:
                 raise ValueError('重复事件与原业务来源不一致。')
             return existing, False
         event = AgentEvent(event_type=event_type, member_id=member_id, source_type=source_type, source_id=source, payload_summary=(payload_summary or "")[:1000] or None, metadata_json=metadata or {}, dedup_key=key)
+        from executive_health_ai.services.member_archive import is_archived
+        if is_archived(session,member_id):
+            event.status='IGNORED'
+            event.metadata_json={**event.metadata_json,'stop_reason':'MEMBER_ARCHIVED'}
         try:
             with session.begin_nested():
                 session.add(event)

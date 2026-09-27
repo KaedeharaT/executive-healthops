@@ -62,7 +62,8 @@ def assistant(app, people):
     from executive_health_ai.ui.pages.manager import care_activity
     care_activity.styles()
     with SessionLocal() as session:
-        goals = [g for g in session.scalars(select(AgentGoal).order_by(AgentGoal.updated_at.desc())) if is_care_goal(g) or g.goal_type == "PROFILE_INTAKE"]
+        from executive_health_ai.services.member_archive import active_ids
+        goals = [g for g in session.scalars(select(AgentGoal).where(AgentGoal.member_id.in_(active_ids())).order_by(AgentGoal.updated_at.desc())) if is_care_goal(g) or g.goal_type == "PROFILE_INTAKE"]
     groups = project_assistant(goals)
     active, recent = groups.active, groups.recent
     pending = active + groups.attention

@@ -131,7 +131,10 @@ def open_directory_member(app, member):
 def directory(app, members):
     from executive_health_ai.ui.pages.manager import workflow
     c.page_shell('manager','会员','搜索和筛选会员，找到某个人，进入 Member360 概览。')
-    workflow.flash()
+    # Always reserve the feedback slot: an optional success message used to
+    # shift the filter block's delta path and briefly retain its old DOM copy.
+    with st.container(key='member-directory-feedback'):
+        workflow.flash()
     with SessionLocal() as session:
         rows = member_directory(session, members)
     c.summary_strip([('会员',len(rows)),('年度管理中',sum(bool(r['program']) for r in rows)),
@@ -157,9 +160,8 @@ def directory(app, members):
             '下一日期':ux.local_time(t.due_at) if t else None,'状态':status_label(p.status) if p else '待建档'})
     chosen = data_table(rows, records, key='member-directory',label='选择会员',empty='未找到匹配会员。',auto_select=False,activate_on_cell=True)
     if chosen:
-        st.session_state['member-directory-epoch'] = st.session_state.get('member-directory-epoch', 0)+1
-        open_directory_member(app,chosen['member'])
-        st.rerun()
+        from executive_health_ai.ui.pages.manager.member_delete import actions
+        actions(app,chosen['member'])
 
 
 def archive(app, patient, view):

@@ -73,6 +73,7 @@ def project(member, view, today=None):
 def load(session, today=None):
     projection = MemberManagementProjection()
     programs = session.execute(select(Patient, HealthProgram).join(HealthProgram, HealthProgram.patient_id == Patient.id)
+                               .where(Patient.archived_at.is_(None))
                                .order_by(HealthProgram.start_date.desc(), Patient.display_name)).all()
     return [project(member, projection.member(session, member.id, program.id), today) for member, program in programs]
 

@@ -147,6 +147,11 @@ def evidence(goal, *, doctor=False, show_findings=True):
 def manager_detail(app, goal_id):
     with SessionLocal() as session:
         goal = session.get(AgentGoal, UUID(str(goal_id)))
+        from executive_health_ai.services.member_archive import is_archived
+        if goal and is_archived(session,goal.member_id):
+            st.session_state.pop('care-detail',None)
+            st.info('成员已归档，自动流程已停止；历史记录由管理员查阅。')
+            return
     if goal and goal.goal_type == 'PROFILE_INTAKE':
         from executive_health_ai.ui.pages.manager.profile_intake import detail
         detail(app,goal_id)
