@@ -3,6 +3,7 @@ from pathlib import Path
 import hashlib
 import io
 import json
+import os
 import sqlite3
 import subprocess
 import tarfile
@@ -16,7 +17,8 @@ for name, ref, port in [('original', 'backup/pre-neumorphism-redesign', 18501), 
     target = OUT / name
     target.mkdir(exist_ok=True)
     if ref:
-        archive = subprocess.check_output(['git', 'archive', ref], cwd=ROOT)
+        archive = subprocess.check_output(['git', 'archive', ref], cwd=ROOT,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
         with tarfile.open(fileobj=io.BytesIO(archive)) as files:
             for item in files.getmembers():
                 assert (target / item.name).resolve().is_relative_to(target.resolve())

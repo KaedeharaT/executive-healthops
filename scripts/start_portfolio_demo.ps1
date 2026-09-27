@@ -1,13 +1,15 @@
 ﻿<#
 Start the isolated Executive HealthOps portfolio demo on Windows.
 It creates/uses only data\portfolio_demo.db and never changes the normal
-development database.  Stop the two spawned Python processes from Task Manager
-or close their PowerShell hosts when you finish.
+development database. Stop with scripts/stop_platform.ps1 -Instance portfolio.
 #>
 [CmdletBinding()]
 param(
     [switch]$Rebuild,
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [string]$Instance = "portfolio",
+    [int]$ApiPort = 8000,
+    [int]$UiPort = 8501
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,6 +19,13 @@ if (-not (Test-Path -LiteralPath $python)) {
     $python = "python"
 }
 
+$manager = Join-Path $PSScriptRoot "service_processes.py"
+$serviceArgs = @("--instance", $Instance, "--profile", "portfolio", "--api-port", "$ApiPort", "--ui-port", "$UiPort")
+# Reject occupied ports BEFORE changing the disposable demo database.
+& $python $manager preflight @serviceArgs
+if ($LASTEXITCODE -ne 0) { throw "Release the occupied services before preparing the demo." }
+Push-Location $projectRoot
+try {
 $databasePath = Join-Path $projectRoot "data\portfolio_demo.db"
 if ($Rebuild) {
     & $python (Join-Path $projectRoot "scripts\build_portfolio_demo.py") --rebuild
@@ -43,24 +52,16 @@ if ($LASTEXITCODE -ne 0) {
 & $python (Join-Path $projectRoot "scripts\record_care_responsibility.py")
 if ($LASTEXITCODE -ne 0) { throw "现有健康管理流程责任记录更新失败。" }
 
-function Test-LocalPort([int]$Port) {
-    return [bool](Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
-}
-
-Push-Location $projectRoot
-try {
-    if (Test-LocalPort 8000) { throw "端口 8000 已被占用。请先停止已有 API，避免误连接到非作品集数据库。" }
-    if (Test-LocalPort 8501) { throw "端口 8501 已被占用。请先停止已有 Streamlit，避免误连接到非作品集数据库。" }
-    Start-Process -FilePath $python -ArgumentList "-m uvicorn executive_health_ai.api:app --app-dir src --host 127.0.0.1 --port 8000" -WorkingDirectory $projectRoot -WindowStyle Hidden | Out-Null
-    Start-Process -FilePath $python -ArgumentList "-m streamlit run streamlit_app.py --server.address 127.0.0.1 --server.port 8501" -WorkingDirectory $projectRoot -WindowStyle Hidden | Out-Null
-    Start-Process -FilePath $python -ArgumentList "scripts/run_agent_worker.py" -WorkingDirectory $projectRoot -WindowStyle Hidden | Out-Null
+    & $python $manager start @serviceArgs
+    if ($LASTEXITCODE -ne 0) { throw "Portfolio services failed. See .runtime/logs/$Instance/." }
     if (-not $NoBrowser) {
-        Start-Sleep -Seconds 2
-        Start-Process "http://127.0.0.1:8501"
+        Start-Process "http://127.0.0.1:$UiPort"
     }
     Write-Host "Portfolio Demo is using data/portfolio_demo.db"
-    Write-Host "Streamlit: http://127.0.0.1:8501"
-    Write-Host "FastAPI:   http://127.0.0.1:8000/docs"
+    Write-Host "Streamlit: http://127.0.0.1:$UiPort"
+    Write-Host "FastAPI:   http://127.0.0.1:$ApiPort/docs"
+    Write-Host "Logs: .runtime/logs/$Instance/; PIDs: .runtime/processes/$Instance.json"
+    Write-Host "Stop: .\scripts\stop_platform.ps1 -Instance $Instance"
 } finally {
     Pop-Location
 }

@@ -265,7 +265,9 @@ The launcher builds **data/portfolio_demo.db**, applies migrations, records work
 | FastAPI / API reference | <http://127.0.0.1:8000/docs> |
 | Agent worker | scripts/run_agent_worker.py, using the same isolated database |
 
-**-Rebuild** resets the disposable synthetic demo. Omit it to check and reuse a compatible demo; outdated fixtures may be rebuilt. Add **-NoBrowser** to suppress opening a browser. Ports 8501 and 8000 must be free; occupied ports are rejected. Stop the corresponding demo Python processes when finished.
+**-Rebuild** resets the disposable synthetic demo. Omit it to check and reuse a compatible demo; outdated fixtures may be rebuilt. Add **-NoBrowser** to suppress opening a browser. Ports 8501 and 8000 must be free; occupied ports are rejected before database preparation. Services run without visible terminal windows. Stop the complete demo process tree with `pwsh -File .\scripts\stop_platform.ps1 -Instance portfolio`.
+
+The normal platform launcher is `pwsh -File .\scripts\start_platform.ps1` (stop with `pwsh -File .\scripts\stop_platform.ps1`). Logs are under `.runtime/logs/<instance>/`; PID records are under `.runtime/processes/<instance>.json`. Closing the browser does not stop background services. Use the stop script; `-All` stops all recorded service groups. See [background services and QA](docs/background-services/README.md) for lifecycle and Before/After capture commands.
 
 Enter the operations workbench, inspect Today, then select a member to open Member360. In Health Record, open the assessment or import a synthetic document. Use the role switch to inspect the doctor queue or member-facing result. Seeded workflows demonstrate manager and doctor waits. Deterministic extraction and workflow paths can run without a live model; free-form semantic extraction needs a configured LLM or falls back to manual handling. See [.env.example](.env.example) for configuration.
 

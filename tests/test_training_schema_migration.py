@@ -143,4 +143,5 @@ def test_schema_guard_rejects_old_database_before_insert(tmp_path):
 def test_portfolio_launcher_upgrades_before_starting_services():
     source = (ROOT / "scripts" / "start_portfolio_demo.ps1").read_text(encoding="utf-8")
     assert "--ensure-current" in source
-    assert source.index("-m alembic upgrade head") < source.index("Start-Process -FilePath $python")
+    assert source.index("$manager preflight") < source.index("--ensure-current")
+    assert source.index("-m alembic upgrade head") < source.index("$manager start @serviceArgs")

@@ -6,7 +6,7 @@ repository virtual environment; it does not change project dependencies,
 application code, or demo data.
 #>
 [CmdletBinding()]
-param()
+param([switch]$SkipInstall)
 
 $ErrorActionPreference = "Stop"
 if ($PSVersionTable.PSVersion.Major -lt 7) {
@@ -36,6 +36,7 @@ if (-not (Test-Path -LiteralPath $python)) {
     if ($LASTEXITCODE -ne 0) { throw "Failed to create .venv." }
 }
 
+if (-not $SkipInstall) {
 Write-Host "Preparing project and local Playwright tooling..."
 & $python -m pip install --upgrade pip
 if ($LASTEXITCODE -ne 0) { throw "Failed to upgrade pip." }
@@ -45,10 +46,14 @@ if ($LASTEXITCODE -ne 0) { throw "Failed to install project development dependen
 if ($LASTEXITCODE -ne 0) { throw "Failed to install Playwright in .venv." }
 & $python -m playwright install chromium
 if ($LASTEXITCODE -ne 0) { throw "Failed to install Playwright Chromium." }
+}
 
+$started = $false
+try {
 Write-Host "Rebuilding and starting the isolated Portfolio Demo..."
-& (Join-Path $PSScriptRoot "start_portfolio_demo.ps1") -Rebuild -NoBrowser
+& (Join-Path $PSScriptRoot "start_portfolio_demo.ps1") -Rebuild -NoBrowser -Instance portfolio-capture
 if ($LASTEXITCODE -ne 0) { throw "Portfolio Demo startup failed." }
+$started = $true
 
 $demoUrl = "http://127.0.0.1:8501"
 $deadline = (Get-Date).AddSeconds(90)
@@ -92,4 +97,7 @@ if (Test-Path -LiteralPath $summaryPath) {
     }
 }
 
+} finally {
+    if ($started) { & (Join-Path $PSScriptRoot "stop_platform.ps1") -Instance portfolio-capture }
+}
 exit $captureExit

@@ -67,13 +67,15 @@ def test_streamlit_default_page_smoke_loads() -> None:
 def test_platform_launcher_uses_fixed_ports_safe_project_restart_and_single_browser_open() -> None:
     root = Path(__file__).resolve().parents[1]
     launcher = (root / "scripts" / "start_platform.ps1").read_text(encoding="utf-8")
-    assert "--server.headless" in launcher and '"true"' in launcher
-    assert "--server.port" in launcher and '"8501"' in launcher
-    assert '"--port", "8000"' in launcher
-    assert launcher.count('Start-Process "http://127.0.0.1:8501"') == 1
+    manager = (root / "scripts" / "service_processes.py").read_text(encoding="utf-8")
+    assert "--server.headless" in manager and '"true"' in manager
+    assert "--server.port" in manager and "$UiPort = 8501" in launcher
+    assert '"--port", str(args.api_port)' in manager and "$ApiPort = 8000" in launcher
+    assert launcher.count('Start-Process "http://127.0.0.1:$UiPort"') == 1
     assert "local LLM" in launcher
     assert "8505" not in launcher
-    assert "Stop-ProjectService 8501" in launcher and "Stop-ProjectService 8000" in launcher
-    assert "Get-NetTCPConnection" in launcher and "Is-ThisProjectProcess" in launcher
+    assert "$manager stop --instance $Instance" in launcher
+    assert "$manager preflight @serviceArgs" in launcher
+    assert launcher.index("$manager preflight") < launcher.index("-m alembic upgrade head")
     assert "-m alembic upgrade head" in launcher
     assert "git pull" not in launcher and "git checkout" not in launcher
