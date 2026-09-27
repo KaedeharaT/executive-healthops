@@ -86,6 +86,11 @@ def complete_review(session, review, doctor, department, opinion, instruction, d
     from executive_health_ai.services.risk_operations import RiskOperationsService
     if review is None:
         raise ValueError("未找到待复核事项。")
+    from executive_health_ai.models import AgentGoal
+    for profile_goal in session.scalars(select(AgentGoal).where(AgentGoal.member_id==review.patient_id, AgentGoal.goal_type=='PROFILE_INTAKE')):
+        if profile_goal.context_json.get('review_id')==str(review.id):
+            from executive_health_ai.services.profile_ingestion import ProfileIngestionService
+            return ProfileIngestionService().complete_review(session,profile_goal,review,doctor,department,opinion,instruction)
     from executive_health_ai.agent.post_checkup import goal_for_review
     care_goal = goal_for_review(session, review.id, review.patient_id)
     if care_goal:

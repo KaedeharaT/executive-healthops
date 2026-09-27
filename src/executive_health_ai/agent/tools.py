@@ -48,6 +48,8 @@ class AgentToolRegistry:
         self._register_defaults()
         from executive_health_ai.agent.post_checkup import register_tools
         register_tools(self)
+        from executive_health_ai.agent.profile_intake import register_tools as register_profile_tools
+        register_profile_tools(self)
 
     def register(self, tool: AgentTool) -> None:
         if tool.name in self._tools:
@@ -62,6 +64,16 @@ class AgentToolRegistry:
 
     def execute(self, session: Session, name: str, goal: AgentGoal, context: dict[str, Any] | None = None, *, approved_role: str | None = None) -> dict[str, Any]:
         tool = self.get(name)
+        from executive_health_ai.agent.profile_intake import is_profile_goal
+        profile_tools = {"parse_profile_document", "match_profile_document", "approve_profile_document", "request_profile_review"}
+        if name in profile_tools and not is_profile_goal(goal):
+            raise PermissionError("资料导入工具不能用于其他流程。")
+        if is_profile_goal(goal):
+            allowed = {"PARSING": "parse_profile_document", "MATCHING": "match_profile_document", "REVIEW": "approve_profile_document"}
+            if tool.mode == "write" and (name not in profile_tools or allowed.get(goal.current_stage) != name and not (name == "request_profile_review" and goal.current_stage == "REVIEW" and goal.status == "WAITING_MANAGER")):
+                raise PermissionError("此步骤不可执行该资料写入。")
+            if name == "approve_profile_document" and goal.status != "WRITING":
+                raise PermissionError("请先提交有权限的健管确认。")
         from executive_health_ai.agent.post_checkup import is_care_goal
         if is_care_goal(goal):
             from executive_health_ai.agent.care_routing import guard

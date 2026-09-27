@@ -14,6 +14,7 @@ LABELS = dict(zip(ROUTES, ('系统自动处理', '健管确认', '医生判断',
 REASONS = {
     'NON_MEDICAL_PREPARATION': ('AUTO', '整理资料、计算变化和准备草稿，不作医学决定'),
     'CONFIRMED_ARRANGEMENTS': ('AUTO', '仅建立已经人工确认的工作安排'),
+    'PROFILE_CONFIRMATION': ('MANAGER', '需要核对资料来源、档案更新和冲突，确认后才正式入档'),
     'MANAGER_CONFIRMATION': ('MANAGER', '需要健管确认报告整理结果、管理重点和处理路径'),
     'ACTION_APPROVAL': ('MANAGER', '需要健管确认后续行动的负责人、日期与依据'),
     'MISSING_CONTEXT': ('MANAGER', '年度方案或责任健管尚未明确，需要补充资料'),

@@ -147,6 +147,10 @@ def evidence(goal, *, doctor=False, show_findings=True):
 def manager_detail(app, goal_id):
     with SessionLocal() as session:
         goal = session.get(AgentGoal, UUID(str(goal_id)))
+    if goal and goal.goal_type == 'PROFILE_INTAKE':
+        from executive_health_ai.ui.pages.manager.profile_intake import detail
+        detail(app,goal_id)
+        return
     if not goal or not flow.is_care_goal(goal):
         st.error('此报告事项不可用。'); return
     origin=st.session_state.get('care-origin','今日工作')
@@ -310,10 +314,20 @@ def doctor_detail(goal, *, read_only=False):
 
 def member_summary(member_id,app=None):
     with SessionLocal() as session:
-        goals = [g for g in session.scalars(select(AgentGoal).where(AgentGoal.member_id == member_id).order_by(AgentGoal.updated_at.desc(), AgentGoal.started_at.desc())) if flow.is_care_goal(g)]
+        goals = [g for g in session.scalars(select(AgentGoal).where(AgentGoal.member_id == member_id).order_by(AgentGoal.updated_at.desc(), AgentGoal.started_at.desc())) if flow.is_care_goal(g) or g.goal_type == "PROFILE_INTAKE"]
     if not goals:
         return
     goal = goals[0]
+    if goal.goal_type == 'PROFILE_INTAKE':
+        from executive_health_ai.ui.pages.manager.profile_intake import STATUS
+        st.markdown('**自动跟进 · 健康资料导入**')
+        st.caption('开始：'+ux.when(goal.started_at))
+        st.write('当前：'+STATUS.get(goal.status,'待处理'))
+        st.write('下一步：'+goal.next_action)
+        if app:
+            from executive_health_ai.ui.pages.manager.assistant import open_care
+            st.button('查看运行看板',key=f'member-profile-progress-{member_id}',on_click=open_care,args=(app,goal,'会员360'))
+        return
     from executive_health_ai.ui.pages.manager import care_activity
     activity=care_activity.load(goal)
     st.markdown('**自动跟进 · 体检后健康管理**')

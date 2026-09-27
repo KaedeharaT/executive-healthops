@@ -19,6 +19,9 @@ class AgentSchedulerService:
     def run_due(self, session: Session, *, now: datetime) -> int:
         supervisor = self.supervisor
         processed = 0
+        for goal in list(session.scalars(select(AgentGoal).where(AgentGoal.goal_type == "PROFILE_INTAKE", AgentGoal.status == "RUNNING", AgentGoal.automation_paused.is_(False)))):
+            supervisor.execute_next_step(session, goal.id)
+            processed += 1
         due_goals = list(session.scalars(select(AgentGoal).where(AgentGoal.status == "WAITING", AgentGoal.next_check_at.is_not(None), AgentGoal.next_check_at <= now, AgentGoal.automation_paused.is_(False))))
         for goal in due_goals:
             plan_id = goal.current_plan_id

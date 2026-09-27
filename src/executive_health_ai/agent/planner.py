@@ -42,7 +42,7 @@ class HealthOpsPlanner:
     """Create immutable versions of a medically bounded plan skeleton."""
 
     def create_plan(self, session: Session, goal: AgentGoal, *, reason: str, start_at: int = 1) -> AgentPlan:
-        if goal.goal_type != "POST_CHECKUP_MANAGEMENT":
+        if goal.goal_type not in {"POST_CHECKUP_MANAGEMENT", "PROFILE_INTAKE"}:
             raise ValueError("Unsupported goal type.")
         version = int(session.scalar(select(func.max(AgentPlan.version)).where(AgentPlan.goal_id == goal.id)) or 0) + 1
         plan = AgentPlan(goal_id=goal.id, version=version, status="ACTIVE", reason=reason)
@@ -51,6 +51,9 @@ class HealthOpsPlanner:
         from executive_health_ai.agent.post_checkup import is_care_goal, STAGES
         templates = tuple(StepTemplate(stage, approval_role='HEALTH_MANAGER' if stage in {'WAITING_MANAGER_REVIEW', 'WAITING_ACTION_APPROVAL'} else None,
             wait_event_type='DOCTOR_REVIEW_COMPLETED' if stage == 'WAITING_DOCTOR_REVIEW' else None) for stage in STAGES[:7]) if is_care_goal(goal) else POST_CHECKUP_TEMPLATE
+        if goal.goal_type == "PROFILE_INTAKE":
+            from executive_health_ai.agent.profile_intake import STAGES as PROFILE_STAGES
+            templates = tuple(StepTemplate(stage, approval_role="HEALTH_MANAGER" if stage == "REVIEW" else None) for stage in PROFILE_STAGES)
         for order, template in enumerate(templates, 1):
             status = "SKIPPED" if order < start_at else "PENDING"
             session.add(AgentPlanStep(

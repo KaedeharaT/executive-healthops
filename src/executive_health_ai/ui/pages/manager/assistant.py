@@ -62,7 +62,7 @@ def assistant(app, people):
     from executive_health_ai.ui.pages.manager import care_activity
     care_activity.styles()
     with SessionLocal() as session:
-        goals = [g for g in session.scalars(select(AgentGoal).order_by(AgentGoal.updated_at.desc())) if is_care_goal(g)]
+        goals = [g for g in session.scalars(select(AgentGoal).order_by(AgentGoal.updated_at.desc())) if is_care_goal(g) or g.goal_type == "PROFILE_INTAKE"]
     groups = project_assistant(goals)
     active, recent = groups.active, groups.recent
     pending = active + groups.attention
@@ -105,6 +105,10 @@ def _toggle_history():
 def completed_values(goal, member):
     """Short history cells, retaining the real report date and actual outcome."""
     ctx = goal.context_json or {}
+    if getattr(goal,'goal_type',None) == 'PROFILE_INTAKE':
+        from executive_health_ai.services.profile_ingestion import TYPES
+        return (ux.local_time(goal.completed_at or goal.updated_at).strftime('%Y-%m-%d %H:%M'), member, '健康资料导入', TYPES[ctx['document_type']],
+            ctx.get('source_date') or '未注明', '已更新健康档案', goal.next_action)
     report = ctx.get('report') or {}
     at = goal.completed_at or goal.updated_at
     return (ux.local_time(at).strftime('%Y-%m-%d %H:%M') if at else '—', member,
@@ -144,6 +148,15 @@ def _cards(app, people, goals):
     for index, goal in enumerate(goals):
         if index % 3 == 0:
             columns = st.columns(min(3, len(goals) - index))
+        if getattr(goal,'goal_type',None) == 'PROFILE_INTAKE':
+            from executive_health_ai.ui.pages.manager.profile_intake import STATUS
+            with columns[index % 3], st.container(border=True):
+                st.markdown('**'+app._member_display(people.get(goal.member_id))+' · 健康资料导入**')
+                st.write('当前：'+STATUS.get(goal.status,'待处理'))
+                st.caption('开始：'+ux.when(goal.started_at))
+                st.write('下一步：'+goal.next_action)
+                st.button('查看运行看板',key='profile-assistant-'+str(goal.id),on_click=open_care,args=(app,goal))
+            continue
         activity = care_activity.load(goal)
         with columns[index % 3], st.container(border=True, key=f'assistant-card-{goal.id}'):
             st.markdown('**'+app._member_display(people.get(goal.member_id))+' · 体检后健康管理**')
@@ -169,7 +182,7 @@ def _cards(app, people, goals):
 
 
 def progress(item):
-    if item.source_type == 'post_checkup':
+    if item.source_type in {'post_checkup','profile_intake'}:
         return item.reason
     if item.status == '等待医生':
         return '已提交医学问题与依据'

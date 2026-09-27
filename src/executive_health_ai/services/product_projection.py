@@ -168,11 +168,16 @@ class ProductProjectionService:
                 "年度基线医学确认" if source == "baseline_review" else "医学资料复核",
                 "已有人工提交的医学确认，需要医生判断。", "查看医学问题与依据", None,
                 owner="内部医生", route_target="doctor_review", created_at=getattr(record, "created_at", None)))
+        for goal in session.scalars(select(AgentGoal).where(AgentGoal.goal_type == 'PROFILE_INTAKE', AgentGoal.status.in_(('WAITING_MANAGER','ESCALATED')))):
+            items.append(OperationalWorkItem(goal.member_id, 'profile_intake', goal.id, 1 if goal.status=='ESCALATED' else 2,
+                '待处理', '新健康资料已整理' if goal.status=='WAITING_MANAGER' else '健康资料需要人工处理',
+                f"已识别 {len(goal.context_json.get('comparison',{}))} 项资料并核对档案" if goal.status=='WAITING_MANAGER' else '已保存原文件，等待人工核对', goal.next_action or '确认档案更新', goal.due_at,
+                owner=goal.owner, route_target='profile_intake', created_at=goal.started_at))
         # Approval is a human responsibility, not a second editable goal/task.
         approvals = session.execute(select(AgentApprovalRequest, AgentGoal).join(AgentGoal, AgentApprovalRequest.goal_id == AgentGoal.id).where(AgentApprovalRequest.status == "PENDING"))
         for approval, goal in approvals:
             from executive_health_ai.agent.post_checkup import is_care_goal
-            if is_care_goal(goal):
+            if is_care_goal(goal) or goal.goal_type == "PROFILE_INTAKE":
                 continue
             items.append(OperationalWorkItem(goal.member_id, "automation_approval", approval.id, 2,
                 "等待医生" if approval.required_role == "DOCTOR" else "等待健管",

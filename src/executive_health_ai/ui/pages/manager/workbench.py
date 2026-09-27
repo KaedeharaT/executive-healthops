@@ -51,7 +51,7 @@ def today(app):
         '截止时间':ux.local_time(i.due_at), '状态':status_label(i.status,context='service_request') if i.source_type=='service_request' else status_label(i.status)} for i in visible],
         key='today-work-grid', auto_select=False, activate_on_cell=True, empty='当前没有需要处理的工作。')
     if item:
-        if item.source_type == 'post_checkup':
+        if item.source_type in {'post_checkup','profile_intake'}:
             st.session_state['care-detail'] = str(item.source_id)
             st.session_state['care-origin'] = '今日工作'
         else:
@@ -182,14 +182,17 @@ def archive(app, patient, view):
                 st.button('去补充初始评估',key=section_key+'-intake',on_click=intake_entry.amend,
                     args=(patient,view),kwargs={'step':selected})
         return
+    from executive_health_ai.ui.pages.manager import profile_intake
+    profile_intake.entry(app,patient,view)
     intake_entry.card(patient,view)
+    profile_intake.confirmed_records(patient.id)
     responses=view.intake.responses if view.intake else {}
     entries=[('基础资料','基础资料','已建档'),('家族史','家族健康史',None),('既往史','个人病史',None),
         ('手术 / 住院','手术 / 住院史',None),('过敏','过敏史',None),('用药','当前用药 / 营养补充',None),
         ('最近用药','最近用药',None),('生活方式','生活方式',None),('环境暴露','环境与暴露',None),
         ('会员关注','会员重点关注',view.intake.member_concern if view.intake else '待填写'),
         ('专项症状','专项症状评估',None),('已确认医疗档案','医疗档案','病史、过敏、用药与手术记录'),
-        ('家庭关系与紧急联系人','家庭关系',str(len(view.family))+' 项'),('体检报告','报告',str(len(view.documents))+' 份'),
+        ('家庭关系与紧急联系人','家庭关系',str(len(view.family))+' 项'),('体检报告','报告',str(sum(d.document_type not in {'questionnaire','history'} for d in view.documents))+' 份'),
         ('年度健康基线','基线','查看已确认基线'),('健康数据','健康数据','查看持续变化趋势')]
     rows=[]
     for title,key,summary in entries:
@@ -201,6 +204,7 @@ def archive(app, patient, view):
     chosen=data_table(rows,[{'资料':r['title'],'摘要':r['summary']} for r in rows],key=section_key,auto_select=False,activate_on_cell=True)
     if chosen:
         st.session_state[section_key]=chosen['key'];st.rerun()
+    profile_intake.history(app,patient)
 
 
 def medical(app, patient):

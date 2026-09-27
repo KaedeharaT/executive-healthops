@@ -88,6 +88,8 @@ def card(patient, view):
                  '待医生确认':'查看评估', '已完成':'查看评估'}[status]
         st.button(label, key=f'intake-entry-{patient.id}', type='primary', on_click=open_intake,
                   args=(patient, view), kwargs={'read_only':status in {'已完成','待医生确认'}})
+        if row and (row.review or {}).get('import_prefill'):
+            st.caption(f"系统已根据已有资料预填 {len(row.review['import_prefill'])} 项；请核对来源并补充其余部分。")
         if status == '填写中':
             st.button('查看已填写内容', key=f'intake-preview-{patient.id}', on_click=open_intake,
                       args=(patient, view), kwargs={'read_only':True})

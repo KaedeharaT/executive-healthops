@@ -4301,7 +4301,7 @@ def render_member_archive(patient: Patient, selected_view=None) -> None:
         render_report_trends(patient.id, key=f"manager-report-trend-{patient.id}")
         left, right = st.columns([1, 1.7], gap="large")
         with SessionLocal() as session:
-            documents = list(session.scalars(select(Document).where(Document.patient_id == patient.id).order_by(Document.created_at.desc()).limit(20)))
+            documents = list(session.scalars(select(Document).where(Document.patient_id == patient.id, Document.document_type.not_in(("questionnaire", "history"))).order_by(Document.created_at.desc()).limit(20)))
         with left:
             with section_frame("报告列表", "选择报告后，在右侧审核与处理。"):
                 from executive_health_ai.ui.presentation import data_table
@@ -4318,7 +4318,7 @@ def render_member_archive(patient: Patient, selected_view=None) -> None:
         return
     if view == "健康史":
         with SessionLocal() as session:
-            history = list(session.scalars(select(HealthProblem).where(HealthProblem.patient_id == patient.id).order_by(HealthProblem.opened_at.desc()).limit(20)))
+            history = list(session.scalars(select(HealthProblem).where(HealthProblem.patient_id == patient.id, HealthProblem.source != "profile_review_pending").order_by(HealthProblem.opened_at.desc()).limit(20)))
         with section_frame("健康史", "显示已确认的健康问题与既往资料。"):
             if history:
                 from executive_health_ai.ui.presentation import data_table
@@ -5809,7 +5809,7 @@ def _render_client_checkup_page(patient: Patient) -> None:
     """Report list and selected report live on the same second-level health page."""
     from executive_health_ai.ui.pages.health_visualization import render_report_trends
     with SessionLocal() as session:
-        documents = list(session.scalars(select(Document).where(Document.patient_id == patient.id).order_by(Document.created_at.desc()).limit(20)))
+        documents = list(session.scalars(select(Document).where(Document.patient_id == patient.id, Document.document_type.not_in(("questionnaire", "history"))).order_by(Document.created_at.desc()).limit(20)))
     if documents:
         st.markdown("**最近报告 · " + _source_display_name(documents[0], "体检报告") + "**")
         st.caption("选择报告查看重要发现、人工确认进度与原文依据。")
@@ -5830,6 +5830,8 @@ def _render_client_checkup_page(patient: Patient) -> None:
 
 def _render_client_medical_archive(patient: Patient) -> None:
     """One medical record page with inline categories, never separate navigation."""
+    from executive_health_ai.ui.pages.manager.profile_intake import confirmed_records
+    confirmed_records(patient.id)
     section = st.radio("医疗档案内容", ["用药", "手术住院", "医生意见", "病史"], horizontal=True, label_visibility="collapsed", key=f"client-medical-section-{patient.id}")
     with SessionLocal() as session:
         if section == "用药":
@@ -5871,7 +5873,7 @@ def _render_client_medical_archive(patient: Patient) -> None:
             else:
                 _empty_state("暂无医生反馈", "完成医生复核后，确认可共享的反馈会在这里显示。")
         else:
-            rows = list(session.scalars(select(HealthProblem).where(HealthProblem.patient_id == patient.id).order_by(HealthProblem.opened_at.desc()).limit(20)))
+            rows = list(session.scalars(select(HealthProblem).where(HealthProblem.patient_id == patient.id, HealthProblem.source != "profile_review_pending").order_by(HealthProblem.opened_at.desc()).limit(20)))
             if rows:
                 from executive_health_ai.ui.presentation import data_table
                 item = data_table(rows, [{"健康问题": r.title, "状态": _label(r.status), "记录时间": ux.local_time(r.opened_at)} for r in rows], key=f"member-history-{patient.id}")

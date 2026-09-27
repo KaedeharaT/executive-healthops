@@ -41,6 +41,10 @@ class HealthOpsAgentSupervisor:
         self.default_max_retries = max(0, int(os.getenv("AGENT_MAX_RETRIES", "3")))
 
     def receive_event(self, session: Session, event: AgentEvent) -> AgentGoal | None:
+        from executive_health_ai.agent.profile_intake import handle_event as profile_event
+        handled, profile_goal = profile_event(self, session, event)
+        if handled:
+            return profile_goal
         from executive_health_ai.agent.post_checkup import handle_event
         handled, care_goal = handle_event(self, session, event)
         if handled:
@@ -93,6 +97,9 @@ class HealthOpsAgentSupervisor:
 
     def execute_next_step(self, session: Session, goal_id: UUID, *, event_id: UUID | None = None) -> AgentGoal:
         goal = self._goal(session, goal_id)
+        from executive_health_ai.agent.profile_intake import is_profile_goal, advance
+        if is_profile_goal(goal):
+            return advance(self, session, goal)
         from executive_health_ai.agent.post_checkup import is_care_goal
         if is_care_goal(goal):
             return goal  # Human gates advance only through their typed business commands.
@@ -202,6 +209,8 @@ class HealthOpsAgentSupervisor:
         if approval is None:
             raise ValueError("Approval request not found.")
         from executive_health_ai.agent.post_checkup import is_care_goal
+        if self._goal(session, approval.goal_id).goal_type == "PROFILE_INTAKE":
+            raise ValueError("请在资料导入确认页逐项核对。")
         if is_care_goal(self._goal(session, approval.goal_id)):
             raise ValueError('请在体检后管理业务详情确认报告或后续行动。')
         if approval.status != "PENDING":
@@ -229,6 +238,8 @@ class HealthOpsAgentSupervisor:
 
     def pause_goal(self, session: Session, goal_id: UUID, *, actor: str, reason: str) -> AgentGoal:
         goal = self._goal(session, goal_id)
+        if goal.goal_type == "PROFILE_INTAKE":
+            raise ValueError("请在资料导入详情处理，不能绕过档案确认。")
         from executive_health_ai.agent.post_checkup import is_care_goal, move
         if is_care_goal(goal):
             if goal.status == 'COMPLETED' or goal.automation_paused:
@@ -245,6 +256,8 @@ class HealthOpsAgentSupervisor:
 
     def resume_goal(self, session: Session, goal_id: UUID, *, actor: str = "admin", reason: str = "人工确认恢复") -> AgentGoal:
         goal = self._goal(session, goal_id)
+        if goal.goal_type == "PROFILE_INTAKE":
+            raise ValueError("请在资料导入详情处理，不能绕过档案确认。")
         from executive_health_ai.agent.post_checkup import is_care_goal, analyze, move, LABELS
         if is_care_goal(goal):
             if goal.status in {'ESCALATED','FAILED','WAITING_INPUT'}:
@@ -296,6 +309,8 @@ class HealthOpsAgentSupervisor:
 
     def cancel_goal(self, session: Session, goal_id: UUID, *, actor: str, reason: str) -> AgentGoal:
         goal = self._goal(session, goal_id)
+        if goal.goal_type == "PROFILE_INTAKE":
+            raise ValueError("请在资料导入详情处理，不能绕过档案确认。")
         from executive_health_ai.agent.post_checkup import is_care_goal
         if is_care_goal(goal):
             return self.pause_goal(session, goal_id, actor=actor, reason=reason)
@@ -305,6 +320,8 @@ class HealthOpsAgentSupervisor:
 
     def complete_goal(self, session: Session, goal_id: UUID) -> AgentGoal:
         goal = self._goal(session, goal_id)
+        if goal.goal_type == "PROFILE_INTAKE":
+            raise ValueError("请在资料导入详情处理，不能绕过档案确认。")
         from executive_health_ai.agent.post_checkup import is_care_goal, complete
         if is_care_goal(goal):
             return complete(self, session, goal)
@@ -318,6 +335,8 @@ class HealthOpsAgentSupervisor:
 
     def fail_goal(self, session: Session, goal_id: UUID, *, reason: str) -> AgentGoal:
         goal = self._goal(session, goal_id)
+        if goal.goal_type == "PROFILE_INTAKE":
+            raise ValueError("请在资料导入详情处理，不能绕过档案确认。")
         from executive_health_ai.agent.post_checkup import is_care_goal, move
         if is_care_goal(goal):
             if goal.status == 'COMPLETED':

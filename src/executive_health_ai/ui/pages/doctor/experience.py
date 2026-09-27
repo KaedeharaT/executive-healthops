@@ -15,6 +15,8 @@ from executive_health_ai.services.product_projection import ProductProjectionSer
 def detail(app, patient, review, *, read_only=False):
     st.subheader("需要医生判断的问题")
     st.write(ux.business_text(review.question_for_doctor or "请核实本次健康变化是否需要进一步医学评估。"))
+    from executive_health_ai.ui.pages.manager.profile_intake import doctor_context
+    uploaded_context = doctor_context(review)
     st.caption(f"{patient.display_name} · 提交于 {ux.when(review.created_at)} · {'已完成' if review.status != 'PENDING' else '待我复核'}")
     st.caption("为什么现在：这项医学问题已由健康管理团队提交，需要人工判断后才能继续安排。")
     clinical, decision = st.columns([1.5,1])
@@ -35,7 +37,10 @@ def detail(app, patient, review, *, read_only=False):
             from executive_health_ai.ui.pages.health_visualization import render_doctor_trend
             render_doctor_trend(patient.id, review)
             c.section_header("本次判断的依据")
-            ux.evidence_summary(payload)
+            if uploaded_context:
+                st.caption("本次原始文件、资料日期和逐项提取依据已列在上方，可直接打开核对。")
+            else:
+                ux.evidence_summary(payload)
             with c.secondary_details("关键成员背景与提交摘要"):
                 st.write(ux.business_text(review.doctor_brief or "资料待补充，请联系健康管理师。"))
             with st.expander("重要健康背景与年度基线"):
@@ -54,8 +59,9 @@ def detail(app, patient, review, *, read_only=False):
                 priority = ["systolic_bp", "diastolic_bp", "hba1c", "ldl_c", "weight"]
                 ordered = [latest[code] for code in priority if code in latest] + [r for code, r in latest.items() if code not in priority]
                 st.dataframe([{"指标": ux.metric_name(r.metric_code), "当前记录": float(r.value_numeric), "单位": r.unit, "记录时间": ux.when(r.observed_at)} for r in ordered], hide_index=True, width="stretch")
-            with st.expander("完整资料位置与核对信息"):
-                app._render_evidence_action(payload, key_scope=f"ux-doctor-evidence-{review.id}")
+            if not uploaded_context:
+                with st.expander("完整资料位置与核对信息"):
+                    app._render_evidence_action(payload, key_scope=f"ux-doctor-evidence-{review.id}")
             with c.secondary_details("用药与健康问题摘要"):
                 if problem:
                     st.write(ux.business_text(problem.title))
