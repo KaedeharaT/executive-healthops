@@ -1,0 +1,33 @@
+........................................................................ [ 10%]
+........................................................................ [ 20%]
+........................................................................ [ 30%]
+........................................................................ [ 40%]
+........................................................................ [ 51%]
+........................................................................ [ 61%]
+........................................................................ [ 71%]
+........................................................................ [ 81%]
+........F............................................................... [ 92%]
+.......................................................                  [100%]
+================================== FAILURES ===================================
+___________ test_portfolio_builder_rebuild_creates_training_tables ____________
+tests\test_training_schema_migration.py:69: in test_portfolio_builder_rebuild_creates_training_tables
+    subprocess.run(
+C:\ProgramData\anaconda3\Lib\subprocess.py:571: in run
+    raise CalledProcessError(retcode, process.args,
+E   subprocess.CalledProcessError: Command '['D:\\executive_health_ai\\.venv\\Scripts\\python.exe', 'D:\\executive_health_ai\\scripts\\build_portfolio_demo.py', '--rebuild']' returned non-zero exit status 1.
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  D:\executive_health_ai\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_ai_feedback_migration.py: 2 warnings
+tests/test_bp_alignment_migration.py: 2 warnings
+tests/test_management_workflow_migration_ui.py: 4 warnings
+tests/test_training_schema_migration.py: 4 warnings
+  D:\executive_health_ai\.venv\Lib\site-packages\alembic\config.py:604: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_training_schema_migration.py::test_portfolio_builder_rebuild_creates_training_tables
+1 failed, 702 passed, 13 warnings in 363.27s (0:06:03)

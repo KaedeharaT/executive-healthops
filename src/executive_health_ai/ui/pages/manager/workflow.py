@@ -160,6 +160,8 @@ def intake(app,patient,member=False,assessment_id=None):
     index=min(index,len(wizard_steps)-1)
     chosen=st.selectbox('填写步骤',range(len(wizard_steps)),index=index,format_func=lambda i:f'{i+1}. {wizard_steps[i]}',key=f'intake-select-{patient.id}-{index}')
     step=wizard_steps[chosen]
+    from executive_health_ai.ui.neumorphism import intake_steps
+    intake_steps(wizard_steps, chosen, row.responses)
     st.progress(chosen/(len(wizard_steps)-1),text=f'第{chosen+1}步 / {len(wizard_steps)}步 · 可保存草稿后继续填写')
     if step=='确认提交':
         missing=[x for x in STEPS[:-1] if x not in row.responses]

@@ -4,8 +4,9 @@ TOKENS = {"blue": "#185da8", "ink": "#20354c", "muted": "#52677d", "border": "#d
 
 
 def role_styles(role="manager"):
+    from executive_health_ai.ui.neumorphism import stylesheet
     width = "1120px" if role == "member" else "1180px" if role == "doctor" else "1440px"
-    return ROLE_STYLES.replace("__CONTENT_WIDTH__", width).replace("__DEVELOPER_CONTROLS__", "revert" if role == "admin" else "none")
+    return ROLE_STYLES.replace("__CONTENT_WIDTH__", width).replace("__DEVELOPER_CONTROLS__", "revert" if role == "admin" else "none") + stylesheet(role)
 
 
 ROLE_STYLES = """<style>

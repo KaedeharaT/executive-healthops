@@ -29,7 +29,7 @@ def entry(app,patient,view):
     if st.button('＋ 导入健康资料',key=key+'-open',type='primary'):
         st.session_state[key]=True
     if st.session_state.get(key):
-        with st.container(border=True):
+        with st.container(border=True, key='neu-import'):
             st.subheader('导入健康资料')
             st.caption(app._member_display(patient)+' · 上传后自动整理；确认前不会成为正式健康事实。')
             dtype=st.radio('请选择资料类型',list(TYPES),format_func=TYPES.get,horizontal=True,key=key+'-type')
@@ -111,7 +111,7 @@ def render(app,session,goal):
     traces=list(session.scalars(select(AgentRunTrace).where(AgentRunTrace.goal_id==goal.id,
         AgentRunTrace.action.in_(('profile_activity','profile_exception'))).order_by(AgentRunTrace.started_at)))
     steps=list(session.scalars(select(AgentPlanStep).where(AgentPlanStep.plan_id==goal.current_plan_id).order_by(AgentPlanStep.step_order)))
-    with st.container(border=True):
+    with st.container(border=True, key='neu-profile-header'):
         st.header('健康管理助手 · 健康资料导入')
         st.subheader(app._member_display(patient))
         st.caption('开始原因：收到'+TYPES[goal.context_json['document_type']]+' · '+doc.title+' · '+ux.when(goal.started_at))
@@ -129,14 +129,14 @@ def render(app,session,goal):
         if st.button('返回会员360',type='primary'):
             st.session_state.pop('care-detail',None);app._open_member(goal.member_id);st.rerun()
     else:
-        with st.container(border=True):
+        with st.container(border=True, key='neu-profile-current'):
             st.subheader('现在需要您处理' if goal.status=='WAITING_MANAGER' else '当前正在处理')
             st.write(goal.next_action)
             st.caption('输入：本次资料、已有健康档案与测量记录。核对新增、一致、时间变化及冲突；年度基线保持原有确认语义。')
             if route:st.caption('为什么：'+route.reason_summary)
     if goal.context_json.get('review_id'):
         review=session.get(DoctorReview,UUID(goal.context_json['review_id']))
-        with st.container(border=True):
+        with st.container(border=True, key='neu-profile-doctor'):
             st.subheader('医生判断')
             st.write(review.question_for_doctor)
             st.write(review.opinion if review.status=='CONFIRMED' else '等待医生提交 · 当前无需重复整理资料')
@@ -152,6 +152,10 @@ def render(app,session,goal):
             app.request_navigation(surface='运营后台',ops_page='成员',member_id=goal.member_id,member_section='健康',rerun=False);st.rerun()
     if rows:
         st.subheader('资料已整理，请确认档案更新' if goal.status=='WAITING_MANAGER' else '本次识别资料')
+        st.markdown('<div class="neu-profile-legend" aria-label="资料核对状态">'
+                    '<span class="new">新增 · 补充记录</span><span class="update">更新 · 新时间点</span>'
+                    '<span class="same">一致 · 信息相符</span><span class="conflict">冲突 · 人工核对</span>'
+                    '<span class="uncertain">无法确认 · 保留待核实</span></div>', unsafe_allow_html=True)
         comparison=goal.context_json.get('comparison',{})
         table=[]
         for row in rows:
@@ -185,12 +189,12 @@ def render(app,session,goal):
                 '资料日期':r.structured_data_json.get('source_date') or '未注明','页码':r.source_page} for r in rows]),hide_index=True,width='stretch')
 
     left,right=st.columns([1.15,1])
-    with left,st.container(border=True):
+    with left,st.container(border=True, key='neu-profile-history'):
         st.subheader('助手工作记录')
         for item in traces:
             marker='! ' if item.status=='FAILED' or item.action=='profile_exception' else '✓ '
             st.write(marker+ux.when(item.started_at)+' · '+item.result_summary)
-    with right,st.container(border=True):
+    with right,st.container(border=True, key='neu-profile-next'):
         st.subheader('接下来')
         st.write('请先核对原文件，重新上传可读取版本或人工补充；处理完成后再继续档案确认。' if goal.status=='ESCALATED' else
             '医生提交后自动继续，健管确认最终档案更新。' if goal.status=='WAITING_DOCTOR' else

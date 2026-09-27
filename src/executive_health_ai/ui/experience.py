@@ -73,7 +73,8 @@ def when(value, *, due=False, now=None):
 def inject_design(role="manager"):
     from executive_health_ai.ui.styles import LEGACY_STYLES, role_styles
     st.markdown(LEGACY_STYLES, unsafe_allow_html=True)
-    st.markdown(role_styles(role), unsafe_allow_html=True)
+    # CSS-only HTML avoids Markdown interpreting universal CSS selectors as emphasis.
+    st.html(role_styles(role))
 
 
 def page_header(title, description="", eyebrow=""):

@@ -33,30 +33,33 @@ def today(app):
             st.success('本次处理已完成，后续需要您处理的事情会重新进入今日工作。')
         return
     c.page_shell('manager', '今日工作', '今天我需要处理什么？')
-    c.summary_strip([('待我处理',sum(i.status not in {'等待医生','等待成员','等待会员'} for i in items)),
-        ('已逾期',len(work_filter(items,'逾期',now))),('等待医生',len(work.pending_doctor)),
-        ('等待会员',len(work_filter(items,'等待会员',now))),('今天到期',len(work_filter(items,'今天',now)))])
-    assistant(app, people)
-    st.subheader('工作事项')
-    a,b,d = st.columns([1,2,1])
-    scope = a.selectbox('工作筛选', ['全部','今天','医疗','复查','服务','管理','逾期','等待医生','等待会员'], key='v5-work-scope')
-    search = b.text_input('查找待办', placeholder='搜索会员或需要处理的事情', key='v2-work-search').strip().casefold()
-    owner = d.selectbox('负责人', ['全部']+sorted({i.owner or '待分配' for i in items}), key='today-owner')
-    scoped = work_filter(items,scope,now) if scope not in {'医疗','管理'} else [i for i in items if
-        (i.source_type in {'doctor_review','consultation','baseline_review','legacy_medical_review','risk_event'}) == (scope=='医疗')]
-    visible = [i for i in scoped if (owner=='全部' or (i.owner or '待分配')==owner)
-        and (not search or search in (app._member_display(people.get(i.member_id))+i.title+i.reason+i.next_action).casefold())]
-    item = data_table(visible, [{'会员':app._member_display(people.get(i.member_id)), '现在发生什么':i.title,
-        '系统已经做到哪':progress(i), '现在需要我做什么':i.next_action, '负责人':i.owner,
-        '截止时间':ux.local_time(i.due_at), '状态':status_label(i.status,context='service_request') if i.source_type=='service_request' else status_label(i.status)} for i in visible],
-        key='today-work-grid', auto_select=False, activate_on_cell=True, empty='当前没有需要处理的工作。')
-    if item:
-        if item.source_type in {'post_checkup','profile_intake'}:
-            st.session_state['care-detail'] = str(item.source_id)
-            st.session_state['care-origin'] = '今日工作'
-        else:
-            st.session_state['today-detail'] = (item.source_type, str(item.source_id))
-        st.rerun()
+    with st.container(key='neu-today-summary'):
+        c.summary_strip([('待我处理',sum(i.status not in {'等待医生','等待成员','等待会员'} for i in items)),
+            ('已逾期',len(work_filter(items,'逾期',now))),('等待医生',len(work.pending_doctor)),
+            ('等待会员',len(work_filter(items,'等待会员',now))),('今天到期',len(work_filter(items,'今天',now)))])
+    with st.container(key='neu-assistant'):
+        assistant(app, people)
+    with st.container(key='neu-work'):
+        st.subheader('工作事项')
+        a,b,d = st.columns([1,2,1])
+        scope = a.selectbox('工作筛选', ['全部','今天','医疗','复查','服务','管理','逾期','等待医生','等待会员'], key='v5-work-scope')
+        search = b.text_input('查找待办', placeholder='搜索会员或需要处理的事情', key='v2-work-search').strip().casefold()
+        owner = d.selectbox('负责人', ['全部']+sorted({i.owner or '待分配' for i in items}), key='today-owner')
+        scoped = work_filter(items,scope,now) if scope not in {'医疗','管理'} else [i for i in items if
+            (i.source_type in {'doctor_review','consultation','baseline_review','legacy_medical_review','risk_event'}) == (scope=='医疗')]
+        visible = [i for i in scoped if (owner=='全部' or (i.owner or '待分配')==owner)
+            and (not search or search in (app._member_display(people.get(i.member_id))+i.title+i.reason+i.next_action).casefold())]
+        item = data_table(visible, [{'会员':app._member_display(people.get(i.member_id)), '现在发生什么':i.title,
+            '系统已经做到哪':progress(i), '现在需要我做什么':i.next_action, '负责人':i.owner,
+            '截止时间':ux.local_time(i.due_at), '状态':status_label(i.status,context='service_request') if i.source_type=='service_request' else status_label(i.status)} for i in visible],
+            key='today-work-grid', auto_select=False, activate_on_cell=True, empty='当前没有需要处理的工作。')
+        if item:
+            if item.source_type in {'post_checkup','profile_intake'}:
+                st.session_state['care-detail'] = str(item.source_id)
+                st.session_state['care-origin'] = '今日工作'
+            else:
+                st.session_state['today-detail'] = (item.source_type, str(item.source_id))
+            st.rerun()
 
 
 def work_detail(app, item, member):
@@ -198,9 +201,11 @@ def archive(app, patient, view):
     for title,key,summary in entries:
         value=responses.get(key)
         rows.append({'title':title,'key':key,'summary':summary or (f'{len(value)} 项记录' if isinstance(value,list) and value else '已填写' if value else '待补充')})
+    from executive_health_ai.ui.neumorphism import archive_summary
     st.subheader('健康档案摘要')
     st.caption('已核对的会员自述资料；正式医疗档案仍保留原有医学确认要求。' if intake_entry.state(view.intake)=='已完成'
                else '以下自述资料尚待健管确认，可从上方继续初始健康评估。')
+    archive_summary(rows)
     chosen=data_table(rows,[{'资料':r['title'],'摘要':r['summary']} for r in rows],key=section_key,auto_select=False,activate_on_cell=True)
     if chosen:
         st.session_state[section_key]=chosen['key'];st.rerun()

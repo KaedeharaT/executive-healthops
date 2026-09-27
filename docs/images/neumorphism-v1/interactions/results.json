@@ -1,0 +1,14 @@
+{
+  "checks": {
+    "baseline_current_axes_tooltip": true,
+    "blood_pressure_two_series_units": true,
+    "empty_window_recovery": true,
+    "keyboard_select_focus": true,
+    "profile_preview_editor_confirmation_preserved": true,
+    "profile_contrast": {
+      "checked": 48,
+      "findings": []
+    }
+  },
+  "errors": []
+}

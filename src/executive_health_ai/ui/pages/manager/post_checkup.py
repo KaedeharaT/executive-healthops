@@ -72,7 +72,7 @@ def stepper(goal):
         if index == 1 and goal.status in {'ESCALATED','FAILED'} and not goal.context_json.get('structured'):
             status='需人工核对'
         mark = '—' if skipped else '✓' if status == '已完成' else '●' if status == '当前' else '○'
-        pieces.append(f'<div role="listitem" class="flow-step {"active" if index == current else ""}"><b class="flow-dot">{mark}</b><span>{label}<br><small>{status}</small></span></div>')
+        pieces.append(f'<div role="listitem" class="flow-step {"active" if index == current else "done" if status == "已完成" else ""}"><b class="flow-dot">{mark}</b><span>{label}<br><small>{status}</small></span></div>')
     st.markdown('<div role="list" aria-label="体检后管理进度" class="v2-workflow">'+''.join(pieces)+'</div>', unsafe_allow_html=True)
 
 

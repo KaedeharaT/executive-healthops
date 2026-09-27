@@ -1,8 +1,10 @@
 [theme]
 primaryColor = "#185da8"
 backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f5f8fc"
-textColor = "#20354c"
+secondaryBackgroundColor = "#e9eff6"
+# Native canvas table headers use a 60% tint of this color. Keep that tint readable;
+# the surrounding application uses the shared #20354c ink token.
+textColor = "#06182b"
 font = "sans serif"
 
 [client]

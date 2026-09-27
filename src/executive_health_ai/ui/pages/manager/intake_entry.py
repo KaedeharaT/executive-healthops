@@ -67,7 +67,7 @@ def amend(patient, view, step=None):
 def card(patient, view):
     row = view.intake
     status = state(row)
-    with st.container(border=True):
+    with st.container(border=True, key='neu-initial-assessment'):
         st.subheader('初始健康评估')
         c.summary_strip([('状态', status), ('已完成部分', f'{progress(row)} / 10'),
                          ('最近保存', ux.local_time(row.updated_at).strftime('%Y-%m-%d %H:%M') if row and row.responses else '尚未开始')])
