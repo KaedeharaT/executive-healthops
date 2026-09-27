@@ -1,0 +1,9 @@
+{
+  "row_opens_detail": true,
+  "row_detail_returns_to_workspace": true,
+  "followup_form": true,
+  "recheck_form": true,
+  "service_form": true,
+  "doctor_collaboration_form": true,
+  "errors": []
+}

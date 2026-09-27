@@ -39,6 +39,7 @@ def flash():
 
 
 def open_log(app,patient):
+    st.session_state[f'action-focus-{patient.id}']='CREATE:新增管理记录'
     st.session_state[f'workflow-mode-{patient.id}']='管理日志'
     st.session_state[f'workflow-open-log-{patient.id}']=True
     app._open_member_management(patient.id)
@@ -241,16 +242,19 @@ def family(patient,view):
 
 
 def management(app,patient):
-    flash();view=view_for(patient.id)
+    with st.container(key='management-workspace-feedback'):flash()
+    view=view_for(patient.id)
+    from executive_health_ai.ui.pages.manager import action_loop
+    workspace=st.empty()
+    with workspace.container():
+        if action_loop.render(app,patient,view):return
     if not view.program:
-        st.info('先从年度管理建立服务周期。');return
+        from executive_health_ai.ui.pages.manager.experience import management as legacy
+        legacy(app,patient)
+        with st.expander('计划关联服务与执行结果'):app.render_member_service_management(patient)
+        return
     st.caption('年度目标：'+preview(view.program.main_goal,90))
-    action_col,mode_col=st.columns([1,4])
-    if action_col.button('新增管理记录',key=f'management-add-log-{patient.id}'):
-        st.session_state[f'workflow-mode-{patient.id}']='管理日志'
-        st.session_state[f'workflow-open-log-{patient.id}']=True
-        st.rerun()
-    mode=mode_col.selectbox('管理工作',['管理事项','管理日志','年度方案与阶段','检查复查','阶段评估','关联服务','计划调整与随访'],key=f'workflow-mode-{patient.id}',label_visibility='collapsed')
+    mode=st.selectbox('管理工作',['管理事项','管理日志','年度方案与阶段','检查复查','阶段评估','关联服务','计划调整与随访'],key=f'workflow-mode-{patient.id}',label_visibility='collapsed')
     if mode=='管理事项':
         app.render_tasks({'tasks':list(view.tasks)})
     elif mode=='管理日志':
@@ -352,7 +356,9 @@ def logs(patient,view):
             related_task_id=linked_task.id if linked_task else None,related_document_id=linked_doc.id if linked_doc else None,
             related_doctor_review_id=linked_review.id if linked_review else None,related_service_id=linked_service.id if linked_service else None,
             related_risk_id=linked_risk.id if linked_risk else None)
-        if next_action.strip() and follow:
+        if next_action.strip() or follow:
+            payload['next_action']=next_action.strip() or '跟进本次管理记录：'+issue
+            payload['follow_up_at']=payload['follow_up_at'] or datetime.combine(date.today(),time(17),ux.LOCAL)
             st.session_state[pending_key]=payload;st.rerun()
         save_log(patient,view,request_key,payload,False)
 
@@ -364,6 +370,8 @@ def save_log(patient,view,request_key,payload,followup):
             session.commit()
         for key in ('workflow-open-log','log-key','log-pending'):st.session_state.pop(f'{key}-{patient.id}',None)
         st.session_state['workflow-flash']='记录已保存，后续待办已进入今日工作。' if followup else '管理记录已保存。'
+        if st.session_state.get(f'action-focus-{patient.id}')=='CREATE:新增管理记录':
+            st.session_state[f'action-focus-{patient.id}']='DONE:记录保存'
         st.rerun()
     except ValueError as error:st.error(str(error))
 
@@ -398,8 +406,8 @@ def recheck(patient,view,selected_id=None):
         recheck_detail(patient,view,selected)
 
 
-def recheck_create(patient,view):
-    with st.expander('建立检查复查计划',expanded=not view.rechecks):
+def recheck_create(patient,view,expanded=None):
+    with st.expander('建立检查复查计划',expanded=not view.rechecks if expanded is None else expanded):
         with st.form(f'recheck-{patient.id}'):
             title=st.text_input('检查项目');reason=st.text_input('检查原因');planned=st.date_input('计划检查日期',value=date.today()+timedelta(days=7))
             provider=st.text_input('检查机构');evidence=st.text_area('正式医疗建议依据');owner=st.text_input('复查负责人',value=view.owner)

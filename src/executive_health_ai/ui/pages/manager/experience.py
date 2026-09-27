@@ -162,12 +162,17 @@ def member_detail(app, patient):
     professional = (management_view.intake.professional_focus if management_view.intake else '') or '；'.join(p.title for p in ctx['problems'] if p.status!='CLOSED' and p.source!='post_checkup_care') or '待初评'
     concern = management_view.intake.member_concern if management_view.intake else '待填写'
     next_task = tasks[0] if tasks else None
+    from executive_health_ai.services.management_action_loop import ManagementActionLoop
+    with SessionLocal() as session:
+        action_state=ManagementActionLoop().project(session,patient.id,management_view.program.id if management_view.program else None)
+    next_work=action_state['next']
+    next_text=(next_work.title+' · '+next_work.owner+' · '+ux.when(next_work.due)) if next_work else ('确认并进入下一阶段' if action_state['review'] else '开始阶段复盘' if action_state['review_ready'] else '新增管理记录或创建随访')+' · '+view.owner
     updated = [r.observed_at for r in rows]+[r.occurred_at for r in management_view.logs]
     if management_view.intake: updated.append(management_view.intake.updated_at)
     cycle=view.cycle+(f' · {program.start_date:%m/%d}—{program.end_date:%Y/%m/%d}' if program and program.end_date else '')
     c.member_header(ux.business_text(patient.display_name), cycle=cycle, owner=ux.business_text(view.owner),
         phase=view.phase_title or management_view.onboarding, concern=concern or '待填写', focus=professional,
-        next_action=(next_task.title+' · '+(next_task.assignee or view.owner)+' · '+ux.when(next_task.due_at)) if next_task else '核对健康资料，确认下一阶段安排 · '+view.owner,
+        next_action=next_text,
         updated=ux.when(max(updated)) if updated else '暂无记录')
     with st.container(key='soft-member-navigation'):
         section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
@@ -195,8 +200,8 @@ def member_detail(app, patient):
             st.subheader('当前开放事项')
             data_table(tasks[:6],[{'事项':t.title,'状态':status_label(t.status),'负责人':t.assignee or view.owner,'截止时间':ux.local_time(t.due_at)} for t in tasks[:6]],key=f'360-open-{patient.id}',selectable=False,empty='暂无开放事项。')
             if len(tasks)>6:st.caption(f'共 {len(tasks)} 条；完整队列见管理页。')
-            st.button('处理下一步',key=f'360-next-{patient.id}',type='primary',on_click=app.request_navigation,
-                kwargs={'surface':'运营后台','ops_page':'成员','member_id':patient.id,'member_section':'管理'})
+            from executive_health_ai.ui.pages.manager.action_loop import open_next
+            st.button('处理下一步',key=f'360-next-{patient.id}',type='primary',on_click=open_next,args=(app,patient))
         with right:
             st.subheader('最近管理记录')
             workflow.log_rows(management_view.logs[:2],key=f'360-recent-{patient.id}')
@@ -206,16 +211,12 @@ def member_detail(app, patient):
             ux.baseline_summary(baseline,rows,compact=True)
         member_summary(patient.id,app=app)
         st.markdown('**下一步**')
-        st.write((next_task.title+' · '+ux.when(next_task.due_at)+' · '+(next_task.assignee or view.owner)) if next_task else '责任健管确认下一阶段安排')
+        st.write(next_text)
     elif section == "健康":
         from executive_health_ai.ui.pages.manager.workbench import archive
         archive(app,patient,management_view)
     elif section == "管理":
-        if management_view.program:workflow.management(app, patient)
-        else:
-            management(app, patient)
-            with st.expander("计划关联服务与执行结果"):
-                app.render_member_service_management(patient)
+        workflow.management(app, patient)
     elif section == "医疗":
         from executive_health_ai.ui.pages.manager.workbench import medical
         medical(app,patient)

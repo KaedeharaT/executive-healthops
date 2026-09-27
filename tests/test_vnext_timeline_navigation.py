@@ -28,7 +28,14 @@ def test_ops_member_has_first_level_timeline_and_service_stays_in_management_sum
     detail = _source("render_member_detail", "def render_member_archive")
     assert '["概览", "健康", "管理", "医疗", "历程"]' in detail
     assert 'timeline(app, patient, client_view=False)' in detail
-    assert 'render_member_service_management(patient)' in detail
+    assert 'workflow.management(app, patient)' in detail
+    # The member tab delegates to the executable workspace; the legacy service
+    # summary and annual linked-service view must both remain reachable there.
+    from executive_health_ai.ui.pages.manager import workflow
+    import inspect
+    management = inspect.getsource(workflow.management)
+    assert 'render_member_service_management(patient)' in management
+    assert "'关联服务'" in management
 
 
 def test_new_product_timeline_uses_longitudinal_service_and_monthly_summary_name_is_clear() -> None:
