@@ -128,7 +128,7 @@ def test_primary_navigation_and_collaboration_are_task_and_member_oriented() -> 
     from tests.ui_source import all_ui_source
     source = all_ui_source()
     more = MORE_SHELL.read_text(encoding="utf-8")
-    assert '["今日", "成员", "年度管理", "医疗协同", "服务运营"]' in source
+    assert '["今日", "成员", "年度管理", "服务运营", "医疗协同", "专项管理"]' in source
     admin = (MORE_SHELL.parent/'admin'/'experience.py').read_text(encoding='utf-8')
     assert '["系统状态", "自动化运行", "数据与集成", "规则与知识"]' in admin
     assert 'app._render_data_package_import(' in admin

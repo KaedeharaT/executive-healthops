@@ -94,7 +94,7 @@ def render_doctor_reviews(patient, ctx):
     doctor_pages.workspace(_ui_adapter(), [patient], patient=patient)
 
 
-st.set_page_config(page_title="企业高管健康运营中心", page_icon="🩺", layout="wide")
+st.set_page_config(page_title="会员全周期健康服务与管理工作台", page_icon="🩺", layout="wide")
 LOGGER = logging.getLogger(__name__)
 NAVIGATION_PROFILE_ENABLED = os.getenv("HEALTHOPS_PROFILE_NAV", "").lower() in {"1", "true", "yes"}
 PORTFOLIO_DEMO_ENABLED = os.getenv("PORTFOLIO_DEMO", "").lower() in {"1", "true", "yes"}
@@ -392,8 +392,8 @@ def _render_sidebar_navigation() -> str:
         # Retain old deep links, but support tools no longer occupy staff navigation.
         return "更多"
     return st.sidebar.radio(
-        "工作区", ["今日", "成员", "年度管理", "医疗协同", "服务运营"],
-        key="ops-navigation", label_visibility="collapsed", format_func=lambda value: {"今日":"今日工作", "成员":"会员", "服务运营":"服务"}.get(value,value),
+        "工作区", ["今日", "成员", "年度管理", "服务运营", "医疗协同", "专项管理"],
+        key="ops-navigation", label_visibility="collapsed", format_func=lambda value: {"今日":"今日工作", "成员":"会员", "服务运营":"服务管理"}.get(value,value),
         on_change=manager_pages.reset_today_selection,
     )
 
@@ -6283,6 +6283,10 @@ def main() -> None:
         return
     if page == "服务运营":
         _render_timed("服务运营", render_service_operations_workspace)
+        return
+    if page == "专项管理":
+        from executive_health_ai.ui.pages.manager.service_progress import workspace
+        workspace(_ui_adapter())
         if NAVIGATION_PROFILE_ENABLED: LOGGER.warning("[PERF] total %.1f ms", (perf_counter() - started) * 1000)
         return
     if page == "更多":

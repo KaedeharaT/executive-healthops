@@ -30,7 +30,7 @@ def write(command):
 
 def view_for(member_id):
     from uuid import UUID
-    selected = st.session_state.get(f'annual-program-{member_id}') if st.session_state.get('member-return-origin') == '年度管理' else None
+    selected = st.session_state.get(f'annual-program-{member_id}') if st.session_state.get('member-return-origin') in {'年度管理','专项管理','服务管理'} else None
     with SessionLocal() as session: return projection.member(session,member_id,UUID(selected) if selected else None)
 
 
@@ -260,6 +260,9 @@ def management(app,patient):
         with st.expander('计划关联服务与执行结果'):app.render_member_service_management(patient)
         return
     st.caption('年度目标：'+preview(view.program.main_goal,90))
+    from executive_health_ai.ui.pages.manager.service_progress import member_progress
+    with st.expander('阶段服务进度与结果'):
+        member_progress(view)
     if st.session_state.get(f'workflow-mode-{patient.id}')=='管理事项':
         st.session_state[f'workflow-mode-{patient.id}']='事项历史'
     mode=st.selectbox('管理工作',['事项历史','管理日志','年度方案与阶段','检查复查','阶段评估','关联服务','计划调整与随访'],key=f'workflow-mode-{patient.id}',label_visibility='collapsed')

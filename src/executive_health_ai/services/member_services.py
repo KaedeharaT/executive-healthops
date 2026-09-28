@@ -79,11 +79,19 @@ class MemberServiceOperations:
     def request(self, session: Session, member_id: UUID, item_id: UUID, reason: str, requested_by: str = "member") -> ServiceRequest:
         existing = session.scalar(select(ServiceRequest).where(ServiceRequest.patient_id == member_id, ServiceRequest.service_item_id == item_id, ServiceRequest.status.in_(("REQUESTED", "REVIEWING", "APPROVED", "SCHEDULED", "IN_PROGRESS", "IN_SERVICE"))))
         if existing: return existing
+        from executive_health_ai.services.product_projection import current_program
+        from executive_health_ai.models import ProgramPhase
+        program = current_program(list(session.scalars(select(HealthProgram).where(
+            HealthProgram.patient_id == member_id).order_by(HealthProgram.created_at.desc()))))
+        phase = session.scalar(select(ProgramPhase).where(ProgramPhase.program_id == program.id,
+            ProgramPhase.status == 'ACTIVE').order_by(ProgramPhase.sequence)) if program else None
         request = ServiceRequest(
             patient_id=member_id, service_item_id=item_id, requested_by=requested_by,
             reason=reason.strip() or "成员申请服务", status="REQUESTED",
             sla_due_at=datetime.now(timezone.utc) + timedelta(days=3),
             next_action="健康管理师审核服务需求与权益",
+            program_id=program.id if program else None, phase_id=phase.id if phase else None,
+            assigned_manager=program.owner if program else None,
         )
         session.add(request); session.flush(); return request
 
@@ -98,6 +106,8 @@ class MemberServiceOperations:
 
     def schedule(self, session: Session, request_id: UUID, at: datetime, manager: str, provider: str | None = None) -> ServiceRequest:
         request = self.approve(session, request_id, manager)
+        if request.status not in {'APPROVED', 'SCHEDULED'}:
+            raise ValueError('仅已审核或已预约的服务可以安排时间。')
         request.status, request.scheduled_at = "SCHEDULED", at
         request.service_provider = provider.strip() if provider and provider.strip() else request.service_provider
         request.next_action = "按预约安排开始服务"
@@ -149,6 +159,7 @@ class MemberServiceOperations:
         if existing_followup is None:
             session.add(Task(
                 patient_id=request.patient_id, health_problem_id=request.related_problem_id,
+                program_id=request.program_id,
                 risk_event_id=request.related_risk_event_id,
                 title="复核服务结果与下一步", instruction=request.next_action,
                 status="PENDING", priority="MEDIUM", assignee=manager,
@@ -156,6 +167,19 @@ class MemberServiceOperations:
                 due_at=datetime.now(timezone.utc) + timedelta(days=7),
                 source=f"service_result:{request.id}",
             ))
+        # The existing operational log is the phase/member writeback, not a
+        # second service-result store. The result confirmation remains human.
+        if request.program_id:
+            from executive_health_ai.services.management_workflow import ManagementWorkflowService
+            ManagementWorkflowService().record_log(
+                session, request.patient_id, request.program_id, actor=manager,
+                request_key=f'service:{request.id}', occurred_at=request.completed_at,
+                category='服务执行', channel='其他', member_issue=request.reason or '服务执行反馈',
+                manager_action='记录服务完成与原始依据', result=request.result_summary,
+                next_action=request.next_action, owner=manager,
+                provider=request.service_provider or '', evidence=request.completion_evidence,
+                related_service_id=request.id,
+            )
         session.add(AuditLog(
             patient_id=request.patient_id, actor=manager, actor_role="health_manager",
             action="completed_service_with_result", entity_type="ServiceRequest",

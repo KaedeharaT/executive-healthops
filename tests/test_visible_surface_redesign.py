@@ -57,6 +57,6 @@ def test_data_report_service_and_collaboration_use_result_or_action_first_frames
     assert "health_metric_card(" in data and "最近趋势" in data and "查看全部健康数据" in data
     assert "本次核心结论" in report and "与上次相比" in report and "需要处理" in report
     assert "报告整理记录" in report
-    assert "服务事项表" in service and "等待反馈" in service and "detail_drawer(" in service
+    assert "服务事项表" in service and "service_stage" in service and "来源方案" in service and "detail_drawer(" in service
     assert "data_table(visible" in service and "service_detail(app,selected" in service
     assert "collaboration(_ui_adapter())" in collaboration

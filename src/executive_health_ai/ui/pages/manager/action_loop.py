@@ -15,6 +15,25 @@ service=ManagementActionLoop()
 KINDS={'MANAGEMENT':'管理事项','FOLLOWUP':'随访','RECHECK':'复查','SERVICE':'服务','DOCTOR':'医生协同','RISK':'正式风险','STAGE_REVIEW':'阶段复盘'}
 
 def open_next(app,patient):
+    from executive_health_ai.ui.pages.manager.workflow import view_for
+    from executive_health_ai.services.member_management_projection import onboarding_next
+    view=view_for(patient.id)
+    with SessionLocal() as session:state=service.project(session,patient.id,view.program.id if view.program else None)
+    onboarding=onboarding_next(view)
+    if onboarding and not state['next']:
+        destination=onboarding[1]
+        st.session_state.pop(f'action-focus-{patient.id}',None)
+        if destination in {'资料','初评','基线'}:
+            st.session_state.pop(f'archive-content-{patient.id}',None)
+            if destination=='基线':st.session_state[f'archive-content-{patient.id}']='基线'
+            elif destination=='初评':
+                from executive_health_ai.ui.pages.manager.intake_entry import open_intake
+                open_intake(patient,view)
+            app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='健康')
+        else:
+            if destination in {'方案','复查'}:st.session_state[f'workflow-mode-{patient.id}']='年度方案与阶段' if destination=='方案' else '检查复查'
+            app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='医疗' if destination=='医疗' else '管理')
+        return
     st.session_state[f'action-focus-{patient.id}']='NEXT'
     app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='管理')
 

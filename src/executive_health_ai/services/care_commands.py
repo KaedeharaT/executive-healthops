@@ -105,7 +105,8 @@ def complete_review(session, review, doctor, department, opinion, instruction, d
         stored = review
     publish_progress(session, event_type="DOCTOR_REVIEW_COMPLETED", member_id=stored.patient_id, source_type="doctor_review", source_id=stored.id, summary="医生已完成人工医学复核", actor=doctor)
     from executive_health_ai.models.management_workflow import IntakeAssessment
-    intake = session.scalar(select(IntakeAssessment).where(IntakeAssessment.patient_id == stored.patient_id))
+    intake = session.scalar(select(IntakeAssessment).where(IntakeAssessment.patient_id == stored.patient_id,
+        IntakeAssessment.doctor_review_id == stored.id))
     if intake:
         from executive_health_ai.services.management_workflow import task as management_task
         from executive_health_ai.models.base import utc_now

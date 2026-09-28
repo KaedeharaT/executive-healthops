@@ -69,12 +69,18 @@ class ManagementActionLoop:
             and all(r.status=='COMPLETED' for r in view.services if in_phase(r,phase)))
         state='NEXT_PHASE' if review else 'STAGE_REVIEW' if ready else 'WORK' if items else 'CREATE'
         next_item=items[0] if items else None
+        if phase_open:
+            # The administrative handoff cannot outrank unfinished execution
+            # (notably the followup created when a doctor returns a decision).
+            next_item=next((i for i in items if i.kind!='STAGE_REVIEW'),None)
         if phase and (ready or review) and not phase_open:
             # Future-phase plans stay in the table, but cannot bypass the human
             # stage handoff. Urgent risks and already-due work still take priority.
             next_item=next((i for i in items if i.kind!='STAGE_REVIEW' and
                 (i.kind=='DOCTOR' or i.due and i.due<=now or i.kind=='RISK' and getattr(i.record,'priority','') in {'HIGH','URGENT'})),None)
+        from executive_health_ai.services.service_operations_projection import stage_evidence
         return dict(view=view,items=items,next=next_item,phase=phase,review=review,
+            evidence=stage_evidence(session,member_id,view.program.id,phase) if view.program else {},
             state=state,review_ready=ready,phase_open=phase_open,planned=planned,all_done=all_done)
 
     def process_task(self,session,member_id,program_id,task_id,*,actor,result,outcome,next_action,follow_at,request_key):
@@ -108,10 +114,11 @@ class ManagementActionLoop:
         logs=[r for r in view.logs if phase and phase.start_date<=r.occurred_at.date()<=phase.end_date]
         return {'实际完成':'；'.join(t.title for t in state['planned'] if t.status=='COMPLETED') or '尚无已完成计划事项，请核对',
             '管理日志':'；'.join(r.result for r in logs) or '本阶段暂无管理日志',
+            '会员反馈与沟通':'；'.join(f'{r.occurred_at.date()} · {r.channel} · {r.member_issue}；{r.result}' for r in logs) or '暂无已记录会员反馈',
             '检查完成':'；'.join(r.title+'：'+(r.result or r.status) for r in view.rechecks if in_phase(r,phase)) or '本阶段无关联复查',
             '服务完成':'；'.join((r.result_summary or r.reason)+'：'+r.status for r in view.services if in_phase(r,phase)) or '本阶段无关联服务',
             '未解决问题':'；'.join(i.title for i in state['phase_open']) or '暂无开放阶段事项；仍需健管核对',
-            '关键指标变化':'查看下方真实指标数据后填写；不足时保留资料不足',
+            **state.get('evidence', {}),
             '下一阶段建议':phase.goal if phase else '请健管制定下一阶段目标'}
 
     def review_stage(self,session,member_id,program_id,*,phase_id,content,actor,medical=False):

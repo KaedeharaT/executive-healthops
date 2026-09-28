@@ -97,6 +97,14 @@ def work_detail(app, item, member):
         from executive_health_ai.ui.pages.manager.medical import review_detail
         review_detail(app,member,item.source_id,item.source_type)
     elif item.source_type=='intake_review':
+        from executive_health_ai.models.management_workflow import IntakeAssessment
+        with SessionLocal() as session:
+            intake=session.get(IntakeAssessment,item.source_id)
+        if intake and intake.patient_id==member.id and intake.status=='DRAFT':
+            st.session_state['member-return-origin']='今日工作'
+            st.session_state.pop(f'archive-content-{member.id}',None)
+            app.request_navigation(surface='运营后台',ops_page='成员',member_id=member.id,member_section='健康')
+            return
         workflow.intake(app,member,assessment_id=item.source_id)
     elif item.source_type=='risk_event':
         with SessionLocal() as session:

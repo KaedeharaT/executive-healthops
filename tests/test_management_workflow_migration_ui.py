@@ -81,7 +81,7 @@ def test_management_modes_render_with_short_default_sections(monkeypatch,mode):
 def test_staff_navigation_and_frozen_element_functions_preserved():
     import ast
     source=(ROOT/'streamlit_app.py').read_text(encoding='utf8')
-    assert '["今日", "成员", "年度管理", "医疗协同", "服务运营"]' in source
+    assert '["今日", "成员", "年度管理", "服务运营", "医疗协同", "专项管理"]' in source
     rows=json.loads((ROOT/'docs/ux_v3_implementation/elements.json').read_text(encoding='utf8'))
     assert len(rows)==121
     for row in rows:

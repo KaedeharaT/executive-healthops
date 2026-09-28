@@ -12,7 +12,7 @@ def test_streamlit_status_copy_describes_data_not_medical_conclusions() -> None:
     assert '"normal": "数据完整，可进行趋势分析"' in app_source
     assert '"insufficient_data": "数据不足，暂无法判断趋势"' in app_source
     assert "今日跟进" in app_source
-    assert '"今日", "成员", "年度管理", "医疗协同", "服务运营"' in app_source
+    assert '"今日", "成员", "年度管理", "服务运营", "医疗协同", "专项管理"' in app_source
     assert '"成员页面", ["概览", "健康", "管理", "医疗", "历程"]' in app_source
     assert "_render_lifecycle_grid" in app_source
     assert "timeline-spine-" in app_source

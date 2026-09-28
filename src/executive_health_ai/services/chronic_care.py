@@ -171,11 +171,11 @@ def apply_outcome_decision(session: Session, outcome: OutcomeEvaluation, decisio
         raise ValueError("关联健康计划不存在")
     if decision == "CONTINUE":
         program.next_decision = "下次阶段复盘"
-        task = Task(patient_id=program.patient_id, program_id=program.id, title="安排下一次阶段复盘", instruction=note.strip() or "继续当前非医疗健康管理安排，并在下一复盘时核对趋势。", status="PENDING", priority="MEDIUM", assignee="健康管理师", responsible_role="health_manager", due_at=datetime.now(timezone.utc) + timedelta(days=14), source="outcome_continue")
+        task = Task(patient_id=program.patient_id, program_id=program.id, title="安排下一次阶段复盘", instruction=note.strip() or "继续当前非医疗健康管理安排，并在下一复盘时核对趋势。", status="PENDING", priority="MEDIUM", assignee=program.owner or "健康管理师", responsible_role="health_manager", due_at=datetime.now(timezone.utc) + timedelta(days=14), source="outcome_continue")
         session.add(task); result: Task | DoctorReview | HealthProgram = task
     elif decision == "ADJUST":
         program.next_decision = "调整健康管理安排"
-        task = Task(patient_id=program.patient_id, program_id=program.id, title="根据阶段结果调整健康管理", instruction=note.strip() or "根据已观察到的阶段结果，与成员确认下一轮可执行的健康管理安排。", status="PENDING", priority="MEDIUM", assignee="健康管理师", responsible_role="health_manager", due_at=datetime.now(timezone.utc), source="outcome_adjustment")
+        task = Task(patient_id=program.patient_id, program_id=program.id, title="根据阶段结果调整健康管理", instruction=note.strip() or "根据已观察到的阶段结果，与成员确认下一轮可执行的健康管理安排。", status="PENDING", priority="MEDIUM", assignee=program.owner or "健康管理师", responsible_role="health_manager", due_at=datetime.now(timezone.utc), source="outcome_adjustment")
         session.add(task); result = task
     elif decision == "STABILIZE":
         result = transition_to_stabilization(session, program, actor)
@@ -196,7 +196,8 @@ def complete_outcome_doctor_review(session: Session, review: DoctorReview, docto
     if not doctor.strip() or not opinion.strip() or not follow_up_instruction.strip():
         raise ValueError("请填写医生意见和后续跟进任务。")
     review.doctor_name, review.department, review.opinion, review.status, review.reviewed_at = doctor.strip(), department.strip(), opinion.strip(), "CONFIRMED", utc_now()
-    task = Task(patient_id=review.patient_id, program_id=review.program_id, health_problem_id=review.health_problem_id, title="完成医生复核后的阶段跟进", instruction=follow_up_instruction.strip(), status="PENDING", priority="HIGH", assignee="健康管理师", responsible_role="health_manager", due_at=due_at, source="outcome_doctor_followup")
+    program = session.get(HealthProgram, review.program_id) if review.program_id else None
+    task = Task(patient_id=review.patient_id, program_id=review.program_id, health_problem_id=review.health_problem_id, title="完成医生复核后的阶段跟进", instruction=follow_up_instruction.strip(), status="PENDING", priority="HIGH", assignee=(program.owner if program else None) or "健康管理师", responsible_role="health_manager", due_at=due_at, source="outcome_doctor_followup")
     session.add(task); session.flush()
     _audit(session, review.patient_id, doctor, "doctor", "completed_outcome_doctor_review", review, {"task_id": str(task.id)})
     return task

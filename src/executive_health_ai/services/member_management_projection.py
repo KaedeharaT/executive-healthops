@@ -92,13 +92,32 @@ def intake_program(session, intake):
     return current_program(programs) or next(iter(programs), None)
 
 
+def onboarding_next(view):
+    """Only the unstarted annual cycle; never replace active concrete work."""
+    if not view.program or view.program.status != 'PLANNED' or view.current_phase:
+        return None
+    return {'资料收集中':('上传资料并处理初评例外','资料'),
+        '待健管初评':('确认健管初评','初评'),
+        '待医学确认':('查看医生协同进度','医疗'),
+        '待补充检查':('跟进已安排的补充检查','复查'),
+        '待建立基线':('建立并确认年度健康基线','基线'),
+        '待制定方案':('制定阶段并启动年度方案','方案')}.get(view.onboarding)
+
+
 def management_work_items(session,now):
     """Due projection runs on each queue read; no scheduler/second facts required."""
     from executive_health_ai.services.operational_worklist import OperationalWorkItem
     items=[]
-    for row in session.scalars(select(IntakeAssessment).where(IntakeAssessment.status=='SUBMITTED',IntakeAssessment.review_status!='WAITING_MEDICAL_REVIEW')):
+    for row in session.scalars(select(IntakeAssessment).where(IntakeAssessment.status.in_(('DRAFT','SUBMITTED')),IntakeAssessment.review_status!='WAITING_MEDICAL_REVIEW')):
         program=intake_program(session,row)
-        items.append(OperationalWorkItem(row.patient_id,'intake_review',row.id,2,'待处理','初始健康评估已提交','初始问卷已提交，需人工核对资料与重点。','完成健管确认',row.submitted_at,owner=program.owner if program else '待分配',route_target='member_management'))
+        if row.status == 'DRAFT' and not program:
+            continue
+        draft=row.status=='DRAFT'
+        items.append(OperationalWorkItem(row.patient_id,'intake_review',row.id,2,'待处理',
+            '新会员资料收集与初评' if draft else '初始健康评估已提交',
+            '责任健管接手：收集资料并处理初评待确认项。' if draft else '初始问卷已提交，需人工核对资料与重点。',
+            '上传资料 / 处理初评例外' if draft else '完成健管确认',row.submitted_at or row.created_at,
+            owner=program.owner if program else '待分配',route_target='member_management'))
     for row in session.scalars(select(RecheckPlan).where(RecheckPlan.status!='CLOSED',RecheckPlan.planned_at<=now+timedelta(days=1))):
         state={'WAITING_REPORT':'待结果','WAITING_REVIEW':'待结果','PENDING_CONFIRMATION':'待处理','TO_BOOK':'等待检查','BOOKED':'等待检查','TO_EXECUTE':'待复查','COMPLETED':'待结果'}[row.status]
         items.append(OperationalWorkItem(row.patient_id,'recheck',row.id,2,state,row.title,row.reason,'推进预约、检查、报告与复核',row.planned_at,document_id=row.document_id,owner=row.owner,route_target='member_management'))
@@ -106,7 +125,12 @@ def management_work_items(session,now):
         state='待处理' if row.status=='WAITING_ACTIONS' else '等待医生'
         items.append(OperationalWorkItem(row.patient_id,'consultation',row.id,2,state,'会诊方案拆解' if row.status=='WAITING_ACTIONS' else '正式会诊协同',row.conclusion or row.evidence,'健管确认行动拆解' if row.status=='WAITING_ACTIONS' else '准备资料与收集各科意见',row.scheduled_at,owner=row.owner,route_target='doctor_review'))
     reviewed=set(session.scalars(select(StageReview.phase_id)))
-    for phase,program in session.execute(select(ProgramPhase,HealthProgram).join(HealthProgram,ProgramPhase.program_id==HealthProgram.id).where(HealthProgram.cycle_year.is_not(None),ProgramPhase.status=='ACTIVE',ProgramPhase.end_date<=now.date())):
-        if phase.id not in reviewed:
+    for phase,program in session.execute(select(ProgramPhase,HealthProgram).join(HealthProgram,ProgramPhase.program_id==HealthProgram.id).where(HealthProgram.cycle_year.is_not(None),ProgramPhase.status=='ACTIVE')):
+        ready=phase.end_date<=now.date()
+        if not ready and phase.id not in reviewed:
+            from executive_health_ai.services.management_action_loop import ManagementActionLoop
+            state=ManagementActionLoop().project(session,program.patient_id,program.id)
+            ready=bool(state['phase'] and state['phase'].id==phase.id and state['review_ready'])
+        if phase.id not in reviewed and ready:
             items.append(OperationalWorkItem(program.patient_id,'stage_review',phase.id,2,'待处理','阶段复盘：'+phase.title,phase.goal,'记录阶段结果并确认下一阶段',datetime.combine(phase.end_date,time(17),now.tzinfo),owner=phase.owner or program.owner,route_target='member_management'))
     return items

@@ -1,6 +1,6 @@
 # Executive HealthOps
 
-**Agent-assisted longitudinal health management workbench for members, health managers, doctors, and operations teams**
+**A member-centered workspace for lifelong health services and management, assisted by Agents and governed by people**
 
 English | [简体中文](README_zh.md)
 
@@ -9,6 +9,8 @@ English | [简体中文](README_zh.md)
 ![Human governed](https://img.shields.io/badge/Workflow-Human_governed-205C9E)
 
 Executive HealthOps turns fragmented health reports, questionnaires, measurements, care tasks and medical reviews into a continuous, human-governed health-management workflow.
+
+The V6 service-operations alignment connects the accountable health manager, annual and phase plans, appointments, service execution, follow-ups, results and the next phase using the existing records. Specialty progress shows recorded values and targets; commercial operations remain outside this iteration. See the [capability mapping and boundaries](docs/reference-platform-alignment/MAPPING.md) and [verification](docs/reference-platform-alignment/VERIFICATION.md).
 
 **Health managers work from Today + Member360.** The system brings pending human actions to Today; Member360 holds the complete member workspace. Agents organize source material, prepare reviews and resume confirmed workflows. Doctors retain medical judgment.
 

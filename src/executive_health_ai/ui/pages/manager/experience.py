@@ -124,6 +124,7 @@ def management(app, patient, action=None):
             metric = st.selectbox("观察指标", ["systolic_bp", "diastolic_bp", "weight", "ldl_c", "hba1c", "steps", "sleep_duration"], format_func=ux.metric_name)
             baseline = st.text_input("起点数值")
             current = st.text_input("本次数值")
+            target = st.text_input("已确认目标值（选填）", help="仅填写已有方案中确认的目标，不由系统推算。")
             unit = st.text_input("单位")
             evidence = st.text_area("结果依据", placeholder="记录来源、采集日期及核对情况")
             evaluator = st.text_input("记录人", value="健康管理师")
@@ -134,7 +135,7 @@ def management(app, patient, action=None):
         if submit:
             try:
                 with SessionLocal() as session:
-                    outcome = care_commands.record_outcome(session, session.get(HealthProgram, program.id), metric=metric, baseline_value=baseline, current_value=current, unit=unit, direction="OBSERVED", evaluator=evaluator, evidence=evidence, result=result, notes=note)
+                    outcome = care_commands.record_outcome(session, session.get(HealthProgram, program.id), metric=metric, baseline_value=baseline, current_value=current, target_value=target.strip() or None, unit=unit, direction="OBSERVED", evaluator=evaluator, evidence=evidence, result=result, notes=note)
                     apply_outcome_decision(session, outcome, decision, evaluator, note)
                     session.commit()
                 st.success("阶段结果已回写到计划与历程，后续行动已建立。")
@@ -157,13 +158,13 @@ def member_detail(app, patient):
     if st.button('← 返回'+origin, key="back-to-dashboard"):
         st.session_state.pop("focused_member_id", None)
         st.session_state.pop('member-return-origin',None)
-        app.request_navigation(surface='运营后台',ops_page={'今日工作':'今日','年度管理':'年度管理','会员':'成员'}.get(origin,'成员'))
+        app.request_navigation(surface='运营后台',ops_page={'今日工作':'今日','年度管理':'年度管理','会员':'成员','专项管理':'专项管理','服务管理':'服务运营'}.get(origin,'成员'))
         st.rerun()
     ctx = app._member_summary_context(patient.id)
     management_view=workflow.view_for(patient.id)
     with SessionLocal() as session:
         view = ProductProjectionService().member(session, patient.id, health=True,
-            program_id=management_view.program.id if origin == '年度管理' and management_view.program else None)
+            program_id=management_view.program.id if origin in {'年度管理','专项管理','服务管理'} and management_view.program else None)
     program, pending, baseline, rows = view.program, view.pending_doctor, view.baseline, view.observations
     tasks = view.active_tasks
     professional = (management_view.intake.professional_focus if management_view.intake else '') or '；'.join(p.title for p in ctx['problems'] if p.status!='CLOSED' and p.source!='post_checkup_care') or '待初评'
@@ -173,7 +174,10 @@ def member_detail(app, patient):
     with SessionLocal() as session:
         action_state=ManagementActionLoop().project(session,patient.id,management_view.program.id if management_view.program else None)
     next_work=action_state['next']
+    from executive_health_ai.services.member_management_projection import onboarding_next
+    onboarding=onboarding_next(management_view)
     next_text=(next_work.title+' · '+next_work.owner+' · '+ux.when(next_work.due)) if next_work else ('确认并进入下一阶段' if action_state['review'] else '开始阶段复盘' if action_state['review_ready'] else '新增管理记录或创建随访')+' · '+view.owner
+    if onboarding and not next_work:next_text=onboarding[0]+' · '+view.owner
     updated = [r.observed_at for r in rows]+[r.occurred_at for r in management_view.logs]
     if management_view.intake: updated.append(management_view.intake.updated_at)
     cycle=view.cycle+(f' · {program.start_date:%m/%d}—{program.end_date:%Y/%m/%d}' if program and program.end_date else '')
@@ -219,6 +223,8 @@ def member_detail(app, patient):
         with st.expander('年度目标与健康基线'):
             st.write(ux.business_text(program.main_goal) if program else '待建立年度方案')
             ux.baseline_summary(baseline,rows,compact=True)
+        from executive_health_ai.ui.pages.manager.service_progress import member_progress
+        member_progress(management_view,compact=True)
     elif section == "健康":
         from executive_health_ai.ui.pages.manager.workbench import archive
         archive(app,patient,management_view)

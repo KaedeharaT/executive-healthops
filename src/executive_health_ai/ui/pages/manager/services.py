@@ -3,12 +3,14 @@ from datetime import date, datetime, time, timedelta
 import streamlit as st
 from sqlalchemy import select
 from executive_health_ai.database import SessionLocal
-from executive_health_ai.models import ServiceRequest, ServiceCatalogItem
+from executive_health_ai.models import ServiceRequest, ServiceCatalogItem, Task
+from executive_health_ai.models.management_workflow import ManagementLog
+from executive_health_ai.services.service_operations_projection import SERVICE_STAGES, service_stage, service_context, service_next
 from executive_health_ai.ui import components as c, experience as ux
 
 def services(app):
     """A dedicated queue with its service detail in the same page inspector."""
-    app._page_header("服务", "审核服务申请、安排执行并跟进服务结果。", eyebrow="服务工作台")
+    app._page_header("服务管理", "方案决定管什么；服务与任务明确谁在什么时候做什么，完成后确认结果与下一步。", eyebrow="健康服务执行")
     members = app._patient_map()
     with SessionLocal() as session:
         from executive_health_ai.services.member_archive import active_ids
@@ -16,16 +18,16 @@ def services(app):
             select(ServiceRequest).where(ServiceRequest.patient_id.in_(active_ids())).order_by(ServiceRequest.requested_at.desc())
         ))
         service_names = {item.id: item.name for item in session.scalars(select(ServiceCatalogItem))}
-    app._status_strip(
-        ("待审核", sum(item.status in {"REQUESTED", "REVIEWING"} for item in requests), "attention"),
-        ("待安排", sum(item.status == "APPROVED" for item in requests), "action"),
-        ("进行中", sum(item.status in {"SCHEDULED", "IN_PROGRESS", "IN_SERVICE"} for item in requests), "action"),
-        ("等待反馈", sum(item.status == "COMPLETED" and not item.result_summary for item in requests), "neutral"),
-    )
-    filters = {"全部": set(), "待审核": {"REQUESTED", "REVIEWING"}, "待安排": {"APPROVED"}, "进行中": {"SCHEDULED", "IN_PROGRESS", "IN_SERVICE"}, "等待反馈": {"COMPLETED"}, "已完成": {"COMPLETED"}}
+        tasks = list(session.scalars(select(Task)))
+        logs = list(session.scalars(select(ManagementLog)))
+        stages = {r.id: service_stage(r,tasks,logs) for r in requests}
+        contexts = {r.id: service_context(session,r) for r in requests}
+    app._status_strip(*[(name, sum(v == name for v in stages.values()), 'neutral' if name == '已完成' else 'action') for name in SERVICE_STAGES])
+    filters = ['全部', *SERVICE_STAGES, '已取消']
+    if st.session_state.get('service-operations-filter') not in filters:
+        st.session_state.pop('service-operations-filter',None)
     selected_filter = st.radio("服务状态筛选", list(filters), horizontal=True, label_visibility="collapsed", key="service-operations-filter")
-    visible = requests if not filters[selected_filter] else [item for item in requests if item.status in filters[selected_filter]]
-    if selected_filter=='等待反馈': visible=[item for item in visible if not item.result_summary]
+    visible = requests if selected_filter == '全部' else [item for item in requests if stages[item.id] == selected_filter]
     query = st.text_input("搜索服务", placeholder="会员、服务或原因", key="service-search").strip().casefold()
     visible = [r for r in visible if not query or query in (app._member_display(members.get(r.patient_id))+service_names.get(r.service_item_id, "")+r.reason).casefold()]
     if not visible:
@@ -34,10 +36,10 @@ def services(app):
     from executive_health_ai.ui.presentation import data_table, service_steps
     left, right = st.container(), st.container()
     with left:
-        app._section_header("服务事项表", "选择记录，在右侧审核、安排或记录结果。")
+        app._section_header("服务事项表", "选择一行，审核、预约、执行或确认结果；回访进入同一会员的管理工作区。")
         selected = data_table(visible, [{"服务": service_names.get(r.service_item_id, "会员服务"), "会员": app._member_display(members.get(r.patient_id)),
-            "原因": r.reason, "服务方": r.service_provider or "待安排", "预约时间": ux.when(r.scheduled_at), "负责人": r.assigned_manager or "待分配",
-            "状态": app._label(r.status, context="service_request"), "结果": r.result_summary or "待回写"} for r in visible], key="service-operations-grid", auto_select=False)
+            "来源方案": contexts[r.id]['plan'], "责任健管": contexts[r.id]['owner'], "计划时间": ux.when(r.scheduled_at or r.sla_due_at),
+            "当前状态": stages[r.id], "下一步": service_next(r,tasks,logs)} for r in visible], key="service-operations-grid", auto_select=False)
     if selected is None: return
     with c.detail_drawer("服务详情", key="service", table_key="service-operations-grid"):
         service_detail(app,selected,members.get(selected.patient_id))
@@ -48,17 +50,22 @@ def service_detail(app, selected, member):
     with SessionLocal() as session:
         catalog = session.get(ServiceCatalogItem, selected.service_item_id)
         name = catalog.name if catalog else '会员服务'
+        context = service_context(session,selected)
+        tasks = list(session.scalars(select(Task).where(Task.patient_id == selected.patient_id)))
+        logs = list(session.scalars(select(ManagementLog).where(ManagementLog.patient_id == selected.patient_id)))
     st.markdown(f"**{name} · {app._member_display(member)}**")
     service_steps(selected)
+    st.caption(f"来源方案：{context['plan']} · 阶段：{context['phase']}")
+    st.caption(f"预约：{ux.when(selected.scheduled_at)} · 服务方：{selected.service_provider or '待安排'} · 实际完成：{ux.when(selected.completed_at)}")
     with st.expander("申请原因与完整说明"):
         st.write(selected.reason or "成员提交服务申请。")
     st.caption(f"当前状态：{app._label(selected.status, context='service_request')} · 负责人：{selected.assigned_manager or '待分配'}")
     st.caption(f"申请时间：{app._fmt_dt(selected.requested_at)} · 预计处理：{app._fmt_dt(selected.sla_due_at) if selected.sla_due_at else '待确认'}")
-    st.write("下一步：" + (selected.next_action or "健康管理师确认下一步"))
+    st.write("下一步：" + service_next(selected,tasks,logs))
     if selected.status in {"REQUESTED", "REVIEWING"}:
         if app.primary_action("审核申请", key=f"service-operations-approve-{selected.id}", width="content"):
             with SessionLocal() as session:
-                app.MemberServiceOperations().approve(session, selected.id, "健康管理师"); session.commit()
+                app.MemberServiceOperations().approve(session, selected.id, context['owner'] if context['owner'] != '待分配' else "健康管理师"); session.commit()
             st.rerun()
     elif selected.status == "APPROVED":
         with st.form(f"service-operations-schedule-{selected.id}"):
@@ -99,4 +106,13 @@ def service_detail(app, selected, member):
     else:
         st.write(selected.result_summary or "服务已完成，等待补充结果。")
         st.caption("完成依据：" + (selected.completion_evidence or "人工确认的服务完成记录"))
-        st.button('进入会员管理',key=f'service-management-{selected.id}',type='primary',on_click=app._open_member_management,args=(selected.patient_id,))
+        st.button('进入会员管理',key=f'service-management-{selected.id}',type='primary',on_click=open_service_member,args=(app,selected))
+
+
+def open_service_member(app, request):
+    if st.session_state.get('ops-navigation') == '服务运营':
+        st.session_state['member-return-origin'] = '服务管理'
+    if request.program_id:
+        st.session_state[f'annual-program-{request.patient_id}'] = str(request.program_id)
+    st.session_state[f'action-focus-{request.patient_id}'] = 'NEXT'
+    app._open_member_management(request.patient_id)

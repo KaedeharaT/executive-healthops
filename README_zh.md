@@ -1,6 +1,6 @@
 # Executive HealthOps
 
-**面向会员、健康管理师、医生和运营团队的 Agent 辅助持续健康管理工作台**
+**会员全周期健康服务与管理工作台：Agent 辅助执行，健管负责协调，医生负责医学判断**
 
 [English](README.md) | 简体中文
 
@@ -9,6 +9,8 @@
 ![Human governed](https://img.shields.io/badge/Workflow-Human_governed-205C9E)
 
 Executive HealthOps 将体检报告、健康问卷、长期健康数据、健管任务、医生判断和服务执行组织成一条可持续推进、有人负责、可追溯的健康管理闭环。
+
+V6 复用现有记录，贯通责任健管、年度与阶段方案、预约、服务执行、回访、结果及下一阶段。专项管理展示有依据的起点、当前值和目标；商城、支付等商业运营不在本轮范围。详见[能力 Mapping 与业务边界](docs/reference-platform-alignment/MAPPING.md)和[验收记录](docs/reference-platform-alignment/VERIFICATION.md)。
 
 **健管每天从「今日工作 + Member360」开始。** 系统把待人工处理的事项送到今日工作，Member360 提供完整会员工作空间。Agent 负责整理资料、准备复核材料，并在人工确认后继续流程；医学判断由医生负责。
 

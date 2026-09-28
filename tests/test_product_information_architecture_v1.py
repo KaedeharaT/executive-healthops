@@ -43,10 +43,10 @@ def test_member_service_uses_categories_before_service_items() -> None:
     assert "member-service-request" in service
 
 
-def test_member_and_ops_primary_navigation_have_at_most_five_destinations() -> None:
+def test_member_and_ops_primary_navigation_remain_role_specific_and_bounded() -> None:
     source = APP.read_text(encoding="utf-8")
     assert '["首页", "健康", "计划", "服务", "历程"]' in source
-    assert '["今日", "成员", "年度管理", "医疗协同", "服务运营"]' in source
+    assert '["今日", "成员", "年度管理", "服务运营", "医疗协同", "专项管理"]' in source
 
 
 def test_ops_today_is_kpis_plus_worklist_and_member_detail_has_five_tabs() -> None:

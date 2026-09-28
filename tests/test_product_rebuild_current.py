@@ -15,7 +15,7 @@ def _source(name: str, next_marker: str) -> str:
 def test_primary_navigation_is_limited_and_role_specific() -> None:
     source = APP.read_text(encoding="utf-8")
     assert '["首页", "健康", "计划", "服务", "历程"]' in source
-    assert '["今日", "成员", "年度管理", "医疗协同", "服务运营"]' in source
+    assert '["今日", "成员", "年度管理", "服务运营", "医疗协同", "专项管理"]' in source
 
 
 def test_client_health_is_a_longitudinal_record_and_reports_are_prominent() -> None:

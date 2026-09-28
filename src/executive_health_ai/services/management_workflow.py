@@ -166,7 +166,9 @@ class ManagementWorkflowService:
                 if not row.doctor_review_id:
                     problem = HealthProblem(patient_id=member_id,title='入组资料待医学确认',description=medical_question or tests,source='intake_review',owner=actor)
                     session.add(problem); session.flush()
-                    review = DoctorReview(patient_id=member_id, health_problem_id=problem.id, doctor_name='待分配医生',
+                    from executive_health_ai.services.member_management_projection import intake_program
+                    program = intake_program(session,row)
+                    review = DoctorReview(patient_id=member_id, program_id=program.id if program else None, health_problem_id=problem.id, doctor_name='待分配医生',
                         department='待确认',doctor_brief='会员自述与健管初评，尚非正式医学结论',
                         question_for_doctor=medical_question or tests,opinion='',status='PENDING')
                     session.add(review); session.flush(); row.doctor_review_id=review.id
