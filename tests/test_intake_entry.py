@@ -55,15 +55,15 @@ def test_no_assessment_entry_starts_same_member_without_member_selector():
     mid = member()
     app = AppTest.from_function(archive_page, args=(str(mid),)).run()
     assert not app.exception
-    assert app.subheader[0].value == '初始健康评估'
-    button(app, '开始评估').click().run()
+    assert app.subheader[0].value == '健康管理助手'
+    button(app, '继续完成初始评估').click().run()
     assert not app.exception
     assert len(app.selectbox[0].options) == 11
     assert all(x.label not in {'选择会员','会员档案','选择问卷'} for x in app.selectbox)
     button(app, '保存草稿并继续').click().run()
     button(app, '← 返回健康档案').click().run()
-    assert button(app, '继续填写')
-    assert any('1 / 10' in m.value for m in app.markdown)
+    assert button(app, '继续完成初始评估')
+    assert any('10%' in m.value for m in app.markdown)
     button(app, '查看已填写内容').click().run()
     assert not app.exception
     button(app, '继续填写').click().run()
@@ -75,7 +75,7 @@ def test_no_assessment_entry_starts_same_member_without_member_selector():
 def test_submit_review_archive_sync_view_and_amend_do_not_promote_medical_facts():
     mid = member(); iid = fill(mid)
     app = AppTest.from_function(archive_page,args=(str(mid),)).run()
-    button(app,'继续填写').click().run()
+    button(app,'确认并提交初始健康评估').click().run()
     assert app.selectbox[0].value == 10
     next(c for c in app.checkbox if '逐项核对' in c.label).check().run()
     button(app,'提交初始评估').click().run()
@@ -93,7 +93,9 @@ def test_submit_review_archive_sync_view_and_amend_do_not_promote_medical_facts(
     assert not app.exception
     button(app,'← 返回健康档案').click().run()
     assert button(app,'查看评估') and button(app,'补充/修正')
+    button(app,'查看完整健康档案').click().run()
     rows = app.dataframe[0].value.set_index('资料')['摘要']
+    button(app,'← 返回健康档案主页').click().run()
     assert rows['既往史']=='3 项记录' and rows['用药']=='2 项记录' and rows['过敏']=='1 项记录'
     with SessionLocal() as s:
         view = MemberManagementProjection().member(s,mid)
@@ -119,10 +121,7 @@ def test_start_is_idempotent_and_empty_archive_prompt_is_actionable():
         assert a.id==b.id
         s.commit()
     app=AppTest.from_function(archive_page,args=(str(mid),)).run()
-    from tests.ui_selection import select_table_row
-    select_table_row(app,index=2).run()
-    assert button(app,'去补充初始评估')
-    button(app,'去补充初始评估').click().run()
+    next(b for b in app.button if b.label.startswith('个人病史\n')).click().run()
     assert not app.exception and app.selectbox[0].value==2
 
 

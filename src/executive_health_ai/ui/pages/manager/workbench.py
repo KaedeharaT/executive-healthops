@@ -169,6 +169,11 @@ def archive(app, patient, view):
     from executive_health_ai.ui.pages.manager import intake_entry
     section_key=f'archive-content-{patient.id}'
     selected=st.session_state.get(section_key)
+    if selected=='完整档案':
+        if st.button('← 返回健康档案主页'):
+            st.session_state.pop(section_key,None);st.rerun()
+        full_archive(app,patient,view)
+        return
     if selected:
         if selected=='初始评估':
             workflow.intake(app,patient)
@@ -195,9 +200,17 @@ def archive(app, patient, view):
                 st.button('去补充初始评估',key=section_key+'-intake',on_click=intake_entry.amend,
                     args=(patient,view),kwargs={'step':selected})
         return
-    from executive_health_ai.ui.pages.manager import profile_intake
-    intake_entry.card(patient,view)
-    profile_intake.entry(app,patient,view)
+    from executive_health_ai.ui.pages.manager import intake_workspace
+    data=intake_workspace.workspace(app,patient,view)
+    intake_workspace.cards(patient,view,data)
+    if st.button('查看完整健康档案',key=f'full-archive-{patient.id}'):
+        st.session_state[section_key]='完整档案';st.rerun()
+
+
+def full_archive(app,patient,view):
+    from executive_health_ai.ui.pages.manager import profile_intake,intake_entry
+    section_key=f'archive-content-{patient.id}'
+    st.subheader('完整健康档案')
     profile_intake.confirmed_records(patient.id)
     responses=view.intake.responses if view.intake else {}
     entries=[('基础资料','基础资料','已建档'),('家族史','家族健康史',None),('既往史','个人病史',None),
@@ -211,12 +224,7 @@ def archive(app, patient, view):
     for title,key,summary in entries:
         value=responses.get(key)
         rows.append({'title':title,'key':key,'summary':summary or (f'{len(value)} 项记录' if isinstance(value,list) and value else '已填写' if value else '待补充')})
-    from executive_health_ai.ui.neumorphism import archive_summary
-    with st.container(key='soft-archive-summary'):
-        st.subheader('健康档案摘要')
-        st.caption('已核对的会员自述资料；正式医疗档案仍保留原有医学确认要求。' if intake_entry.state(view.intake)=='已完成'
-                   else '以下自述资料尚待健管确认，可从上方继续初始健康评估。')
-        archive_summary(rows)
+    st.caption('完整资料、原始文件及导入历史保留于此。正式医疗档案仍遵守原有确认要求。')
     with st.container(key='soft-archive-details'):
         chosen=data_table(rows,[{'资料':r['title'],'摘要':r['summary']} for r in rows],key=section_key,auto_select=False,activate_on_cell=True)
         if chosen:

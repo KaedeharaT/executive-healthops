@@ -36,6 +36,9 @@ def open_member(app):
 
 
 def open_archive(app, title):
+    # The summary was intentionally moved behind the full archive entry.
+    entry=next((b for b in app.button if b.label=='查看完整健康档案'),None)
+    if entry:entry.click().run(timeout=45)
     grid = next(t for t in app.dataframe if '资料' in t.value.columns)
     index = list(grid.value['资料']).index(title)
     return select_table_row(app, index, prefix='archive-content-')

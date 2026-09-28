@@ -1,0 +1,177 @@
+"""The foreground view of existing intake Agents, shared by archive and wizard."""
+from html import escape
+import streamlit as st
+from executive_health_ai.database import SessionLocal
+from executive_health_ai.services import intake_workspace as projection
+from executive_health_ai.ui import components as c
+
+
+def styles():
+    st.markdown('''<style>
+    .st-key-intake-agent-board {border-top:3px solid var(--blue)!important;border-radius:16px;background:var(--surface);padding:20px;box-shadow:var(--neu-shadow);}
+    ol.intake-agent-steps {display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;list-style:none;padding:0!important;gap:8px;margin:18px 0!important;width:100%;}
+    .intake-agent-steps li {padding:12px 6px;text-align:center;border:1px solid var(--line);border-radius:12px;background:var(--neu-well);font-size:14px;}
+    .intake-agent-steps b {display:block;font-size:22px;margin-bottom:6px;}
+    .intake-agent-steps .current {background:var(--blue);color:white;box-shadow:var(--neu-control);font-weight:700;}
+    .intake-agent-steps .done {background:#e7f3ec;color:#226548;}
+    .intake-agent-current {background:#e3edf8;border-left:4px solid var(--blue);border-radius:12px;padding:16px;margin:12px 0;}
+    .intake-agent-current strong {font-size:22px;display:block;margin-bottom:6px;}
+    .intake-agent-history {list-style:none;padding:0;margin:8px 0;line-height:1.7;font-size:14px;}
+    .st-key-intake-section-cards button {width:100%;min-height:112px;text-align:left;justify-content:flex-start;white-space:pre-line;border-radius:14px!important;cursor:pointer;transition:transform .15s,box-shadow .15s;}
+    .st-key-intake-section-cards button:hover {transform:translateY(-3px);box-shadow:var(--neu-emphasis)!important;}
+    .st-key-intake-section-cards button:active {transform:translateY(1px);box-shadow:var(--neu-inset)!important;}
+    .st-key-intake-section-cards button:focus-visible {outline:3px solid var(--blue);outline-offset:3px;}
+    @media(max-width:900px){ol.intake-agent-steps{grid-template-columns:repeat(4,minmax(0,1fr))!important;}}
+    @media(prefers-reduced-motion:reduce){.st-key-intake-section-cards button{transition:none;transform:none!important;}}
+    </style>''',unsafe_allow_html=True)
+
+
+def continue_intake(patient,view,step=None):
+    from executive_health_ai.ui.pages.manager import intake_entry
+    with SessionLocal() as session:
+        step=step or projection.first_incomplete(session,patient.id,view.intake)
+    intake_entry.open_intake(patient,view,step=step,read_only=bool(view.intake and view.intake.status=='CONFIRMED'))
+
+
+def support(data, event=None):
+    st.markdown('**AI与知识支持**')
+    activities=[a for f in data['files'] for a in f['support']]
+    cols=st.columns(3)
+    for col,key,title in zip(cols,('mapping','semantic','knowledge'),('规则映射','AI语义整理','知识/术语辅助')):
+        rows=[a for a in activities if a.key==key]
+        with col:
+            st.markdown('**'+title+'**')
+            if key=='semantic' and event=='AI_REQUEST_STARTED':
+                st.write('● 正在进行')
+                st.caption('用途：从自由文本资料中提取可核对的健康信息')
+            elif any(a.used for a in rows):
+                for result in dict.fromkeys(a.mark+' '+a.label+' · '+a.result for a in rows if a.used):st.caption(result)
+            elif key=='mapping' and rows and any(a.status=='SUCCESS' for a in rows):
+                st.caption('✓ 已完成文件读取与规则映射')
+            else:
+                st.caption('本次未使用' if key!='mapping' else '尚未执行')
+            if key=='semantic' and event!='AI_REQUEST_STARTED':st.caption('用途：从自由文本资料中提取可核对的健康信息')
+            if key=='knowledge':st.caption('仅在实际调用时显示结果；资料抽取不强制使用知识库。')
+
+
+def draw(data, event=None):
+    with st.container():
+        title='健康管理助手正在整理资料' if data['processing'] else '本次资料整理已完成' if data['ready'] and not any(f['goal'].status in {'ESCALATED','CANCELLED'} for f in data['files']) else '健康管理助手'
+        st.subheader(title)
+        if not data['files']:
+            st.write('当前：暂无正在处理的健康资料')
+            st.caption('你可以上传会员现有资料，系统会自动整理并尽量完善初始健康评估。')
+            st.markdown('[上传健康资料](#intake-upload)')
+            support(data)
+            return
+        phase=2 if event in {'CONTENT_READ','AI_REQUEST_STARTED'} else 4 if event=='PREFILL_READY' else data['phase']
+        st.markdown('<ol class="intake-agent-steps" aria-label="健康资料整理进度">'+''.join(
+            f'<li class="{"done" if i<phase or data["finished"] else "current" if i==phase else ""}"><b>{"✓" if i<phase or data["finished"] else "●" if i==phase else "○"}</b>{label}<br><small>{"已完成" if i<phase or data["finished"] else "当前" if i==phase else "待开始"}</small></li>'
+            for i,label in enumerate(projection.PHASES))+'</ol>',unsafe_allow_html=True)
+        current=data['current']
+        linked=any(f['goal'].context_json.get('intake_id') for f in data['files'])
+        filename=current['document'].title if current else '本批资料已整理，等待逐项核对' if not data['finished'] else '本批资料来源已核对并提交'
+        action=('正在从 '+str(len(data['files']))+' 份健康资料中'+('提取可核对的健康信息' if phase==2 else '读取内容' if phase==1 else '匹配现有档案并准备初评预填' if phase in {3,4} else '接收原始资料')) if current else '需要您核对来源、处理冲突并补充初评' if not data['finished'] else '初始评估已提交，后续医学事实仍按现有规则确认'
+        if current and phase==6:action='正在写入已经确认的健康档案更新'
+        if not current and not linked:
+            action='本次健康档案更新已完成，可继续完善初始评估' if data['finished'] else '健康档案更新草稿已准备，请核对来源与冲突后确认'
+        if not current and any(f['goal'].status=='WAITING_DOCTOR' for f in data['files']):
+            action='等待医生判断；医生提交后再继续健管确认'
+            filename='医学问题已交给医生，当前无需重复整理资料'
+        elif not current and any(f['goal'].status in {'ESCALATED','CANCELLED'} for f in data['files']):
+            action='资料需要人工接手，请核对原文件并补充可读取资料'
+            filename='部分资料未能可靠读取，尚未全部完成'
+        st.markdown('<div class="intake-agent-current" role="status"><strong>当前正在进行</strong>'+escape(action)+'<br>当前处理：'+escape(filename)+'</div>',unsafe_allow_html=True)
+        c.summary_strip([('上传资料',str(len(data['files']))+' 份'),('已经完成',f'{data["processed"]} / {len(data["files"])} 文件'),('已发现',str(data['count'])+' 项健康信息')])
+        if data['ready']:
+            s=data['stats']
+            c.summary_strip([('自动预填',s['prefilled']),('待健管确认',s['pending']),('仍需补充',s['missing']),('冲突',s['conflicts']),('健康档案更新',data['updates'])])
+            st.caption('健康档案候选已保留原文、测量及冲突核对结果；未经确认不会写入正式医疗事实。')
+        st.markdown('**活动时间轴**')
+        lines=[f'✓ 收到 {len(data["files"])} 份健康资料']
+        lines += ['✓ 《'+name+'》'+text for _,name,text in data['events'][-4:]]
+        if current:lines+=['● '+action+' · 《'+filename+'》']
+        next_text='资料整理完成后，请从下方卡片核对来源并补充；此时需要您确认。' if current else '继续完成初始健康评估；提交前需核对所有来源。' if not data['finished'] else '查看已提交初评，继续健管专业确认。'
+        if not current and not linked:next_text='核对下方健康档案更新；已提交的初评保留原有确认状态。' if not data['finished'] else '继续查看或完善初始健康评估。'
+        lines+=['○ 下一步：'+next_text]
+        st.markdown('<ul class="intake-agent-history">'+''.join('<li>'+escape(line)+'</li>' for line in lines)+'</ul>',unsafe_allow_html=True)
+        support(data,event)
+
+
+def workspace(app,patient,view, *, uploader=True):
+    styles()
+    selected=st.session_state.get(f'intake-workspace-goal-{patient.id}')
+    with SessionLocal() as session:data=projection.project(session,patient.id,view.intake,selected)
+    @st.fragment(run_every=2 if data['processing'] else None)
+    def live():
+        with SessionLocal() as session:current=projection.project(session,patient.id,view.intake,selected)
+        with st.container(key='intake-agent-board'):
+            board=st.empty()
+        with board.container():draw(current)
+        if current['current'] and current['current']['goal'].status=='RUNNING':
+            from executive_health_ai.agent.supervisor import HealthOpsAgentSupervisor
+            from executive_health_ai.llm.activity import observe_progress
+            def display(event):
+                with board.container():draw(current,event)
+            with observe_progress(display), SessionLocal() as session:
+                HealthOpsAgentSupervisor().execute_next_step(session,current['current']['goal'].id)
+                session.commit()
+            st.rerun()
+        if data['processing'] and not current['processing']:st.rerun()
+    live()
+    if data['ready']:
+        label=('确认并提交初始健康评估' if data['stats']['percent']==100 else '继续填写') if not view.intake or view.intake.status=='DRAFT' else '查看初评与健管确认'
+        st.button(label,key=f'workspace-continue-{patient.id}',on_click=continue_intake,args=(patient,view))
+    # Preserve the established confirmation workflow for uploads after submission.
+    from executive_health_ai.ui.pages.manager.profile_intake import review_updates
+    review_files=[item for item in data['files'] if not item['goal'].context_json.get('intake_id') and item['goal'].status not in {'RUNNING','PROCESSING'}]
+    if review_files:
+        with st.expander('核对健康档案更新',expanded=any(item['goal'].status=='WAITING_MANAGER' for item in review_files)):
+            index=st.selectbox('待核对资料',range(len(review_files)),format_func=lambda i:review_files[i]['document'].title) if len(review_files)>1 else 0
+            with SessionLocal() as session:
+                from executive_health_ai.models import AgentGoal
+                review_updates(app,session,session.get(AgentGoal,review_files[index]['goal'].id))
+    if uploader:
+        upload_area(patient,view)
+    return data
+
+
+def upload_area(patient,view):
+    key=f'workspace-upload-{patient.id}'
+    with st.container(border=True,key='intake-upload-area'):
+        st.subheader('上传健康资料',anchor='intake-upload')
+        st.caption('上传该会员现有的体检、问卷、病历、用药记录或其他健康资料。健康管理助手会自动识别内容，优先用于完善初始健康评估，并同步准备健康档案更新。')
+        epoch=st.session_state.get(key+'-epoch',0)
+        files=st.file_uploader('选择文件',type=['pdf','docx','xlsx','csv','txt','json','png','jpg','jpeg'],accept_multiple_files=True,key=key+'-'+str(epoch))
+        st.caption('PDF / DOCX / XLSX / CSV / TXT / JSON / PNG / JPG · 每批最多 20 份、100 MB')
+        if st.button('上传并整理资料',key=key+'-submit',type='primary',disabled=not files):
+            try:
+                with SessionLocal() as session:
+                    results=projection.upload(session,patient,view,[(f.name,f.getvalue()) for f in files]);session.commit()
+                st.session_state[key+'-results']=results
+                st.session_state.pop(f'intake-workspace-goal-{patient.id}',None)
+                if any(not result['error'] for result in results):st.session_state[key+'-epoch']=epoch+1
+                st.rerun()
+            except (ValueError,PermissionError) as error:st.error(str(error))
+        for result in st.session_state.pop(key+'-results',[]):
+            if result['error']:st.error(result['filename']+'：'+result['error'])
+            else:st.caption(result['filename']+('：已接收，无需重复上传' if result['duplicate'] else '：已接收'))
+
+
+def cards(patient,view,data):
+    st.subheader('初始健康评估')
+    s=data['stats']
+    c.summary_strip([('完成度',str(s['percent'])+'%'),('自动预填',s['prefilled']),('待确认',s['pending']),('待补充',s['missing']),('冲突',s['conflicts'])])
+    with st.container(key='intake-section-cards'):
+        for start in range(0,10,4):
+            for col,item in zip(st.columns(4),data['sections'][start:start+4]):
+                description=f'{item["prefilled"]} 项已预填 · {item["pending"]} 项待确认' if item['prefilled'] or item['pending'] else '点击查看与补充'
+                col.button(item['label']+'\n'+item['status']+'\n'+description,key=f'intake-category-{patient.id}-{start+data["sections"][start:start+4].index(item)}',
+                    width='stretch',on_click=continue_intake,args=(patient,view,item['step']))
+    from executive_health_ai.ui.pages.manager import intake_entry
+    state=intake_entry.state(view.intake)
+    label='确认并提交初始健康评估' if s['percent']==100 and view.intake and view.intake.status=='DRAFT' else '继续完成初始评估' if state in {'未开始','填写中'} else '开始健管确认' if state=='待健管确认' else '查看评估'
+    st.button(label,key=f'workspace-primary-{patient.id}',type='primary',on_click=continue_intake,args=(patient,view))
+    if view.intake:
+        st.button('查看已填写内容',key=f'workspace-preview-{patient.id}',on_click=intake_entry.open_intake,args=(patient,view),kwargs={'read_only':True})
+        if state=='已完成':st.button('补充/修正',key=f'workspace-amend-{patient.id}',on_click=intake_entry.amend,args=(patient,view))

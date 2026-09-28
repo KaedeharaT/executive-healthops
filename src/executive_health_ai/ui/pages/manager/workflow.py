@@ -126,6 +126,9 @@ def intake(app,patient,member=False,assessment_id=None):
         st.subheader('初始健康评估')
         c.summary_strip([('会员',patient.display_name),('当前年度',str(row.cycle_year if row else (view.program.cycle_year or view.program.start_date.year) if view.program else date.today().year)),
                          ('责任健管',view.owner),('评估状态',intake_entry.state(row))])
+    if not member:
+        from executive_health_ai.ui.pages.manager.intake_workspace import workspace
+        workspace(app,patient,view)
     if not row:
         st.button('开始评估',type='primary',on_click=intake_entry.open_intake,args=(patient,view));return
     st.caption('保存的是本人陈述，提交后由健管核对；症状评分不代表诊断。')
@@ -149,7 +152,9 @@ def intake(app,patient,member=False,assessment_id=None):
     from executive_health_ai.ui.pages.manager import assessment_import as document_ui
     imported=document_ui.panel(patient,row,view.owner) if not member else None
     wizard_steps=[label for label in STEPS if label!='最近用药']
-    resume_index=next((i for i,label in enumerate(wizard_steps[:-1]) if label not in row.responses or label=='当前用药 / 营养补充' and '最近用药' not in row.responses),len(wizard_steps)-1)
+    from executive_health_ai.services.intake_workspace import first_incomplete
+    with SessionLocal() as session:
+        resume_index=wizard_steps.index(first_incomplete(session,patient.id,row))
     index=st.session_state.get(f'intake-step-{patient.id}',resume_index)
     index=min(index,len(wizard_steps)-1)
     with st.container(key='soft-intake-progress'):

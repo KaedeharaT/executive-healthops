@@ -340,7 +340,7 @@ def member_summary(member_id,app=None):
         st.write('下一步：'+goal.next_action)
         if app:
             from executive_health_ai.ui.pages.manager.assistant import open_care
-            st.button('查看运行看板',key=f'member-profile-progress-{member_id}',on_click=open_care,args=(app,goal,'会员360'))
+            st.button('处理资料与初评',key=f'member-profile-progress-{member_id}',on_click=open_care,args=(app,goal,'会员360'))
         return
     from executive_health_ai.ui.pages.manager import care_activity
     activity=care_activity.load(goal)

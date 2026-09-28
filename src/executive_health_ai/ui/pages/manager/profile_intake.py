@@ -20,43 +20,15 @@ STATUS={'RUNNING':'正在整理健康资料','PROCESSING':'正在整理健康资
 
 
 def open_board(app,goal):
-    from executive_health_ai.ui.pages.manager.assistant import open_care
-    open_care(app,goal,'会员360')
+    st.session_state.pop('care-detail',None)
+    st.session_state[f'intake-workspace-goal-{goal.member_id}']=str(goal.id)
+    st.session_state.pop(f'archive-content-{goal.member_id}',None)
+    app.request_navigation(surface='运营后台',ops_page='成员',member_id=goal.member_id,member_section='健康',rerun=False)
 
 
 def entry(app,patient,view):
-    key=f'profile-upload-{patient.id}'
-    if st.button('＋ 导入健康资料',key=key+'-open',type='primary'):
-        st.session_state[key]=True
-    if st.session_state.get(key):
-        with st.container(border=True, key='neu-import'):
-            st.subheader('导入健康资料')
-            use_intake=st.radio('资料用途',['辅助填写初始健康评估（支持多份混合资料）','更新正式健康档案（原有逐份确认流程）'],key=key+'-purpose')
-            if use_intake.startswith('辅助'):
-                from executive_health_ai.ui.pages.manager import assessment_import, intake_entry
-                if view.intake and view.intake.status=='DRAFT':
-                    assessment_import.uploader(patient,view.intake,view.owner,key+'-batch')
-                    st.button('进入初评核对与补充',key=key+'-intake',on_click=intake_entry.open_intake,args=(patient,view))
-                elif not view.intake:
-                    st.button('开始初评并上传资料',key=key+'-start',on_click=intake_entry.open_intake,args=(patient,view))
-                else:st.info('本年度初评已提交。可使用下方原有档案更新流程，或先从初评入口退回补充。')
-                if st.button('取消上传',key=key+'-cancel'):
-                    st.session_state[key]=False;st.rerun()
-                return
-            st.caption(app._member_display(patient)+' · 上传后自动整理；确认前不会成为正式健康事实。')
-            dtype=st.radio('请选择资料类型',[t for t in TYPES if t!='auto'],format_func=TYPES.get,horizontal=True,key=key+'-type')
-            st.caption('支持含文字的 PDF、图片、Word、表格、文本和原生问卷文件。无法可靠读取时会保留原文件并提示人工处理。')
-            file=st.file_uploader('上传资料',type=['pdf','png','jpg','jpeg','docx','xlsx','csv','txt','json'],key=key+'-file')
-            if st.button('上传并整理资料',type='primary',disabled=file is None,key=key+'-submit'):
-                try:
-                    with SessionLocal() as session:
-                        goal,duplicate=ProfileIngestionService().upload(session,patient.id,file.name,file.getvalue(),dtype,actor=view.owner,role='HEALTH_MANAGER')
-                        session.commit()
-                    st.session_state[key]=False
-                    open_board(app,goal);st.rerun()
-                except (ValueError,PermissionError) as exc:st.error(str(exc))
-            if st.button('取消上传',key=key+'-cancel'):
-                st.session_state[key]=False;st.rerun()
+    from executive_health_ai.ui.pages.manager.intake_workspace import workspace
+    return workspace(app,patient,view)
 
 
 def history(app,patient):
@@ -161,6 +133,16 @@ def render(app,session,goal):
         st.subheader('处理历程')
         for item in traces:st.write(ux.when(item.started_at)+' · '+item.result_summary)
         return
+    review_updates(app,session,goal)
+
+
+def review_updates(app,session,goal):
+    """Existing formal-fact review, also embedded beneath the foreground board."""
+    doc=session.get(Document,UUID(goal.source_id));rows=candidates(session,goal);route=latest(session,goal)
+    from executive_health_ai.services.agent_capabilities import load as load_support
+    support,_=load_support(session,goal)
+    traces=list(session.scalars(select(AgentRunTrace).where(AgentRunTrace.goal_id==goal.id,
+        AgentRunTrace.action.in_(('profile_activity','profile_exception'))).order_by(AgentRunTrace.started_at)))
     if goal.status=='COMPLETED':
         st.success('本次健康资料已整理完成')
         out=goal.context_json['output']

@@ -6,6 +6,22 @@ from time import perf_counter
 
 _collector = ContextVar('healthops_llm_activity', default=None)
 _current = ContextVar('healthops_current_llm_call', default=None)
+_progress = ContextVar('healthops_business_progress', default=None)
+
+
+@contextmanager
+def observe_progress(callback):
+    """Transient UI notifications; never a second workflow or persisted state."""
+    token=_progress.set(callback)
+    try:
+        yield
+    finally:
+        _progress.reset(token)
+
+
+def notify_progress(event):
+    if callback:=_progress.get():
+        callback(event)
 
 
 @contextmanager
@@ -43,6 +59,7 @@ def observe_call(task, provider):
 def request_started():
     if (row := _current.get()) is not None:
         row['request_sent'] = True
+        notify_progress('AI_REQUEST_STARTED')
 
 
 def result_checked(task, count):

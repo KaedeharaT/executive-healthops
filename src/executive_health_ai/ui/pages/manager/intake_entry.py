@@ -30,6 +30,9 @@ def progress(row):
 
 
 def open_intake(patient, view, *, read_only=False, step=None, assessment_id=None):
+    for key in list(st.session_state):
+        if key.startswith(f'intake-select-{patient.id}-'):
+            st.session_state.pop(key,None)
     if assessment_id:st.session_state[f'intake-assessment-id-{patient.id}']=str(assessment_id)
     else:st.session_state.pop(f'intake-assessment-id-{patient.id}',None)
     if not view.intake and not assessment_id:

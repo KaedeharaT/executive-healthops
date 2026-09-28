@@ -5,9 +5,9 @@ from pathlib import Path
 from executive_health_ai.models import ReportExtractionCandidate
 from executive_health_ai.models.base import utc_now
 from executive_health_ai.services.profile_schemas import ProfileFact, HistoryExtraction
-from executive_health_ai.services.profile_ingestion import SECTIONS, ALIASES
+from executive_health_ai.services.profile_ingestion import SECTIONS, ALIASES, report_candidates
 from executive_health_ai.services.management_workflow import TABLE_FIELDS
-from executive_health_ai.services.report_parsing import DocumentPreflightService, GenericReportParser, ReportParsingService
+from executive_health_ai.services.report_parsing import DocumentPreflightService, ReportParsingService
 from executive_health_ai.llm.local_llm_client import LocalLLMClient, LocalLLMUnavailable, sanitize_for_llm
 
 SECTION_ALIASES={'家族史':'家族健康史','既往史':'个人病史','手术史':'手术 / 住院史','住院史':'手术 / 住院史',
@@ -32,6 +32,7 @@ def location(page, line, index, suffix):
 
 
 def extract(session,goal,doc,run,client=None):
+    from executive_health_ai.llm.activity import notify_progress
     content=Path(doc.storage_reference).read_bytes();suffix=Path(doc.title).suffix.lower()
     proposals=[];warnings=[];pages=[];residual=[];source_date=None
     def add(section,field,value,evidence,where,page=None,record=None,method='FIELD_MAPPING'):
@@ -50,6 +51,7 @@ def extract(session,goal,doc,run,client=None):
             raise ValueError('问卷 JSON 需包含 responses 对象；请核对原文件或人工补充。')
         from executive_health_ai.services.profile_ingestion import ProfileIngestionService
         source_date=ProfileIngestionService._date(payload.get('source_date'))
+        notify_progress('CONTENT_READ')
         for raw_section,answers in payload['responses'].items():
             section=section_name(raw_section)
             if not section:warnings.append('未映射步骤：'+raw_section);continue
@@ -66,7 +68,8 @@ def extract(session,goal,doc,run,client=None):
         run.page_count,run.has_text_layer,run.is_scanned=preflight.page_count,preflight.has_text_layer,preflight.is_probably_scanned
         source_date=preflight.detected_report_date
         if not preflight.has_text_layer:raise ValueError('当前无法读取这份扫描件/图片的文字。原文件已保存，请提供文字版或人工核对补充。')
-        drafts=GenericReportParser().extract(pages)
+        notify_progress('CONTENT_READ')
+        drafts=report_candidates(pages)
         ReportParsingService()._persist_candidates(session,run,doc,drafts)
         parsed_lines={d.evidence_text.strip() for d in drafts}
         for page in pages:
@@ -149,11 +152,18 @@ def extract(session,goal,doc,run,client=None):
             source_section=fact.section,evidence_text=fact.evidence,status='PENDING_REVIEW',
             structured_data_json={'section':fact.section,'field':fact.field,'value':fact.value,'record':fact.record,
                 'source_document_id':str(doc.id),'source_filename':doc.title,'source_locator':where,
-                'source_date':str(source_date or ''),'source_type':'上传资料原文','intake_id':goal.context_json['intake_id'],
+                'source_date':str(source_date or ''),'source_type':'上传资料原文',**({'intake_id':goal.context_json['intake_id']} if goal.context_json.get('intake_id') else {}),
                 'confirmation_status':'待健管确认','extracted_at':utc_now().isoformat()}))
     session.flush()
     from executive_health_ai.services.profile_ingestion import candidates
     rows=candidates(session,goal)
+    for row in rows:
+        row.structured_data_json={**row.structured_data_json,
+            'source_document_id':str(doc.id),'source_filename':doc.title,
+            'source_date':row.structured_data_json.get('source_date') or str(source_date or ''),
+            'source_type':row.structured_data_json.get('source_type') or '上传资料原文',
+            'confirmation_status':'待健管确认'}
+    goal.context_json={**goal.context_json,'source_date':str(source_date) if source_date else None}
     run.metadata_json={**run.metadata_json,'coverage_warnings':list(dict.fromkeys(warnings)),
         'detected_contents':sorted({r.source_section or r.candidate_type for r in rows})}
     if not rows:raise ValueError('未能识别有来源的初评资料。原文件保留，请人工查看并补充。')

@@ -181,5 +181,5 @@ def test_profile_followup_progress_reads_same_existing_plan(rendered, tmp_path):
     app=render('member')
     assert '健康资料导入' in text(app) and '最近完成：'+done[-1] in text(app)
     assert all(label in text(app) for label,_,_ in progress_steps(profile))
-    next(b for b in app.button if b.label=='查看运行看板').click().run()
-    assert app.session_state['care-detail']==str(profile.id)
+    next(b for b in app.button if b.label=='处理资料与初评').click().run()
+    assert app.session_state[f'intake-workspace-goal-{goal.member_id}']==str(profile.id)

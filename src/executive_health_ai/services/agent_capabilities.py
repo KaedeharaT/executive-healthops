@@ -40,7 +40,7 @@ def project(goal, traces=(), run=None):
     legacy = next((t for t in reversed(ordered) if t.tool_name == 'retrieve_knowledge' and t.action == 'tool_completed' and t.status == 'COMPLETED'), None)
     unavailable = next((t for t in reversed(ordered) if t.action == 'knowledge_unavailable'), None)
     purpose = '查找本次体检变化相关的已审核健康管理依据'
-    if profile:
+    if profile and not (knowledge or legacy or unavailable):
         support = [SupportActivity('knowledge','知识依据检索','本次资料解析与档案匹配', 'NOT_USED','本步骤未调用知识库；不需要医学知识检索。')]
     elif knowledge:
         data = trace_data(knowledge)

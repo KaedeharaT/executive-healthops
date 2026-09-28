@@ -106,5 +106,7 @@ def test_doctor_history_and_member_360_details_keep_frozen_navigation_budget():
     open_member(app); app.run(timeout=45)
     assert len(next(r for r in app.radio if r.label == "成员页面").options) == 5
     radio(app, "成员页面", "健康")
+    assert not any('资料' in frame.value.columns for frame in app.dataframe)
+    next(b for b in app.button if b.label=='查看完整健康档案').click().run(timeout=45)
     assert any('年度健康基线' in frame.value.to_string() for frame in app.dataframe)
     assert not any('选择方式' in x.label for x in app.checkbox)

@@ -54,6 +54,10 @@ def project_assistant(goals):
 
 def open_care(app, goal, origin='今日工作'):
     st.session_state.pop('today-detail', None)
+    if getattr(goal,'goal_type',None)=='PROFILE_INTAKE':
+        from executive_health_ai.ui.pages.manager.profile_intake import open_board
+        open_board(app,goal)
+        return
     st.session_state['care-detail'] = str(goal.id)
     st.session_state['care-origin'] = origin
     app.request_navigation(surface='运营后台', ops_page='今日', rerun=False)
@@ -168,7 +172,7 @@ def _cards(app, people, goals):
                 completed = [label for label,done,_ in progress_steps(goal) if done]
                 st.caption('已完成：'+('、'.join(completed[-3:]) if completed else '尚无已完成步骤'))
                 st.write('下一步：'+goal.next_action)
-                st.button('查看运行看板',key='profile-assistant-'+str(goal.id),on_click=open_care,args=(app,goal))
+                st.button('处理资料与初评',key='profile-assistant-'+str(goal.id),on_click=open_care,args=(app,goal))
             continue
         activity = care_activity.load(goal)
         with columns[index % 3], st.container(border=True, key=f'assistant-card-{goal.id}'):

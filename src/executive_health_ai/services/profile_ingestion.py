@@ -71,6 +71,18 @@ def business_evidence(row):
     return row.evidence_text
 
 
+def report_candidates(pages):
+    """Shared existing measurement rules for typed and automatic uploads."""
+    from executive_health_ai.integrations.codes import canonical_code
+    drafts=GenericReportParser().extract(pages)
+    for page in pages:
+        for line in page.text.splitlines():
+            match=re.fullmatch(r'\s*(.+?)\s+([+-]?\d+(?:\.\d+)?)\s+(\S+)\s*',line)
+            if match and canonical_code(match[1]) and not any(d.evidence_text==line.strip() for d in drafts):
+                drafts.append(GenericReportParser._observation_draft(match[1],match[2],match[3],'',page,'LAB',line.strip()))
+    return drafts
+
+
 class ProfileIngestionService:
     storage_root = Path('report_uploads')
 
@@ -156,7 +168,7 @@ class ProfileIngestionService:
             raise ValueError('解析记录不属于本次会员资料。')
         if run.status == 'COMPLETED':
             return {'count': run.candidate_count}
-        if goal.context_json.get('intake_id'):
+        if goal.context_json.get('intake_id') or goal.context_json.get('document_type') == 'auto':
             from executive_health_ai.services.intake_extraction import extract
             return extract(session,goal,doc,run,client=client)
         content = Path(doc.storage_reference).read_bytes()
@@ -189,13 +201,7 @@ class ProfileIngestionService:
             raise ValueError('系统暂时无法可靠读取这份资料。原文件已保存。')
         drafts = []
         if dtype == 'report' and pages:
-            drafts = GenericReportParser().extract(pages)
-            from executive_health_ai.integrations.codes import canonical_code
-            for page in pages:
-                for line in page.text.splitlines():
-                    match=re.fullmatch(r'\s*(.+?)\s+([+-]?\d+(?:\.\d+)?)\s+(\S+)\s*',line)
-                    if match and canonical_code(match[1]) and not any(d.evidence_text==line.strip() for d in drafts):
-                        drafts.append(GenericReportParser._observation_draft(match[1],match[2],match[3],'',page,'LAB',line.strip()))
+            drafts = report_candidates(pages)
             semantic = ReportSemanticFallback().extract(pages=pages, existing=drafts, document_id=doc.id)
             drafts = ReportParsingService._deduplicate_combined_candidates([*drafts, *semantic.drafts])
             run.llm_used, run.llm_status = semantic.used, semantic.status
@@ -364,7 +370,10 @@ class ProfileIngestionService:
         if goal.context_json.get('intake_id'):
             from executive_health_ai.services.assessment_import import AssessmentImportService
             view=AssessmentImportService().project(session,goal.member_id,UUID(goal.context_json['intake_id']))
-            goal.context_json={**goal.context_json,'intake_candidate_count':len(rows)}
+            goal.context_json={**goal.context_json,'intake_candidate_count':len(rows),
+                'comparison':{str(r.id):self.classify(session,goal,r) for r in rows}}
+            from executive_health_ai.llm.activity import notify_progress
+            notify_progress('PREFILL_READY')
             return {'count':len(rows),'conflicts':sum(g['conflict'] for g in view['groups'])}
         snapshot = {str(r.id): self.classify(session, goal, r) for r in rows}
         goal.context_json = {**goal.context_json, 'comparison':snapshot}
@@ -421,7 +430,8 @@ class ProfileIngestionService:
         expected = {str(r.id) for r in rows}
         if set(decisions) != expected or any(v not in {'采用新资料','保留当前记录','暂不确认'} for v in decisions.values()):
             raise ValueError('请逐项确认本次资料。')
-        counts = {'measurements':0,'profile':0,'history':0,'deferred':0,'reports':int(goal.context_json['document_type']=='report')}
+        is_report=goal.context_json['document_type']=='report' or (goal.context_json['document_type']=='auto' and any(r.candidate_type in {'OBSERVATION','FINDING','FOLLOWUP'} for r in rows))
+        counts = {'measurements':0,'profile':0,'history':0,'deferred':0,'reports':int(is_report)}
         intake = intake_for(session, goal.member_id)
         for row in rows:
             if row.status in {'CONFIRMED','REJECTED','DEFERRED','UNCHANGED'}: continue
@@ -463,7 +473,10 @@ class ProfileIngestionService:
                 # This is a sourced historical statement, not a newly inferred
                 # diagnosis or prescription. Medications remain reported intake
                 # until existing doctor-owned medication confirmation is used.
-                if section == '个人病史' and field == '疾病或问题' and goal.context_json['document_type'] != 'questionnaire':
+                # Mixed automatic uploads may contain member self-reports. Keep
+                # those as sourced statements; never infer a clinical history
+                # solely because the former document-type selector is absent.
+                if section == '个人病史' and field == '疾病或问题' and goal.context_json['document_type'] in {'history','report'}:
                     exists = session.scalar(select(HealthProblem).where(HealthProblem.patient_id==goal.member_id,
                         HealthProblem.title==value, HealthProblem.source!='profile_review_pending'))
                     if not exists:
