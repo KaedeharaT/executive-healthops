@@ -10,9 +10,13 @@ _progress = ContextVar('healthops_business_progress', default=None)
 
 
 @contextmanager
-def observe_progress(callback):
+def observe_progress(callback, *, chain=False):
     """Transient UI notifications; never a second workflow or persisted state."""
-    token=_progress.set(callback)
+    previous=_progress.get()
+    def combined(event):
+        callback(event)
+        if previous:previous(event)
+    token=_progress.set(combined if chain else callback)
     try:
         yield
     finally:

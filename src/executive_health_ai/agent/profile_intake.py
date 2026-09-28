@@ -74,17 +74,16 @@ def register_tools(registry):
         lambda s,g,c:{'review_id':str(ProfileIngestionService().request_review(s,g,c['question'],c['actor']).id)}))
 
 
-def advance(supervisor,session,goal):
-    if goal.status!='RUNNING' or goal.automation_paused: return goal
+def advance(supervisor,session,goal,*,claimed=False):
+    if goal.status!=('PROCESSING' if claimed else 'RUNNING') or goal.automation_paused: return goal
     stage=goal.current_stage
     # Compare-and-set prevents browser refresh and worker from executing the
     # same step concurrently. Transaction rollback restores the claim on error.
-    claimed=session.execute(update(AgentGoal).where(AgentGoal.id==goal.id,AgentGoal.status=='RUNNING',
+    claimed=claimed or session.execute(update(AgentGoal).where(AgentGoal.id==goal.id,AgentGoal.status=='RUNNING',
         AgentGoal.current_stage==stage).values(status='PROCESSING'),execution_options={'synchronize_session':False}).rowcount
     if not claimed:return goal
     session.refresh(goal)
     step=session.scalar(select(AgentPlanStep).where(AgentPlanStep.plan_id==goal.current_plan_id,AgentPlanStep.step_type==stage))
-    step.started_at=step.started_at or utc_now()
     try:
         if stage=='RECEIVED':
             text='已保存原始资料，准备读取内容';following='PARSING'
@@ -98,6 +97,7 @@ def advance(supervisor,session,goal):
             result=supervisor.registry.execute(session,'match_profile_document',goal)
             text=f"已核对现有档案，发现 {result['conflicts']} 项冲突";following='REVIEW'
         else: raise ValueError('流程需要健管确认后继续。')
+        step.started_at=step.started_at or utc_now()
         step.status,step.completed_at,step.result_summary='COMPLETED',utc_now(),text
         trace(session,goal,text,tool_name={'PARSING':'parse_profile_document','MATCHING':'match_profile_document'}.get(stage))
         goal.current_stage=following

@@ -83,7 +83,7 @@ def detail(app,goal_id):
             render(app,session,current)
         if current.status=='RUNNING':
             with SessionLocal() as session:
-                HealthOpsAgentSupervisor().execute_next_step(session,goal.id)
+                HealthOpsAgentSupervisor().execute_next_step(session,goal.id,durable_profile=True)
                 session.commit()
         if current.status!=goal.status:st.rerun()
     live()

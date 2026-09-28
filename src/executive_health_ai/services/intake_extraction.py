@@ -34,7 +34,7 @@ def location(page, line, index, suffix):
 def extract(session,goal,doc,run,client=None):
     from executive_health_ai.llm.activity import notify_progress
     content=Path(doc.storage_reference).read_bytes();suffix=Path(doc.title).suffix.lower()
-    proposals=[];warnings=[];pages=[];residual=[];source_date=None
+    proposals=[];warnings=[];pages=[];residual=[];drafts=[];source_date=None
     def add(section,field,value,evidence,where,page=None,record=None,method='FIELD_MAPPING',fact_date=None):
         value=str(value).strip()
         if not value:return
@@ -70,7 +70,6 @@ def extract(session,goal,doc,run,client=None):
         if not preflight.has_text_layer:raise ValueError('当前无法读取这份扫描件/图片的文字。原文件已保存，请提供文字版或人工核对补充。')
         notify_progress('CONTENT_READ')
         drafts=report_candidates(pages)
-        ReportParsingService()._persist_candidates(session,run,doc,drafts)
         parsed_lines={d.evidence_text.strip() for d in drafts}
         for page in pages:
             section=section_name(str((page.source_metadata or {}).get('sheet_name','')))
@@ -145,6 +144,9 @@ def extract(session,goal,doc,run,client=None):
                 run.llm_status='UNAVAILABLE';warnings.append(units[0][1]+'：AI 整理暂不可用或结果不能核实，请人工补充')
                 notify_progress('AI_UNAVAILABLE')
         if len(blocks)>30:warnings.append('后续长文本超出本次整理范围，请人工核对原文件')
+    # No candidate writes/autoflush before the potentially long model request.
+    notify_progress('BEFORE_PERSIST')
+    ReportParsingService()._persist_candidates(session,run,doc,drafts)
     seen=set()
     for fact,where,page,method in proposals:
         signature=(fact.section,fact.field,fact.value,where,fact.evidence)

@@ -16,11 +16,12 @@ class AgentSchedulerService:
     def __init__(self, supervisor: HealthOpsAgentSupervisor | None = None) -> None:
         self.supervisor = supervisor or HealthOpsAgentSupervisor()
 
-    def run_due(self, session: Session, *, now: datetime) -> int:
+    def run_due(self, session: Session, *, now: datetime, durable_profile: bool = False) -> int:
         supervisor = self.supervisor
         processed = 0
-        for goal in list(session.scalars(select(AgentGoal).where(AgentGoal.goal_type == "PROFILE_INTAKE", AgentGoal.status == "RUNNING", AgentGoal.automation_paused.is_(False)))):
-            supervisor.execute_next_step(session, goal.id)
+        statuses=['RUNNING','PROCESSING'] if durable_profile else ['RUNNING']
+        for goal in list(session.scalars(select(AgentGoal).where(AgentGoal.goal_type == "PROFILE_INTAKE", AgentGoal.status.in_(statuses), AgentGoal.automation_paused.is_(False)))):
+            supervisor.execute_next_step(session, goal.id, **({'durable_profile':True} if durable_profile else {}))
             processed += 1
         due_goals = list(session.scalars(select(AgentGoal).where(AgentGoal.status == "WAITING", AgentGoal.next_check_at.is_not(None), AgentGoal.next_check_at <= now, AgentGoal.automation_paused.is_(False))))
         for goal in due_goals:

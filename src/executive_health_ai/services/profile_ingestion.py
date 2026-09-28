@@ -205,7 +205,6 @@ class ProfileIngestionService:
             semantic = ReportSemanticFallback().extract(pages=pages, existing=drafts, document_id=doc.id)
             drafts = ReportParsingService._deduplicate_combined_candidates([*drafts, *semantic.drafts])
             run.llm_used, run.llm_status = semantic.used, semantic.status
-            ReportParsingService()._persist_candidates(session, run, doc, drafts)
         facts = self._native(native, source_date) if native else self._labelled(text, source_date)
         # Only unstructured prose needs semantic assistance. Model output must
         # quote the source, use whitelisted fields and preserve literal values.
@@ -237,6 +236,9 @@ class ProfileIngestionService:
                 run.llm_used, run.llm_status = True, 'COMPLETED'
             except (LocalLLMUnavailable, ValueError, TypeError) as exc:
                 raise ValueError('智能整理暂不可用或结果无法核实。文件已保存，可人工查看、补充初始评估或稍后重试。') from exc
+        from executive_health_ai.llm.activity import notify_progress
+        notify_progress('BEFORE_PERSIST')
+        ReportParsingService()._persist_candidates(session, run, doc, drafts)
         for fact in facts:
             if fact.section not in SECTIONS or fact.field not in SECTIONS[fact.section]:
                 raise ValueError('资料中存在无法匹配的字段，请人工核对。')

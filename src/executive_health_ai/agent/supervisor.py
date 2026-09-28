@@ -106,13 +106,16 @@ class HealthOpsAgentSupervisor:
         self.execute_next_step(session, goal.id, event_id=event_id)
         return goal
 
-    def execute_next_step(self, session: Session, goal_id: UUID, *, event_id: UUID | None = None) -> AgentGoal:
+    def execute_next_step(self, session: Session, goal_id: UUID, *, event_id: UUID | None = None, durable_profile: bool = False) -> AgentGoal:
         goal = self._goal(session, goal_id)
         from executive_health_ai.services.member_archive import is_archived
         if is_archived(session,goal.member_id):
             return goal
         from executive_health_ai.agent.profile_intake import is_profile_goal, advance
         if is_profile_goal(goal):
+            if durable_profile:
+                from executive_health_ai.agent.profile_execution import execute
+                return execute(self, session, goal)
             return advance(self, session, goal)
         from executive_health_ai.agent.post_checkup import is_care_goal
         if is_care_goal(goal):

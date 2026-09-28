@@ -17,7 +17,7 @@ logger = logging.getLogger("healthops.agent_worker")
 
 def run_once() -> int:
     with SessionLocal() as session:
-        count = AgentSchedulerService().run_due(session, now=utc_now())
+        count = AgentSchedulerService().run_due(session, now=utc_now(), durable_profile=True)
         session.commit()
         return count
 

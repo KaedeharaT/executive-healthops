@@ -64,13 +64,15 @@ def execution_mark(data,event=None):
     """Only a running goal or the actual request callback can animate."""
     if event=='AI_UNAVAILABLE':return '! '
     if event=='AI_RESULT_CHECKED':return '✓ '
-    if event=='AI_REQUEST_STARTED' or (data['current'] and data['current']['goal'].status=='RUNNING'):
+    if event=='AI_REQUEST_STARTED' or (data['current'] and data['current']['goal'].status in {'RUNNING','PROCESSING'}):
         return '<span class="intake-spinner" aria-label="正在执行"></span>'
     if any(f['goal'].status in {'ESCALATED','CANCELLED'} for f in data['files']):return '! '
     return '✓ ' if data['finished'] else '● '
 
 
 def draw(data, event=None):
+    if event is None and data['current'] and data['current']['goal'].status=='PROCESSING':
+        event=data['current']['goal'].context_json.get('execution',{}).get('event')
     with st.container():
         title='健康管理助手正在整理资料' if data['processing'] else '本次资料整理已完成' if data['ready'] and not any(f['goal'].status in {'ESCALATED','CANCELLED'} for f in data['files']) else '健康管理助手'
         st.subheader(title)
@@ -139,9 +141,10 @@ def workspace(app,patient,view, *, uploader=True):
             from executive_health_ai.agent.supervisor import HealthOpsAgentSupervisor
             from executive_health_ai.llm.activity import observe_progress
             def display(event):
-                with board.container():draw(current,event)
+                if event!='BEFORE_PERSIST':
+                    with board.container():draw(current,event)
             with observe_progress(display), SessionLocal() as session:
-                HealthOpsAgentSupervisor().execute_next_step(session,current['current']['goal'].id)
+                HealthOpsAgentSupervisor().execute_next_step(session,current['current']['goal'].id,durable_profile=True)
                 session.commit()
             st.rerun()
         if data['processing'] and not current['processing']:st.rerun()
