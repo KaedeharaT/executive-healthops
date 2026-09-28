@@ -126,15 +126,9 @@ def detail_drawer(title, *, key, table_key):
 
 
 def member_header(name, *, cycle, owner, phase, concern, focus, next_action, updated):
-    from executive_health_ai.ui.presentation import preview
-    st.markdown(f"<div class='care-member-header'><div class='soft-profile-top'>"
-                f"<div class='care-name'><span class='soft-profile-mark' aria-hidden='true'>H</span><div><small>MEMBER 360 · 全周期健康管理</small><h1>{escape(name)}</h1><small>更新：{escape(updated)}</small></div></div>"
-                f"<div class='soft-profile-meta'><div><small>当前年度</small><strong>{escape(cycle)}</strong></div>"
-                f"<div><small>责任健管：</small><strong>{escape(owner)}</strong></div><div><small>当前阶段</small><strong>{escape(phase)}</strong></div></div></div>"
-                f"<div class='care-focus'><span><b>会员本人关注</b> {escape(preview(concern, 70))}</span>"
-                f"<span><b>专业管理重点</b> {escape(preview(focus, 70))}</span></div>"
-                f"<div class='care-next'><b>下一步</b><span>{escape(preview(next_action, 95))}</span></div>"
-                f"</div>", unsafe_allow_html=True)
+    st.markdown(f"<header class='care-member-header'><small>会员 / {escape(name)}</small><h1>{escape(name)}</h1>"
+        f"<div class='member-meta'><span>责任健管：{escape(owner)}</span><span>{escape(cycle)}</span><span>当前阶段：{escape(phase)}</span></div>"
+        f"<div class='care-next'><b>下一步</b>　{escape(next_action)}</div></header>",unsafe_allow_html=True)
 
 
 def stage_stepper(phases, *, key, current_id=None):
@@ -151,7 +145,7 @@ def stage_stepper(phases, *, key, current_id=None):
         for col, phase in zip(cols, phases):
             state = '●' if phase.status in {'COMPLETED','REVIEWED'} else '◉' if phase.status == 'ACTIVE' else '○'
             label = '已完成' if phase.status in {'COMPLETED','REVIEWED'} else '当前' if phase.status == 'ACTIVE' else '待开始'
-            if col.button(f'{state} {phase.title} · {label}', key=key+'-'+str(phase.id), width='stretch', type='primary' if str(phase.id)==selected else 'secondary'):
+            if col.button(f'{state} {phase.title} · {label}', key=key+'-'+str(phase.id), width='stretch', type='secondary'):
                 st.session_state[key] = str(phase.id)
                 st.rerun()
     return next(p for p in phases if str(p.id)==selected)
@@ -169,3 +163,16 @@ def trend_chart(series, *, key):
 def empty_state(title, description=''):
     from executive_health_ai.ui.experience import empty_state as render
     return render(title, description)
+
+
+def intake_steps(steps, selected, responses):
+    """Use existing saved sections, never infer completion from step position."""
+    cells = []
+    for index, title in enumerate(steps):
+        saved = title in responses and (title != '当前用药 / 营养补充' or '最近用药' in responses)
+        state = 'current' if index == selected else 'done' if saved else 'pending'
+        label = '当前填写' if index == selected else '已保存' if saved else '待填写'
+        mark = '✓' if saved and index != selected else str(index+1)
+        current = ' aria-current="step"' if index == selected else ''
+        cells.append(f'<li class="{state}"{current}><b>{mark}</b><span>{escape(title)}<small>{label}</small></span></li>')
+    st.markdown('<ol class="neu-intake-steps" aria-label="初始健康评估步骤">'+''.join(cells)+'</ol>', unsafe_allow_html=True)

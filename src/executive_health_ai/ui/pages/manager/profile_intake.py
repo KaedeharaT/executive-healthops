@@ -75,10 +75,6 @@ def progress_steps(goal):
     return [(flow.LABELS[step.step_type], step.status == 'COMPLETED', step.step_type == goal.current_stage) for step in steps]
 
 
-def stepper(goal):
-    steps=progress_steps(goal)
-    for col,(label,done,current) in zip(st.columns(6),steps):
-        col.markdown(('✓ ' if done else '● ' if current else '○ ')+label)
 
 
 def review_updates(app,session,goal):

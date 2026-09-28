@@ -84,8 +84,19 @@ def collaboration(app, patient=None):
         review_detail(app,members[UUID(member_id)],record_id,kind)
         return
     if not patient:c.page_shell('manager','医疗协同','查看全部医学问题与交接进度；需要您处理的事情也会进入今日工作。')
-    scope=st.radio('医疗记录',['进行中','历史'],horizontal=True,key=key+'-scope')
-    with SessionLocal() as session: rows=medical_rows(session,patient.id if patient else None,scope=='历史')
+    with SessionLocal() as session:
+        pending=medical_rows(session,patient.id if patient else None,False)
+        completed=medical_rows(session,patient.id if patient else None,True)
+    if patient:
+        scope=st.radio('医疗记录',['进行中','历史'],horizontal=True,key=key+'-scope')
+        rows=completed if scope=='历史' else pending
+    else:
+        groups={'全部':pending+completed,'待提交医生':[r for r in pending if r['state']=='资料准备'],
+            '等待医生':[r for r in pending if r['state']=='待判断'],
+            '医生已返回':[r for r in pending if r['state']=='待汇总意见'],
+            '待健管确认':[r for r in pending if r['state']=='待健管执行'],'完成':completed}
+        scope=st.radio('医疗协同状态',list(groups),horizontal=True,format_func=lambda label:label+' '+str(len(groups[label])),key=key+'-stage')
+        rows=groups[scope]
     selected=data_table(rows,[{'会员':app._member_display(members.get(r['member_id'])),'问题':r['question'],'类型':r['source'],
         '医生':r['doctor'],'状态':r['state'],'提交时间':ux.local_time(r['at']),
         '等待时间':f"{max(0,(datetime.now(ux.LOCAL)-ux.local_time(r['at'])).days)} 天" if r['at'] and r['state']!='已完成' else '—',

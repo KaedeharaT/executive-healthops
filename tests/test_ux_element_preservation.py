@@ -77,20 +77,21 @@ def test_manager_selection_changes_inspector_and_keeps_processing_entry():
     assert len(app.dataframe[0].value) == 2
     select_table_row(app, 1).run(timeout=30)
     assert not app.exception
-    assert any('V2选择事项1' in str(x.value) for x in app.header)
-    assert any(b.label == '标记完成' for b in app.button)
+    assert any('V2选择事项1' in str(x.value) for x in list(app.header)+list(app.markdown))
+    assert any(b.label == '完成本次处理' for b in app.button)
     button(app,'← 返回今日工作')
     next(x for x in app.text_input if x.label == "查找待办").set_value("__no_matching_member__")
     app.run(timeout=30)
     assert any("当前没有需要处理的工作" in c.value for c in app.caption)
-    assert not any(str(b.key).startswith("today-") for b in app.button)
+    assert not any(b.label=="完成本次处理" for b in app.button)
 
 
 def test_360_quick_actions_open_original_management_forms():
     app = AppTest.from_file(APP).run(timeout=30)
     radio(app, "工作区", "成员"); open_member(app).run(timeout=30)
     radio(app, '成员页面', '管理')
-    next(x for x in app.selectbox if x.key.startswith('workflow-mode-')).set_value('计划调整与随访');app.run(timeout=30)
+    next(x for x in app.selectbox if x.label=='查看或修正').set_value('计划调整与随访');app.run(timeout=30)
+    next(b for b in app.button if b.key=='management-destination-open').click().run(timeout=30)
     radio(app, '计划操作', '安排随访')
     assert any(x.label == '需要完成什么' for x in app.text_area)
     radio(app, '计划操作', '记录阶段结果')
@@ -128,7 +129,7 @@ def test_doctor_pending_completed_and_manager_readonly_use_same_workspace():
     radio(app, "当前视图", "运营后台")
     radio(app, "工作区", "医疗协同")
     assert not any(b.label == "提交判断并交回健管" for b in app.button)
-    radio(app, "医疗记录", "历史")
+    radio(app, "医疗协同状态", "完成")
     assert not app.exception
 
 

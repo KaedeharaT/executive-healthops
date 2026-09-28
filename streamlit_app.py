@@ -381,9 +381,7 @@ def _render_timed(page_name: str, renderer) -> None:
 
 
 def _render_sidebar_navigation() -> str:
-    st.sidebar.markdown("## 健康管理平台")
     st.sidebar.caption("健康管理师工作区")
-    st.sidebar.divider()
     legacy = {"工作台": "今日", "今日工作台": "今日", "数据设备": "更多", "协同": "医疗协同", "风险与医疗协同": "医疗协同"}
     selected = st.session_state.get("ops-navigation")
     if selected in legacy:
@@ -402,14 +400,14 @@ def _render_surface_switcher() -> str:
     """Development preview stays available without occupying primary navigation."""
     labels = {"运营后台": "健康管理师", "成员健康中心": "成员", "医生工作台": "医生", "系统管理": "管理员"}
     st.sidebar.markdown("### HealthOps")
-    with st.sidebar.popover("切换演示角色", icon=":material/swap_horiz:"):
-        # A closed popover can remount its controls after page navigation. Keep
-        # the browser's initial selection aligned with the retained role.
-        current = st.session_state.get("surface-mode", "运营后台")
-        surface = st.radio("当前视图", list(labels), index=list(labels).index(current), key="surface-mode", format_func=labels.get)
-        st.caption("演示角色预览 · 不代表登录鉴权")
-    st.sidebar.caption("当前：" + labels[surface] + " · 演示预览")
-    st.sidebar.divider()
+    with st.sidebar.container(key='v7-sidebar-user'):
+        with st.popover("切换演示角色", icon=":material/swap_horiz:"):
+            # A closed popover can remount its controls after page navigation. Keep
+            # the browser's initial selection aligned with the retained role.
+            current = st.session_state.get("surface-mode", "运营后台")
+            surface = st.radio("当前视图", list(labels), index=list(labels).index(current), key="surface-mode", format_func=labels.get)
+            st.caption("演示角色预览 · 不代表登录鉴权")
+        st.caption("当前：" + labels[surface] + " · 演示预览")
     return surface
 
 

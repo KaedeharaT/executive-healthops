@@ -110,7 +110,7 @@ def test_all_sidebar_and_more_pages_render_without_exception() -> None:
         _radio(app, "工作区").set_value(workspace)
         app.run(timeout=30)
         assert not app.exception
-    for page in ["数据与集成", "自动化运行", "规则与知识", "系统状态"]:
+    for page in ["数据与集成", "自动化运行", "规则与知识", "系统状态", "组织与人员"]:
         app = AppTest.from_file(root)
         app.run(timeout=30)
         _radio(app, "当前视图").set_value("系统管理")
@@ -118,12 +118,12 @@ def test_all_sidebar_and_more_pages_render_without_exception() -> None:
         _radio(app, "系统").set_value(page)
         app.run(timeout=30)
         assert not app.exception
-    for page in ["进行中", "历史"]:
+    for page in ["全部", "待提交医生", "等待医生", "医生已返回", "待健管确认", "完成"]:
         app = AppTest.from_file(root)
         app.run(timeout=30)
         _radio(app, "工作区").set_value("医疗协同")
         app.run(timeout=30)
-        _radio(app, "医疗记录").set_value(page)
+        _radio(app, "医疗协同状态").set_value(page)
         app.run(timeout=30)
         assert not app.exception
 

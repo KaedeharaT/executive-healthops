@@ -22,11 +22,20 @@ def services(app):
         logs = list(session.scalars(select(ManagementLog)))
         stages = {r.id: service_stage(r,tasks,logs) for r in requests}
         contexts = {r.id: service_context(session,r) for r in requests}
-    app._status_strip(*[(name, sum(v == name for v in stages.values()), 'neutral' if name == '已完成' else 'action') for name in SERVICE_STAGES])
+    focused=st.session_state.get('v7-service-detail')
+    if focused:
+        selected=next((r for r in requests if str(r.id)==focused),None)
+        if st.button('← 返回服务管理'):
+            st.session_state.pop('v7-service-detail',None)
+            st.session_state['service-operations-grid-epoch']=st.session_state.get('service-operations-grid-epoch',0)+1
+            st.rerun()
+        if selected:service_detail(app,selected,members.get(selected.patient_id))
+        else:st.info('此服务已更新，请返回服务管理。')
+        return
     filters = ['全部', *SERVICE_STAGES, '已取消']
     if st.session_state.get('service-operations-filter') not in filters:
         st.session_state.pop('service-operations-filter',None)
-    selected_filter = st.radio("服务状态筛选", list(filters), horizontal=True, label_visibility="collapsed", key="service-operations-filter")
+    selected_filter = st.radio("服务状态筛选", list(filters), horizontal=True, label_visibility="collapsed", key="service-operations-filter",format_func=lambda label:label+" · "+str(len(requests) if label=="全部" else sum(v==label for v in stages.values())))
     visible = requests if selected_filter == '全部' else [item for item in requests if stages[item.id] == selected_filter]
     query = st.text_input("搜索服务", placeholder="会员、服务或原因", key="service-search").strip().casefold()
     visible = [r for r in visible if not query or query in (app._member_display(members.get(r.patient_id))+service_names.get(r.service_item_id, "")+r.reason).casefold()]
@@ -41,8 +50,8 @@ def services(app):
             "来源方案": contexts[r.id]['plan'], "责任健管": contexts[r.id]['owner'], "计划时间": ux.when(r.scheduled_at or r.sla_due_at),
             "当前状态": stages[r.id], "下一步": service_next(r,tasks,logs)} for r in visible], key="service-operations-grid", auto_select=False)
     if selected is None: return
-    with c.detail_drawer("服务详情", key="service", table_key="service-operations-grid"):
-        service_detail(app,selected,members.get(selected.patient_id))
+    st.session_state['v7-service-detail']=str(selected.id)
+    st.rerun()
 
 
 def service_detail(app, selected, member):

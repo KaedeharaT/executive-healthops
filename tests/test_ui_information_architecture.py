@@ -19,8 +19,8 @@ def _source(name: str, next_marker: str) -> str:
 
 def test_workbench_has_a_light_status_strip_and_a_task_driven_worklist() -> None:
     source = _source("render_manager_dashboard", "def _render_member_header")
-    assert "c.summary_strip(" in source and '工作事项' in source
-    assert all(label in source for label in ('待我处理','已逾期','等待医生','等待会员','今天到期'))
+    assert "c.summary_strip(" in source and '当前工作队列' in source
+    assert all(label in source for label in ('待处理','逾期','等待医生','等待会员','今天'))
     assert "ProductProjectionService" in source and "data_table(visible" in source
     projection = (APP.parent / "src/executive_health_ai/services/product_projection.py").read_text(encoding="utf8")
     assert "OperationalWorklistService().list_items" in projection
@@ -130,7 +130,7 @@ def test_primary_navigation_and_collaboration_are_task_and_member_oriented() -> 
     more = MORE_SHELL.read_text(encoding="utf-8")
     assert '["今日", "成员", "年度管理", "服务运营", "医疗协同", "专项管理"]' in source
     admin = (MORE_SHELL.parent/'admin'/'experience.py').read_text(encoding='utf-8')
-    assert '["系统状态", "自动化运行", "数据与集成", "规则与知识"]' in admin
+    assert '["系统状态", "自动化运行", "数据与集成", "规则与知识", "组织与人员"]' in admin
     assert 'app._render_data_package_import(' in admin
     assert 'with st.expander("AI质量治理（高级）")' in admin
     assert "健管培训助手" not in more

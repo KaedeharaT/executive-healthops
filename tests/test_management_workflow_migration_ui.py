@@ -74,7 +74,8 @@ def test_management_modes_render_with_short_default_sections(monkeypatch,mode):
         workflow.management(SimpleNamespace(render_member_service_management=lambda _:None),member)
     app=AppTest.from_function(page,args=(str(member.id),mode)).run(timeout=30)
     assert not app.exception
-    assert any(x.label=='管理工作' for x in app.selectbox)
+    assert any(x.label=='← 返回当前阶段' for x in app.button)
+    assert any(x.value==mode for x in app.subheader)
     engine.dispose()
 
 

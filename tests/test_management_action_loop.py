@@ -145,7 +145,7 @@ def test_no_open_item_ui_keeps_every_quick_action(env,monkeypatch):
     app=AppTest.from_function(workspace_page,args=(str(p.patient_id),)).run()
     next(b for b in app.button if b.label=='处理下一步').click();app.run()
     assert not app.exception
-    assert {'新增管理记录','创建随访','安排复查','申请服务','提交医生判断'} <= {b.label for b in app.button}
+    assert {'新增管理记录','创建随访','安排复查','申请服务','提交医生判断'} <= set(next(x for x in app.selectbox if x.label=='安排类型').options)
 
 def test_cancelled_or_empty_phase_not_claimed_completed(env):
     s,p,phase=env;row=task(env);row.status='CANCELLED';s.flush()

@@ -56,5 +56,5 @@ def workspace(app):
         empty='尚无已记录专项指标结果。请在会员管理的阶段评估中记录有来源的起点、当前值和目标。')
     st.caption('数值来自已有阶段结果，可能不是最新设备测量；请核对记录日期与来源。指标变化不代表服务造成的效果。')
     if chosen:
-        with st.expander('本条指标依据',expanded=True):st.write(chosen['outcome'].evidence)
-        st.button('进入该会员专项管理',type='primary',on_click=open_special,args=(app,chosen))
+        open_special(app,chosen)
+        st.rerun()

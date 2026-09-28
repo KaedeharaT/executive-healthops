@@ -158,6 +158,7 @@ def member_detail(app, patient):
     if st.button('← 返回'+origin, key="back-to-dashboard"):
         st.session_state.pop("focused_member_id", None)
         st.session_state.pop('member-return-origin',None)
+        if origin=='今日工作':reset_today_selection()
         app.request_navigation(surface='运营后台',ops_page={'今日工作':'今日','年度管理':'年度管理','会员':'成员','专项管理':'专项管理','服务管理':'服务运营'}.get(origin,'成员'))
         st.rerun()
     ctx = app._member_summary_context(patient.id)
@@ -187,44 +188,35 @@ def member_detail(app, patient):
         updated=ux.when(max(updated)) if updated else '暂无记录')
     with st.container(key='soft-member-navigation'):
         section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
-    if section in {'概览', '管理'}:
-        from executive_health_ai.ui.pages.manager.post_checkup import member_summary
-        with st.container(border=True, key='member-auto-followup'):
-            member_summary(patient.id, app=app)
     if section == "概览":
-        from executive_health_ai.ui.pages.manager import intake_entry
-        if intake_entry.state(management_view.intake) != '已完成':
-            reminder, action = st.columns([4,1])
-            reminder.caption('初始健康评估尚未完成 · '+intake_entry.state(management_view.intake))
-            if action.button('继续评估',key=f'overview-intake-{patient.id}'):
-                intake_entry.open_intake(patient,management_view)
-                app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='健康')
-                st.rerun()
-        st.markdown('**当前阶段**')
-        if management_view.phases: workflow.phases(management_view)
-        else: workflow.onboarding(management_view)
-        import re
-        focus_items=[x.strip() for x in re.split('[；，、;\n]', professional) if x.strip()][:5]
-        c.summary_strip([('管理重点', preview(f,24)) for f in focus_items])
-        from executive_health_ai.ui.pages.health_visualization import render_previews
-        render_previews(patient.id,key=f'manager-overview-trend-{patient.id}',maximum=2,series=view.health.series,
-            open_trend=lambda:app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='健康',archive_view='健康数据'))
-        left,right=st.columns([1.5,1])
-        with left:
-            st.subheader('当前开放事项')
-            data_table(tasks[:6],[{'事项':t.title,'状态':status_label(t.status),'负责人':t.assignee or view.owner,'截止时间':ux.local_time(t.due_at)} for t in tasks[:6]],key=f'360-open-{patient.id}',selectable=False,empty='暂无开放事项。')
-            if len(tasks)>6:st.caption(f'共 {len(tasks)} 条；完整队列见管理页。')
-            from executive_health_ai.ui.pages.manager.action_loop import open_next
+        from executive_health_ai.ui.pages.manager.action_loop import open_next
+        main,rail=st.columns([2.4,1],gap='large')
+        with main,st.container(key='v7-main-overview'):
+            st.subheader('当前健康状态')
+            st.write(ux.business_text(professional))
+            st.caption('会员关注：'+ux.business_text(concern or '待填写'))
+            from executive_health_ai.ui.pages.health_visualization import render_previews
+            st.subheader('最近健康变化')
+            render_previews(patient.id,key=f'manager-overview-trend-{patient.id}',maximum=2,series=view.health.series,
+                open_trend=lambda:app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='健康',archive_view='健康数据'))
+            st.subheader('当前管理重点')
+            st.write(ux.business_text(management_view.current_phase.goal if management_view.current_phase else program.main_goal if program else '先完善资料，建立初始评估。'))
+            from executive_health_ai.ui.pages.manager.service_progress import member_progress
+            member_progress(management_view,compact=True)
+        with rail,st.container(key='v7-context-member'):
+            st.subheader('下一步')
+            st.write(next_text)
             st.button('处理下一步',key=f'360-next-{patient.id}',type='primary',on_click=open_next,args=(app,patient))
-        with right:
-            st.subheader('最近管理记录')
-            workflow.log_rows(management_view.logs[:2],key=f'360-recent-{patient.id}')
-            st.button('新增管理记录',key=f'overview-new-log-{patient.id}',on_click=workflow.open_log,args=(app,patient))
-        with st.expander('年度目标与健康基线'):
-            st.write(ux.business_text(program.main_goal) if program else '待建立年度方案')
-            ux.baseline_summary(baseline,rows,compact=True)
-        from executive_health_ai.ui.pages.manager.service_progress import member_progress
-        member_progress(management_view,compact=True)
+            st.divider()
+            st.subheader('开放事项')
+            st.caption(f'{len(tasks)} 项待处理 · 详情见管理')
+            for task in tasks[:3]:st.caption(ux.business_text(task.title)+' · '+ux.when(task.due_at))
+            st.divider()
+            st.markdown('**责任健管**')
+            st.write(ux.business_text(view.owner))
+            st.caption('医生负责医学判断；管理任务由责任健管协调。')
+            from executive_health_ai.ui.pages.manager.post_checkup import compact_member_status
+            compact_member_status(patient.id)
     elif section == "健康":
         from executive_health_ai.ui.pages.manager.workbench import archive
         archive(app,patient,management_view)

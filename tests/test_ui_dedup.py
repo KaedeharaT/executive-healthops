@@ -114,7 +114,9 @@ def test_single_primary_cta_and_no_duplicate_following_action():
     assert not app.exception
     assert len([b for b in app.button if b.proto.type=='primary'])==1
     assert '安排复查' not in [b.label for b in app.button]
-    assert {'创建随访','申请服务','提交医生判断','进入下一阶段'}<={b.label for b in app.button}
+    assert {'创建随访','申请服务','提交医生判断'}<=set(app.selectbox[0].options)
+    assert '安排复查' not in app.selectbox[0].options
+    assert '进入下一阶段' in {b.label for b in app.button}
 
 
 @pytest.mark.parametrize('old,new',[('系统','数据与集成'),('集成与数据','数据与集成'),('自动化运营','自动化运行'),('风险规则','规则与知识'),('专业资料','规则与知识'),('操作记录','系统状态')])

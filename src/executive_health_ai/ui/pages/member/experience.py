@@ -64,56 +64,53 @@ def home(app, patient, ctx):
         people = care_team_context(session, patient.id)
     program, tasks = view.program, view.member_actions
     upcoming = ux.upcoming_service(view.services)
-    with c.section("今天需要你完成", key="member-action", emphasis=True):
-        if tasks:
-            task = tasks[0]
-            st.markdown("### " + ux.business_text(task.title))
-            reason = ux.business_text(task.instruction or "完成后由健康管理师核对，并安排下一步。")
-            st.write(reason[:70] + ("…" if len(reason) > 70 else ""))
-            st.caption(f"{ux.due_date(task.due_at)} · {ux.owner(task.assignee or '成员本人')}")
-            if st.button("去完成", key=f"client-home-complete-{task.id}", type="secondary" if intake_pending else "primary", icon=":material/arrow_forward:"):
-                st.session_state[f"ux-task-{patient.id}"] = str(task.id)
-                app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
-            with c.secondary_details("查看原因与完成说明"):
-                st.write(reason)
-            if len(tasks) > 1:
-                with c.secondary_details("其他今日行动"):
-                    for task in tasks[1:3]:
-                        ux.work_item(task.title, "", ux.due_date(task.due_at))
-                        if st.button("去完成", key=f"client-home-complete-{task.id}"):
-                            st.session_state[f"ux-task-{patient.id}"] = str(task.id)
-                            app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
-        else:
-            ux.empty_state("目前无需你操作", f"下一步由{ux.business_text(view.owner)}跟进。")
-            if not view.baseline and st.button("上传体检报告", key=f"client-home-report-empty-{patient.id}", type="secondary" if intake_pending else "primary"):
-                app._open_member_report_upload(patient.id)
-    with c.section("当前管理", key="member-management"):
-        c.summary_strip([("管理周期", view.cycle), ("当前阶段", view.phase_title or ("完善健康档案" if program and program.current_phase=='ONBOARDING' else app.display_program_phase(program.current_phase) if program else "待建立计划")),
-                         ("负责人", ux.business_text(view.owner))])
-        next_task = next((t for t in view.active_tasks if t.due_at and ux.local_time(t.due_at) >= datetime.now(ux.LOCAL)), None)
-        st.caption((app._label(program.status) + " · " if program else "") + "下一节点：" + (ux.when(next_task.due_at) + " · " + ux.business_text(next_task.title) if next_task else "由负责人确认下一次安排"))
-        with c.secondary_details("当前管理进展与下一步"):
-            ux.next_action(tasks[0].title if tasks else "等待健康管理师更新下次复盘安排", view.owner)
-            if goal:
-                from executive_health_ai.agent.post_checkup import is_care_goal, LABELS
-                state=LABELS.get(goal.current_stage,'由健康团队跟进') if is_care_goal(goal) else ux.business_text(goal.next_action or '由健康团队跟进')
-                st.caption('持续管理状态：'+state)
-            if st.button("查看健康计划", key=f"client-home-plan-{patient.id}"):
-                app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
-            if (tasks or view.baseline) and st.button("上传体检报告", key=f"client-home-report-{patient.id}"):
-                app._open_member_report_upload(patient.id)
-    with c.section("最近变化", key="home-trends"):
-        render_previews(patient.id, key=f"home-trends-{patient.id}", maximum=2, series=view.health.series, shared_action=True,
-            open_trend=lambda: app.request_navigation(surface="成员健康中心", member_page="健康", member_id=patient.id, archive_view="健康数据"))
-    with c.section("近期安排与健康团队", key="home-team"):
-        if upcoming:
-            ux.next_action(upcoming.next_action or "按约定时间参加服务", upcoming.assigned_manager)
-            st.caption("下次服务 · 已预约：" + ux.when(upcoming.scheduled_at))
-        else:
-            st.caption("暂无已安排的未来服务；复查与随访节点在计划中查看。")
-        if st.button("查看服务安排", key=f"client-home-service-{patient.id}"):
-            app.request_navigation(surface="成员健康中心", member_page="服务", member_id=patient.id)
-        c.care_team(people)
+    main,rail=st.columns([2.4,1],gap='large')
+    with main:
+        with c.section("今天需要你完成", key="member-action", emphasis=True):
+            if tasks:
+                task = tasks[0]
+                st.markdown("### " + ux.business_text(task.title))
+                reason = ux.business_text(task.instruction or "完成后由健康管理师核对，并安排下一步。")
+                st.write(reason[:70] + ("…" if len(reason) > 70 else ""))
+                st.caption(f"{ux.due_date(task.due_at)} · {ux.owner(task.assignee or '成员本人')}")
+                if st.button("去完成", key=f"client-home-complete-{task.id}", type="secondary" if intake_pending else "primary", icon=":material/arrow_forward:"):
+                    st.session_state[f"ux-task-{patient.id}"] = str(task.id)
+                    app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
+                with c.secondary_details("查看原因与完成说明"):
+                    st.write(reason)
+                if len(tasks) > 1:
+                    with c.secondary_details("其他今日行动"):
+                        for task in tasks[1:3]:
+                            ux.work_item(task.title, "", ux.due_date(task.due_at))
+                            if st.button("去完成", key=f"client-home-complete-{task.id}"):
+                                st.session_state[f"ux-task-{patient.id}"] = str(task.id)
+                                app.request_navigation(surface="成员健康中心", member_page="计划", member_id=patient.id)
+            else:
+                ux.empty_state("目前无需你操作", f"下一步由{ux.business_text(view.owner)}跟进。")
+                if not view.baseline and st.button("上传体检报告", key=f"client-home-report-empty-{patient.id}", type="secondary" if intake_pending else "primary"):
+                    app._open_member_report_upload(patient.id)
+        with c.section("最近变化", key="home-trends"):
+            render_previews(patient.id, key=f"home-trends-{patient.id}", maximum=2, series=view.health.series, shared_action=True,
+                open_trend=lambda: app.request_navigation(surface="成员健康中心", member_page="健康", member_id=patient.id, archive_view="健康数据"))
+    with rail,st.container(key='v7-context-member-home'):
+        with c.section("当前管理", key="member-management"):
+            c.summary_strip([("管理周期", view.cycle), ("当前阶段", view.phase_title or ("完善健康档案" if program and program.current_phase=='ONBOARDING' else app.display_program_phase(program.current_phase) if program else "待建立计划")),
+                             ("负责人", ux.business_text(view.owner))])
+            next_task = next((t for t in view.active_tasks if t.due_at and ux.local_time(t.due_at) >= datetime.now(ux.LOCAL)), None)
+            st.caption((app._label(program.status) + " · " if program else "") + "下一节点：" + (ux.when(next_task.due_at) + " · " + ux.business_text(next_task.title) if next_task else "由负责人确认下一次安排"))
+            with c.secondary_details("当前管理进展与下一步"):
+                ux.next_action(tasks[0].title if tasks else "等待健康管理师更新下次复盘安排", view.owner)
+                if goal:
+                    from executive_health_ai.agent.post_checkup import is_care_goal, LABELS
+                    state=LABELS.get(goal.current_stage,'由健康团队跟进') if is_care_goal(goal) else ux.business_text(goal.next_action or '由健康团队跟进')
+                    st.caption('持续管理状态：'+state)
+        with c.section("近期安排与健康团队", key="home-team"):
+            if upcoming:
+                ux.next_action(upcoming.next_action or "按约定时间参加服务", upcoming.assigned_manager)
+                st.caption("下次服务 · 已预约：" + ux.when(upcoming.scheduled_at))
+            else:
+                st.caption("暂无已安排的未来服务；复查与随访节点在计划中查看。")
+            c.care_team(people)
 
 
 def overview(app, patient, ctx):

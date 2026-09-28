@@ -49,7 +49,7 @@ def page(member_id, surface):
     if surface == 'today':
         assistant.assistant(app, {member.id:member})
     elif surface == 'member':
-        post_checkup.member_summary(member.id, app=app)
+        post_checkup.compact_member_status(member.id)
     elif surface == 'support':
         from executive_health_ai.services.agent_capabilities import load
         from executive_health_ai.ui.pages.manager.ai_support import panel
@@ -92,11 +92,10 @@ def test_today_assistant_always_renders(rendered, state):
     assert all(label in text(app) for label in ('正在运行','等待我确认','等待医生','最近完成'))
     if state in {'COMPLETED','NONE'}:
         assert '当前没有需要您处理的自动流程。' in text(app)
-        latest=next(b for b in app.button if b.label=='查看最近运行')
-        assert latest.disabled == (state=='NONE')
+        assert bool(app.selectbox) == (state!='NONE')
     else:
-        assert any(b.label=='查看运行看板' and not b.disabled for b in app.button)
-        assert ('等待医生判断' if state=='WAITING_DOCTOR' else '等待您的确认') in text(app)
+        assert any(b.label=='查看完整运行' and not b.disabled for b in app.button)
+        assert ('等待医生' if state=='WAITING_DOCTOR' else '等待我确认') in text(app)
 
 
 def test_completed_member_keeps_automatic_followup_and_same_instance(rendered):
@@ -104,19 +103,21 @@ def test_completed_member_keeps_automatic_followup_and_same_instance(rendered):
     send_doctor(session,goal,sup);judge(session,goal)
     flow.approve_actions(sup,session,goal,actions=goal.context_json['actions'],actor='王健管',role='HEALTH_MANAGER')
     app=render('member')
-    assert '自动跟进' in text(app) and '本次管理已完成' in text(app)
-    assert '最近完成' in text(app) and '下一步' in text(app)
-    next(b for b in app.button if b.label=='查看运行看板').click().run()
+    assert '自动跟进' in text(app) and '已完成' in text(app)
+    assert '最近结果' in text(app)
+    assert not app.button
+    app=render('today')
+    next(b for b in app.button if b.label=='查看完整运行').click().run()
     assert app.session_state['care-detail']==str(goal.id)
-    assert app.session_state['care-origin']=='会员360'
+    assert app.session_state['care-origin']=='今日工作'
     assert session.scalar(select(func.count(AgentGoal.id)))==1
 
 
 def test_today_and_member_links_open_same_goal_without_creating_one(rendered):
     session,goal,sup,render=rendered
-    for surface in ('today','member'):
+    for surface in ('today','today'):
         app=render(surface)
-        next(b for b in app.button if b.label=='查看运行看板').click().run()
+        next(b for b in app.button if b.label=='查看完整运行').click().run()
         assert app.session_state['care-detail']==str(goal.id)
     assert session.scalar(select(func.count(AgentGoal.id)))==1
 
@@ -125,8 +126,8 @@ def test_member_without_goals_keeps_honest_empty_followup(rendered):
     session,goal,sup,render=rendered
     session.delete(goal)
     app=render('member')
-    assert '自动跟进' in text(app) and '当前没有自动流程记录' in text(app)
-    assert next(b for b in app.button if b.label=='查看运行看板').disabled
+    assert '自动跟进' in text(app) and '暂无自动流程' in text(app)
+    assert not app.button
 
 
 def test_support_panel_reflects_real_calls_and_unused_model(rendered):
@@ -159,8 +160,8 @@ def test_today_previews_at_most_three_real_active_workflows(rendered, tmp_path):
             ('体检日期：'+date.today().isoformat()+f'\n体重  {70+index} kg').encode(),'王健管')
     app=render()
     assert session.scalar(select(func.count(AgentGoal.id)))==4
-    assert len([b for b in app.button if b.label=='查看运行看板'])==3
-    assert '共 4 条活动流程' in text(app)
+    assert len([b for b in app.button if b.label=='查看完整运行'])==1
+    assert len(app.selectbox[0].options)==4
 
 
 def test_profile_followup_progress_reads_same_existing_plan(rendered, tmp_path):
@@ -179,7 +180,9 @@ def test_profile_followup_progress_reads_same_existing_plan(rendered, tmp_path):
     done=[label for label,completed,_ in progress_steps(profile) if completed]
     assert done and profile.status=='WAITING_MANAGER'
     app=render('member')
-    assert '健康资料导入' in text(app) and '最近完成：'+done[-1] in text(app)
-    assert all(label in text(app) for label,_,_ in progress_steps(profile))
-    next(b for b in app.button if b.label=='处理资料与初评').click().run()
+    assert '资料整理' in text(app)
+    assert not app.button
+    app=render('today')
+    app.selectbox[0].select_index(0).run()
+    next(b for b in app.button if b.label=='查看完整运行').click().run()
     assert app.session_state[f'intake-workspace-goal-{goal.member_id}']==str(profile.id)

@@ -20,6 +20,10 @@ def panel(patient, view):
         st.caption('仅表示资料填写情况，不是健康评分。未提供的资料保持未知，不自动填写“无”。')
         if data['submitted']:
             st.success('初始健康评估资料已提交')
+            if row.status=='SUBMITTED':
+                from executive_health_ai.ui.pages.manager import intake_entry
+                st.button('继续健管确认',type='primary',key=f'intake-professional-{row.id}',
+                    on_click=intake_entry.open_intake,args=(patient,view))
             st.write(f'资料来源：{counts["sources"]} 份 · 自动整理：{counts["auto_filled"]} 项 · 人工补充：{counts["manual_fields"]} 项')
             st.caption('后续健管专业确认及医生核对继续按原流程办理。')
             return
@@ -117,6 +121,7 @@ def panel(patient, view):
                     with SessionLocal() as session:
                         service.complete(session,session.get(IntakeAssessment,row.id),view.owner,retain_unknown=unknown)
                         session.commit()
+                    st.session_state.pop(f'exception-open-{row.id}',None)
                     st.rerun()
                 except (ValueError,PermissionError) as error:st.error(str(error))
         with st.expander('查看自动整理结果与来源'):

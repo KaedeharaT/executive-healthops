@@ -61,7 +61,8 @@ def test_home_has_one_shared_trend_entry_and_preserves_secondary_actions():
     radio(app, "成员健康中心导航", "首页")
     labels = [b.label for b in app.button]
     assert labels.count("查看健康变化") <= 1
-    assert "查看服务安排" in labels and "查看健康计划" in labels and "上传体检报告" in labels
+    assert "查看服务安排" not in labels and "查看健康计划" not in labels
+    assert {"健康","计划","服务"}<=set(next(r for r in app.radio if r.label=="成员健康中心导航").options)
     assert any(e.label == "当前管理进展与下一步" for e in app.expander)
     assert not app.exception
 
@@ -70,7 +71,7 @@ def test_admin_lands_on_status_and_configuration_requires_selection():
     app = AppTest.from_file(APP).run(timeout=45)
     radio(app, "当前视图", "系统管理")
     nav = next(r for r in app.radio if r.label == "系统")
-    assert nav.value == "系统状态" and len(nav.options) == 4
+    assert nav.value == "系统状态" and len(nav.options) == 5
     next(b for b in app.button if b.label == "检查数据与集成").click()
     app.run(timeout=45)
     assert not app.exception

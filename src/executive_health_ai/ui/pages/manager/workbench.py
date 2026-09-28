@@ -19,6 +19,12 @@ def today(app):
     people = app._patient_map()
     with SessionLocal() as session:
         work = ProductProjectionService().manager(session, now)
+        from sqlalchemy import select
+        from executive_health_ai.models import Task
+        from executive_health_ai.services.operational_worklist import OperationalWorkItem
+        history=[OperationalWorkItem(t.patient_id,'task',t.id,9,'已完成',t.title,t.instruction or '',
+            '查看已记录结果',t.completed_at,owner=t.assignee or '待分配') for t in session.scalars(select(Task).where(
+                Task.patient_id.in_(list(people)),Task.status=='COMPLETED').order_by(Task.completed_at.desc()))]
     items = ux.sorted_work(work.items, now)
     selected = st.session_state.get('today-detail')
     if selected:
@@ -26,36 +32,31 @@ def today(app):
             st.session_state.pop('today-detail', None)
             st.session_state['today-work-grid-epoch'] = st.session_state.get('today-work-grid-epoch', 0)+1
             st.rerun()
-        item = next((i for i in items if (i.source_type, str(i.source_id)) == selected), None)
+        item = next((i for i in items+history if (i.source_type, str(i.source_id)) == selected), None)
         if item:
             work_detail(app, item, people.get(item.member_id))
         else:
             st.success('本次处理已完成，后续需要您处理的事情会重新进入今日工作。')
         return
-    with st.container(key='neu-today-summary'):
-        heading, summary = st.columns([1, 3.2], vertical_alignment='center')
-        with heading:
-            c.page_shell('manager', '今日工作', '今天我需要处理什么？')
-        with summary:
-            c.summary_strip([('待我处理',sum(i.status not in {'等待医生','等待成员','等待会员'} for i in items)),
-                ('已逾期',len(work_filter(items,'逾期',now))),('等待医生',len(work.pending_doctor)),
-                ('等待会员',len(work_filter(items,'等待会员',now))),('今天到期',len(work_filter(items,'今天',now)))])
-    with st.container(key='neu-assistant'):
-        assistant(app, people)
-    with st.container(key='neu-work'):
-        st.subheader('工作事项')
+    c.page_shell('manager', '今日工作','从待办开始，完成后继续下一项。')
+    main,rail=st.columns([3.25,1],gap='large')
+    with main,st.container(key='v7-main-today'):
+        st.subheader('当前工作队列')
+        exceptional=work_filter(items,'逾期',now)
+        groups={'全部':items+history,'待处理':items,'异常':list({(i.source_type,i.source_id):i for i in exceptional+[i for i in items if i.priority<=1]}.values()),'已完成':history}
+        bucket=st.radio('事项范围',list(groups),index=1,horizontal=True,format_func=lambda label:label+' '+str(len(groups[label])),key='v7-work-bucket')
+        selected_items=groups[bucket]
         with st.container(key='soft-filter-today'):
             a,b,d = st.columns([1,2,1])
             scope = a.selectbox('工作筛选', ['全部','今天','医疗','复查','服务','管理','逾期','等待医生','等待会员'], key='v5-work-scope')
             search = b.text_input('查找待办', placeholder='搜索会员或需要处理的事情', key='v2-work-search').strip().casefold()
             owner = d.selectbox('负责人', ['全部']+sorted({i.owner or '待分配' for i in items}), key='today-owner')
-        scoped = work_filter(items,scope,now) if scope not in {'医疗','管理'} else [i for i in items if
+        scoped = work_filter(selected_items,scope,now) if scope not in {'医疗','管理'} else [i for i in selected_items if
             (i.source_type in {'doctor_review','consultation','baseline_review','legacy_medical_review','risk_event'}) == (scope=='医疗')]
         visible = [i for i in scoped if (owner=='全部' or (i.owner or '待分配')==owner)
             and (not search or search in (app._member_display(people.get(i.member_id))+i.title+i.reason+i.next_action).casefold())]
-        item = data_table(visible, [{'会员':app._member_display(people.get(i.member_id)), '现在发生什么':i.title,
-            '系统已经做到哪':progress(i), '现在需要我做什么':i.next_action, '负责人':i.owner,
-            '截止时间':ux.local_time(i.due_at), '状态':status_label(i.status,context='service_request') if i.source_type=='service_request' else status_label(i.status)} for i in visible],
+        item = data_table(visible, [{'会员':app._member_display(people.get(i.member_id)), '事项':i.title, '当前阶段':progress(i), '负责人':i.owner,
+            '时间':ux.local_time(i.due_at), '状态':status_label(i.status,context='service_request') if i.source_type=='service_request' else status_label(i.status)} for i in visible],
             key='today-work-grid', auto_select=False, activate_on_cell=True, empty='当前没有需要处理的工作。')
         if item:
             if item.source_type in {'post_checkup','profile_intake'}:
@@ -64,6 +65,20 @@ def today(app):
             else:
                 st.session_state['today-detail'] = (item.source_type, str(item.source_id))
             st.rerun()
+    with rail,st.container(key='v7-context-today'):
+        st.subheader('工作概况')
+        c.summary_strip([('待处理',len(items)),('逾期',len(work_filter(items,'逾期',now))),('等待医生',len(work.pending_doctor))])
+        st.divider()
+        st.markdown('**我的待办**')
+        for i in items[:3]:
+            st.caption(app._member_display(people.get(i.member_id))+' · '+ux.business_text(i.title)+' · '+ux.when(i.due_at))
+        st.divider()
+        st.markdown('**快捷动作**')
+        if st.button('新会员',key='today-enroll'):
+            st.session_state['v7-enroll-open']=True
+            app.request_navigation(surface='运营后台',ops_page='成员')
+        st.divider()
+        assistant(app,people)
 
 
 def work_detail(app, item, member):
@@ -82,6 +97,15 @@ def work_detail(app, item, member):
         task = session.get(Task,item.source_id) if item.source_type=='task' else None
         request = session.get(ServiceRequest,item.source_id) if item.source_type=='service_request' else None
     if task:
+        if task.status not in {'COMPLETED','CANCELLED'} and view.program:
+            from executive_health_ai.services.management_action_loop import ManagementActionLoop
+            with SessionLocal() as session:state=ManagementActionLoop().project(session,member.id,view.program.id)
+            actual=next((i for i in state['items'] if i.record.id==task.id),None)
+            if actual:
+                st.session_state[f'action-focus-{member.id}']=actual.id
+                st.session_state['member-return-origin']='今日工作'
+                app.request_navigation(surface='运营后台',ops_page='成员',member_id=member.id,member_section='管理')
+                return
         from executive_health_ai.ui.presentation import task_action
         task_action(app,task)
     elif request:
@@ -90,7 +114,10 @@ def work_detail(app, item, member):
     elif item.source_type=='recheck':
         workflow.recheck(patient=member,view=view,selected_id=item.source_id)
     elif item.source_type=='stage_review':
-        workflow.stage_review(member,view)
+        st.session_state[f'action-focus-{member.id}']='STAGE_REVIEW'
+        st.session_state['member-return-origin']='今日工作'
+        app.request_navigation(surface='运营后台',ops_page='成员',member_id=member.id,member_section='管理')
+        return
     elif item.source_type=='consultation':
         workflow.consultations(app,member,selected_id=item.source_id)
     elif item.source_type in {'doctor_review','baseline_review','legacy_medical_review'}:
@@ -146,8 +173,6 @@ def directory(app, members):
         workflow.flash()
     with SessionLocal() as session:
         rows = member_directory(session, members)
-    c.summary_strip([('会员',len(rows)),('年度管理中',sum(bool(r['program']) for r in rows)),
-                     ('有下一事项',sum(bool(r['task']) for r in rows))])
     query, state, owner = c.filter_bar(key='member-list', search_label='搜索成员',
         statuses=sorted({status_label(r['program'].status) if r['program'] else '待建档' for r in rows}),
         owners=sorted({r['program'].owner if r['program'] else '待分配' for r in rows}))
@@ -167,13 +192,15 @@ def directory(app, members):
             from executive_health_ai.ui.pages.manager.member_delete import actions
             actions(app,managed)
     records=[]
+    now=datetime.now(ux.LOCAL).date()
     for r in rows:
         p,t,phase,log = r['program'],r['task'],r['phase'],r['log']
-        records.append({'会员':app._member_display(r['member']), '当前年度':f'{p.start_date:%Y/%m}—{p.end_date:%Y/%m}' if p else '待建档',
+        person=r['member'];born=person.birth_date
+        age=str(now.year-born.year-((now.month,now.day)<(born.month,born.day))) if born else '未记录'
+        records.append({'会员':app._member_display(person), '年龄 / 性别':age+' / '+{'male':'男','female':'女','MALE':'男','FEMALE':'女'}.get(person.sex,'未记录'),
             '当前阶段':phase.title if phase else app.display_program_phase(p.current_phase) if p else '待建档',
-            '主要管理重点':r['focus'] or '待初评','责任健管':p.owner if p else '待分配',
-            '最近联系':ux.local_time(log.occurred_at) if log else None,'下一步':t.title if t else '待确认安排',
-            '下一日期':ux.local_time(t.due_at) if t else None,'状态':status_label(p.status) if p else '待建档'})
+            '责任健管':p.owner if p else '待分配','当前服务':r['service'],
+            '下一行动':t.title if t else '待确认安排','状态':status_label(p.status) if p else '待建档'})
     chosen = data_table(rows, records, key='member-directory',label='选择会员',empty='未找到匹配会员。',auto_select=False,activate_on_cell=True)
     if chosen:
         open_directory_member(app,chosen['member']);st.rerun()
@@ -217,7 +244,8 @@ def archive(app, patient, view):
         return
     from executive_health_ai.ui.pages.manager import intake_workspace
     data=intake_workspace.workspace(app,patient,view)
-    intake_workspace.cards(patient,view,data)
+    with st.expander("完整查看 / 手工修正",expanded=False):
+        intake_workspace.cards(patient,view,data)
     if st.button('查看完整健康档案',key=f'full-archive-{patient.id}'):
         st.session_state[section_key]='完整档案';st.rerun()
 

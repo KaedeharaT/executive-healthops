@@ -116,11 +116,13 @@ def test_running_and_escalated_projection(care):
     flow.analyze(sup,s,g)
     assert project(s,g).route.route_type=='ESCALATE'
     from streamlit.testing.v1 import AppTest
-    app=AppTest.from_string("from types import SimpleNamespace\n"
-        "from executive_health_ai.ui.pages.manager.post_checkup import stepper\n"
-        f"stepper(SimpleNamespace(status={g.status!r}, current_stage={g.current_stage!r}, context_json={{'structured':False}}))").run()
+    from executive_health_ai.services.agent_progress import load
+    p=load(s,g)
+    from test_v7_workspaces import panel_page
+    app=AppTest.from_function(panel_page,args=(p,)).run()
     assert not app.exception
-    assert '系统分析<br><small>需人工核对' in app.markdown[0].value
+    assert '系统分析' in '\n'.join(m.value for m in app.markdown)+str([c.value for c in app.caption])
+    assert not p.running and p.progress_percent<100
 
 
 def test_routing_rejects_untrusted_reason_and_unbacked_ai_advice():

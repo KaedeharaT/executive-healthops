@@ -60,16 +60,16 @@ def test_agent_running_stage_visible(env):
     app=AppTest.from_function(board,args=(workspace.project(s,p.id,row),)).run()
     assert not app.exception
     assert app.subheader[0].value=='健康管理助手正在整理资料'
-    assert all(phase in text(app) for phase in workspace.PHASES)
-    assert 'history.txt' in text(app) and '当前正在进行' in text(app)
+    assert all(phase in text(app) for phase in workspace.project(s,p.id,row)['progress'].labels)
+    assert 'history.txt' in text(app) and '整体进度' in text(app)
 
 
 def test_agent_completion_summary_visible(env):
     data=process(env)
     app=AppTest.from_function(board,args=(data,)).run()
     assert not app.exception and data['ready'] and not data['finished']
-    assert app.subheader[0].value=='本次资料整理已完成'
-    assert '待健管确认' in text(app) and '健康档案更新' in text(app)
+    assert app.subheader[0].value=='健康资料整理完成'
+    assert '待确认' in text(app) and '健康档案更新' in text(app)
     assert data['stats']['prefilled']>0 and data['exceptions']['counts']['exceptions']>0
     assert all(f['goal'].status=='WAITING_MANAGER' for f in data['files'])
 
@@ -196,6 +196,8 @@ def test_live_redraw_uses_one_board_without_duplicate_element_keys(env):
 def test_waiting_doctor_is_explicit_on_foreground_board(env):
     data=process(env)
     data['files'][0]['goal'].status='WAITING_DOCTOR'
+    env[0].flush()
+    data=workspace.project(env[0],env[1].id,env[2])
     app=AppTest.from_function(board,args=(data,)).run()
     assert '等待医生判断' in text(app)
 

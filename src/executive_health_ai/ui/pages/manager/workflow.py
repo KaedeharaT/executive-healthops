@@ -63,7 +63,7 @@ def onboarding(view):
 
 
 def enroll(app):
-    with st.expander('会员入组 · 新建年度服务周期'):
+    with st.expander('会员入组 · 新建年度服务周期',expanded=st.session_state.pop('v7-enroll-open',False)):
         with st.form('workflow-enroll'):
             name=st.text_input('会员称呼')
             members=app._members()
@@ -160,7 +160,7 @@ def intake(app,patient,member=False,assessment_id=None):
     with st.container(key='soft-intake-progress'):
         chosen=st.selectbox('填写步骤',range(len(wizard_steps)),index=index,format_func=lambda i:f'{i+1}. {wizard_steps[i]}',key=f'intake-select-{patient.id}-{index}')
         step=wizard_steps[chosen]
-        from executive_health_ai.ui.neumorphism import intake_steps
+        from executive_health_ai.ui.components import intake_steps
         intake_steps(wizard_steps, chosen, row.responses)
         st.progress(chosen/(len(wizard_steps)-1),text=f'第{chosen+1}步 / {len(wizard_steps)}步 · 可保存草稿后继续填写')
     if step=='确认提交':
@@ -250,22 +250,24 @@ def management(app,patient):
     with st.container(key='management-workspace-feedback'):flash()
     view=view_for(patient.id)
     from executive_health_ai.ui.pages.manager import action_loop
-    workspace=st.empty()
-    with workspace.container():
-        mode=st.session_state.get(f'workflow-mode-{patient.id}')
-        if action_loop.render(app,patient,view,show_recent=mode!='管理日志',primary_next=mode in {None,'管理事项','事项历史'}):return
+    mode=st.session_state.get(f'workflow-mode-{patient.id}')
+    if (mode in {None,'当前行动','管理事项','事项历史'} and not st.session_state.get(f'workflow-detail-{patient.id}')) or st.session_state.get(f'action-focus-{patient.id}'):
+        if action_loop.render(app,patient,view):return
+        with st.popover('方案与记录'):
+            destination=st.selectbox('查看或修正',['事项历史','管理日志','年度方案与阶段','检查复查','阶段评估','关联服务','计划调整与随访'],key='management-destination')
+            if st.button('继续',key='management-destination-open'):
+                st.session_state[f'workflow-mode-{patient.id}']=destination
+                st.session_state[f'workflow-detail-{patient.id}']=True
+                st.rerun()
+        if not st.session_state.get(f'workflow-detail-{patient.id}'):return
+    st.subheader(mode or '管理记录')
+    if st.button('← 返回当前阶段',key='management-mode-back'):
+        st.session_state.pop(f'workflow-mode-{patient.id}',None)
+        st.session_state.pop(f'workflow-detail-{patient.id}',None);st.rerun()
     if not view.program:
         from executive_health_ai.ui.pages.manager.experience import management as legacy
         legacy(app,patient)
-        with st.expander('计划关联服务与执行结果'):app.render_member_service_management(patient)
         return
-    st.caption('年度目标：'+preview(view.program.main_goal,90))
-    from executive_health_ai.ui.pages.manager.service_progress import member_progress
-    with st.expander('阶段服务进度与结果'):
-        member_progress(view)
-    if st.session_state.get(f'workflow-mode-{patient.id}')=='管理事项':
-        st.session_state[f'workflow-mode-{patient.id}']='事项历史'
-    mode=st.selectbox('管理工作',['事项历史','管理日志','年度方案与阶段','检查复查','阶段评估','关联服务','计划调整与随访'],key=f'workflow-mode-{patient.id}',label_visibility='collapsed')
     if mode=='事项历史':
         app.render_tasks({'tasks':[t for t in view.tasks if t.status in {'COMPLETED','CANCELLED'}],'history_only':True})
     elif mode=='管理日志':

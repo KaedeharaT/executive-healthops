@@ -28,7 +28,6 @@ def command(goal_id, callback, *, activity="正在保存确认并继续后续管
         if panel is not None:
             header, progress = panel
             header.empty()
-            st.markdown('<style>.st-key-care-human-action,.care-history .current,.care-history .next {display:none!important;}</style>', unsafe_allow_html=True)
         with (header.container() if panel is not None else st.container()):
             if panel is not None:
                 c.summary_strip([('现在轮到','健康管理助手'),('当前状态','正在处理本次操作')])
@@ -41,42 +40,28 @@ def command(goal_id, callback, *, activity="正在保存确认并继续后续管
                     goal = session.get(AgentGoal, UUID(str(goal_id)))
                     if panel is not None:
                         with progress.container():
-                            stepper(SimpleNamespace(current_stage=current_stage or goal.current_stage,
-                                status='RUNNING', context_json=goal.context_json))
+                            render_goal_progress(goal)
                     callback(session, goal)
                     session.commit()
                 running.update(label='本次处理已保存，正在进入下一步', state='complete', expanded=False)
         st.rerun()
     except (ValueError, PermissionError) as exc:
         if panel is not None:
-            st.markdown('<style>.st-key-care-human-action {display:flex!important;}.care-history .current,.care-history .next {display:list-item!important;}</style>', unsafe_allow_html=True)
             with header.container():
                 st.error(str(exc))
             with SessionLocal() as session:
                 unchanged = session.get(AgentGoal, UUID(str(goal_id)))
             with progress.container():
-                stepper(unchanged)
+                render_goal_progress(unchanged)
         else:
             st.error(str(exc))
 
 
-def stepper(goal, progress=None):
-    labels = ['报告接收', '系统分析', '责任分流', '专业确认', '行动建立', '完成']
-    current = {'REPORT_RECEIVED': 0, 'ANALYZING': 1, 'WAITING_MANAGER_REVIEW': 3,
-               'WAITING_DOCTOR_REVIEW': 3, 'WAITING_ACTION_APPROVAL': 4, 'CREATING_ACTIONS': 4,
-               'COMPLETED': 5, 'ESCALATED': 2, 'FAILED': 2}.get(goal.current_stage, 1)
-    pieces = []
-    for index, label in enumerate(labels):
-        skipped = False  # Professional confirmation includes the mandatory manager gate.
-        status = '已跳过' if skipped else '已完成' if index < current or goal.status == 'COMPLETED' else '当前' if index == current else '待开始'
-        if index == 1 and goal.status in {'ESCALATED','FAILED'} and not goal.context_json.get('structured'):
-            status='需人工核对'
-        if progress:
-            current=progress.current_step-1
-            status='已完成' if progress.done[index] else '当前' if index==current else '待开始'
-        mark = '—' if skipped else '✓' if status == '已完成' else '●' if status == '当前' else '○'
-        pieces.append(f'<div role="listitem" class="flow-step {"active" if index == current else "done" if status == "已完成" else ""}"><b class="flow-dot">{mark}</b><span>{label}<br><small>{status}</small></span></div>')
-    st.markdown('<div role="list" aria-label="体检后管理进度" class="v2-workflow">'+''.join(pieces)+'</div>', unsafe_allow_html=True)
+def render_goal_progress(goal):
+    from executive_health_ai.services.agent_progress import load
+    from executive_health_ai.ui.agent_progress import AgentProgressPanel
+    with SessionLocal() as session:p=load(session,goal)
+    AgentProgressPanel.render(p,flow_name='体检后健康管理',next_action=goal.next_action)
 
 
 def evidence(goal, *, doctor=False, show_findings=True):
@@ -320,44 +305,13 @@ def doctor_detail(goal, *, read_only=False):
                     activity='保存医生判断，并将医生意见整理为后续行动', received='已收到本次提交的医生意见')
 
 
-def member_summary(member_id,app=None):
+def compact_member_status(member_id):
     with SessionLocal() as session:
-        goals = [g for g in session.scalars(select(AgentGoal).where(AgentGoal.member_id == member_id).order_by(AgentGoal.updated_at.desc(), AgentGoal.started_at.desc())) if flow.is_care_goal(g) or g.goal_type == "PROFILE_INTAKE"]
-    st.subheader('自动跟进')
-    if not goals:
-        st.caption('当前没有自动流程记录。上传体检报告或导入健康资料后，将在这里显示实际处理进展。')
-        st.write('最近完成：暂无记录')
-        st.write('下一步：在医疗或健康档案中补充资料。')
-        st.button('查看运行看板', key=f'member-no-progress-{member_id}', disabled=True,
-                  help='尚无运行实例；查看入口不会创建新流程。')
-        return
-    goal = goals[0]
-    if goal.goal_type == 'PROFILE_INTAKE':
-        from executive_health_ai.ui.pages.manager.profile_intake import STATUS, stepper as profile_stepper, progress_steps
-        st.markdown('**自动跟进 · 健康资料导入**')
-        st.caption('开始：'+ux.when(goal.started_at))
-        st.write('当前：'+STATUS.get(goal.status,'待处理'))
-        profile_stepper(goal)
-        completed = [label for label,done,_ in progress_steps(goal) if done]
-        st.write('最近完成：'+(completed[-1] if completed else '尚无已完成步骤'))
-        st.write('下一步：'+goal.next_action)
-        if app:
-            from executive_health_ai.ui.pages.manager.assistant import open_care
-            st.button('处理资料与初评',key=f'member-profile-progress-{member_id}',on_click=open_care,args=(app,goal,'会员360'))
-        return
-    from executive_health_ai.ui.pages.manager import care_activity
-    activity=care_activity.load(goal)
-    st.markdown('**自动跟进 · 体检后健康管理**')
-    st.caption('开始：'+care_activity.entry_text(activity))
-    st.write('当前：'+activity.current)
-    from executive_health_ai.services.care_board import project
-    with SessionLocal() as session:
-        board=project(session,goal)
-    st.caption('当前责任：'+board.owner+' · '+board.route.reason_summary)
-    stepper(goal)
-    st.write('最近完成：'+(activity.done[-1].title if activity.done else '尚无已完成工作记录'))
-    st.info('下一步：'+activity.next_action)
-    if goal.status=='WAITING_DOCTOR':st.caption('医生提交后系统会自动继续。')
-    if app:
-        from executive_health_ai.ui.pages.manager.assistant import open_care
-        st.button('查看运行看板',key=f'member-care-progress-{member_id}',on_click=open_care,args=(app,goal,'会员360'))
+        goals=[g for g in session.scalars(select(AgentGoal).where(AgentGoal.member_id==member_id).order_by(AgentGoal.updated_at.desc())) if flow.is_care_goal(g) or g.goal_type=='PROFILE_INTAKE']
+    st.markdown('**自动跟进**')
+    if not goals:st.caption('暂无自动流程；上传健康资料后开始整理。');return
+    from executive_health_ai.ui.status_dictionary import status_label
+    selected=st.session_state.get(f'intake-workspace-goal-{member_id}')
+    goal=next((g for g in goals if str(g.id)==selected),goals[0])
+    st.caption(('资料整理' if goal.goal_type=='PROFILE_INTAKE' else '体检后管理')+' · '+status_label(goal.status))
+    st.caption(('最近结果：' if goal.status=='COMPLETED' else '下一步：')+ux.business_text(goal.next_action))

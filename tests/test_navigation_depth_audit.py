@@ -49,7 +49,7 @@ def test_reports_medical_doctors_services_and_timeline_use_inline_detail_pattern
     assert 'st.radio("医疗内容", ["医生复核", "用药", "检查", "手术住院"]' in medical
     assert "member-medical-event-selected" in medical and "detail_panel(" in medical
     assert "collaboration(_ui_adapter())" in collaboration
-    assert "service-operations-grid" in services and "detail_drawer(" in services
+    assert "service-operations-grid" in services and "v7-service-detail" in services and "detail_drawer(" not in services
     assert "external-medical-selected" in external and "detail_panel(" in external
     assert "timeline-selected-" in timeline and "_render_evidence_action" in timeline
 
@@ -59,7 +59,7 @@ def test_member_detail_and_more_respect_secondary_navigation_limits() -> None:
     detail = _source("render_member_detail", "def render_member_archive")
     more = (MORE_SHELL.parent/'admin/experience.py').read_text(encoding="utf-8")
     assert '["概览", "健康", "管理", "医疗", "历程"]' in detail
-    assert '["系统状态", "自动化运行", "数据与集成", "规则与知识"]' in more
+    assert '["系统状态", "自动化运行", "数据与集成", "规则与知识", "组织与人员"]' in more
     assert 'integrations(app)' in more
     assert 'AI质量治理（高级）' in more
     assert "健管培训助手" not in more

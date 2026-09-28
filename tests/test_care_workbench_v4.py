@@ -33,8 +33,12 @@ def test_header_keeps_member_concern_distinct_from_professional_focus():
         member_header('合成会员',cycle='2026',owner='王健管',phase='第二阶段',concern='睡眠',focus='血压',next_action='确认预约 · 王健管 · 9/27',updated='9/24')
     app=AppTest.from_function(page).run()
     value=app.markdown[0].value
-    assert '会员本人关注</b> 睡眠' in value and '专业管理重点</b> 血压' in value
-    assert '确认预约' in value and '9/27' in value and 'MEMBER 360' in value
+    assert '睡眠' not in value and '血压' not in value
+    from executive_health_ai.ui.pages.manager import experience
+    import inspect
+    overview=inspect.getsource(experience.member_detail)
+    assert '会员关注：' in overview and '当前管理重点' in overview
+    assert '确认预约' in value and '9/27' in value and '责任健管' in value
 
 
 def test_phase_selection_uses_actual_status_and_can_inspect_completed_phase():

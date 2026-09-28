@@ -155,7 +155,7 @@ def render(app, goal, *, admin=False):
         if admin:
             with st.expander('技术详情'):ai_support.technical(traces)
         return
-    from executive_health_ai.ui.pages.manager.post_checkup import stepper, _manager_action, evidence
+    from executive_health_ai.ui.pages.manager.post_checkup import _manager_action, evidence
     styles()
     activity = care_activity.load(goal)
     with SessionLocal() as session:
@@ -165,7 +165,7 @@ def render(app, goal, *, admin=False):
     from executive_health_ai.ui.pages.manager import ai_support
     ctx = goal.context_json
     with st.container(border=True, key='board-header'):
-        st.header('健康管理助手 · 运行看板')
+        st.header('体检报告处理')
         st.subheader(ctx.get('member', {}).get('name', '会员')+' · 体检后健康管理')
         st.caption('开始原因：'+care_activity.entry_text(activity))
         hours, minutes = divmod(board.elapsed_minutes, 60)
@@ -177,10 +177,9 @@ def render(app, goal, *, admin=False):
     progress = st.empty()
     with progress.container(), st.container(key='soft-board-process'):
         from executive_health_ai.services.agent_progress import load as load_progress
-        from executive_health_ai.ui.agent_progress import render as render_progress
+        from executive_health_ai.ui.agent_progress import AgentProgressPanel
         with SessionLocal() as session:progress_data=load_progress(session,goal)
-        render_progress(progress_data)
-        stepper(goal,progress_data)
+        AgentProgressPanel.render(progress_data,flow_name='健康管理助手 · 体检后管理',next_action=goal.next_action)
     ai_support.route(goal, support, support_traces)
     action_approval = goal.current_stage == 'WAITING_ACTION_APPROVAL' and not admin
     if action_approval:

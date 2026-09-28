@@ -9,24 +9,9 @@ from executive_health_ai.ui import components as c
 
 def styles():
     st.markdown('''<style>
-    .st-key-intake-agent-board {border-top:3px solid var(--blue)!important;border-radius:16px;background:var(--surface);padding:20px;box-shadow:var(--neu-shadow);}
-    ol.intake-agent-steps {display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;list-style:none;padding:0!important;gap:8px;margin:18px 0!important;width:100%;}
-    .intake-agent-steps li {padding:12px 6px;text-align:center;border:1px solid var(--line);border-radius:12px;background:var(--neu-well);font-size:14px;}
-    .intake-agent-steps b {display:block;font-size:22px;margin-bottom:6px;}
-    .intake-agent-steps .current {background:var(--blue);color:white;box-shadow:var(--neu-control);font-weight:700;}
-    .intake-agent-steps .done {background:#e7f3ec;color:#226548;}
-    .intake-agent-current {background:#e3edf8;border-left:4px solid var(--blue);border-radius:12px;padding:16px;margin:12px 0;}
-    .intake-agent-current strong {font-size:22px;display:block;margin-bottom:6px;}
-    .intake-spinner {display:inline-block;width:18px;height:18px;border:2px solid #c2d9ed;border-top-color:#2875b7;border-radius:50%;animation:intake-spin 1s linear infinite;margin-right:9px;vertical-align:-2px;}
-    @keyframes intake-spin {to {transform:rotate(360deg)}}
-    @media(prefers-reduced-motion:reduce){.intake-spinner{animation:none;}}
-    .intake-agent-history {list-style:none;padding:0;margin:8px 0;line-height:1.7;font-size:14px;}
-    .st-key-intake-section-cards button {width:100%;min-height:112px;text-align:left;justify-content:flex-start;white-space:pre-line;border-radius:14px!important;cursor:pointer;transition:transform .15s,box-shadow .15s;}
-    .st-key-intake-section-cards button:hover {transform:translateY(-3px);box-shadow:var(--neu-emphasis)!important;}
-    .st-key-intake-section-cards button:active {transform:translateY(1px);box-shadow:var(--neu-inset)!important;}
-    .st-key-intake-section-cards button:focus-visible {outline:3px solid var(--blue);outline-offset:3px;}
-    @media(max-width:900px){ol.intake-agent-steps{grid-template-columns:repeat(4,minmax(0,1fr))!important;}}
-    @media(prefers-reduced-motion:reduce){.st-key-intake-section-cards button{transition:none;transform:none!important;}}
+    .st-key-intake-section-cards button {width:100%;min-height:80px;text-align:left;white-space:pre-line;cursor:pointer}
+    .st-key-intake-section-cards button:hover {border-color:#1969b4;transform:translateY(-1px)}
+    .st-key-intake-section-cards button:focus-visible {outline:2px solid #1969b4;outline-offset:2px}
     </style>''',unsafe_allow_html=True)
 
 
@@ -48,7 +33,7 @@ def support(data, event=None):
             if key=='semantic':
                 from executive_health_ai.ui.agent_progress import ai_timing
                 for f in data['files']:ai_timing(f.get('progress'))
-            if key=='semantic' and event=='AI_REQUEST_STARTED':
+            if key=='semantic' and (event=='AI_REQUEST_STARTED' or any(f.get('progress') and f['progress'].ai_running for f in data['files'])):
                 st.write('● 正在进行')
                 st.caption('本地AI正在整理资料 · 用途：从自由文本中提取有原文依据的健康信息')
             elif any(a.used for a in rows):
@@ -75,70 +60,30 @@ def execution_mark(data,event=None):
     return '✓ ' if data['finished'] else '● '
 
 
-def draw(data, event=None, *, assessment_summary=True):
-    if event is None and data['current'] and data['current']['goal'].status=='PROCESSING':
-        event=data['current']['goal'].context_json.get('execution',{}).get('event')
-    with st.container():
-        title='健康管理助手正在整理资料' if data['processing'] else '本次资料整理已完成' if data['ready'] and not any(f['goal'].status in {'FAILED','ESCALATED','CANCELLED'} for f in data['files']) else '健康管理助手'
-        st.subheader(title)
-        if not data['files']:
-            st.write('当前：暂无正在处理的健康资料')
-            st.caption('你可以上传会员现有资料，系统会自动整理并尽量完善初始健康评估。')
-            st.markdown('[上传健康资料](#intake-upload)')
-            support(data)
-            return
-        from executive_health_ai.ui.agent_progress import render as progress_bar
-        progress_bar(data.get('progress'),show_activity=False)
-        phase=2 if event in {'CONTENT_READ','AI_REQUEST_STARTED'} else 4 if event=='PREFILL_READY' else data['phase']
-        if data.get('progress'):phase=data['progress'].current_step-1
-        done=data['progress'].done if data.get('progress') else tuple(i<phase or data['finished'] for i in range(7))
-        st.markdown('<ol class="intake-agent-steps" aria-label="健康资料整理进度">'+''.join(
-            f'<li class="{"done" if done[i] else "current" if i==phase else ""}"><b>{"✓" if done[i] else "●" if i==phase else "○"}</b>{label}<br><small>{"已完成" if done[i] else "当前" if i==phase else "待开始"}</small></li>'
-            for i,label in enumerate(projection.PHASES))+'</ol>',unsafe_allow_html=True)
-        current=data['current']
-        linked=any(f['goal'].context_json.get('intake_id') for f in data['files'])
-        filename=current['document'].title if current else '本批资料已整理，等待逐项核对' if not data['finished'] else '本批资料来源已核对并提交'
-        action=('正在从 '+str(len(data['files']))+' 份健康资料中'+('提取可核对的健康信息' if phase==2 else '读取内容' if phase==1 else '匹配现有档案并准备初评预填' if phase in {3,4} else '接收原始资料')) if current else '需要您核对来源、处理冲突并补充初评' if not data['finished'] else '初始评估已提交，后续医学事实仍按现有规则确认'
-        if current and data.get('progress'):action=data['progress'].current_activity
-        if current and phase==6:action='正在写入已经确认的健康档案更新'
-        if not current and data.get('exceptions') and not data['finished']:
-            remaining=data['exceptions']['counts']['exceptions']
-            action=f'资料已整理，请在下方处理 {remaining} 项例外，然后一次确认提交初评' if remaining else '资料已准备完成，请在下方一次确认提交初评'
-        if event=='AI_REQUEST_STARTED':action='本地AI正在整理资料：从自由文本中提取有原文依据的健康信息'
-        elif event=='AI_RESULT_CHECKED':action='本地AI整理完成，已核对候选信息的原文依据'
-        elif event=='AI_UNAVAILABLE':action='本地AI未能完成可靠提取，保留原文等待人工补充'
-        if not current and not linked:
-            action='本次健康档案更新已完成，可继续完善初始评估' if data['finished'] else '健康档案更新草稿已准备，请核对来源与冲突后确认'
-        if not current and any(f['goal'].status=='WAITING_DOCTOR' for f in data['files']):
-            action='等待医生判断；医生提交后再继续健管确认'
-            filename='医学问题已交给医生，当前无需重复整理资料'
-        elif not current and any(f['goal'].status in {'FAILED','ESCALATED','CANCELLED'} for f in data['files']):
-            action='资料需要人工接手，请核对原文件并补充可读取资料'
-            filename='部分资料未能可靠读取，尚未全部完成'
-        heading='当前正在进行' if data['processing'] else '当前状态'
-        st.markdown('<div class="intake-agent-current" role="status"><strong>'+execution_mark(data,event)+heading+'</strong>'+escape(action)+'<br>当前处理：'+escape(filename)+'</div>',unsafe_allow_html=True)
-        c.summary_strip([('上传资料',str(len(data['files']))+' 份'),('已经完成',f'{data["processed"]} / {len(data["files"])} 文件'),('已发现',str(data['count'])+' 项健康信息')])
-        if data['ready']:
-            s=data['stats']
-            if assessment_summary:
-                c.summary_strip([('自动预填',s['prefilled']),('待健管确认',s['pending']),('仍需补充',s['missing']),('冲突',s['conflicts']),('健康档案更新',data['updates'])])
-            else:
-                st.caption(f'健康档案更新：{data["updates"]} 项；初评准备度与待处理项见下方。')
-            st.caption('健康档案候选已保留原文、测量及冲突核对结果；未经确认不会写入正式医疗事实。')
-        st.markdown('**活动时间轴**')
-        lines=[f'✓ 收到 {len(data["files"])} 份健康资料']
-        shown=sorted(dict.fromkeys(data['events'][-6:]+[e for e in data['events'] if e[2].startswith('本地AI')][-4:]),key=lambda e:e[0])
-        lines += [(at.replace(tzinfo=timezone.utc) if at.tzinfo is None else at).astimezone().strftime('%H:%M')+
-                  (' ! 《' if '本地AI未能' in text else ' ✓ 《')+name+'》'+text for at,name,text in shown]
-        if current:lines+=['● '+action+' · 《'+filename+'》']
-        next_text='资料整理完成后，请从下方卡片核对来源并补充；此时需要您确认。' if current else '继续完成初始健康评估；提交前需核对所有来源。' if not data['finished'] else '查看已提交初评，继续健管专业确认。'
-        if data.get('exceptions'):
-            next_text='资料整理完成后处理少量例外；目前暂未轮到你。' if current else '在下方“需要你处理”逐项处理例外，再一次确认提交。' if not data['finished'] else '资料已提交；继续原有健管专业确认。'
-            if not current and not data['finished'] and not data['exceptions']['queue']:next_text='资料已准备完成，可在下方一次确认提交初评。'
-        if not current and not linked:next_text='核对下方健康档案更新；已提交的初评保留原有确认状态。' if not data['finished'] else '继续查看或完善初始健康评估。'
-        lines+=['○ 下一步：'+next_text]
-        st.markdown('<ul class="intake-agent-history">'+''.join('<li>'+escape(line)+'</li>' for line in lines)+'</ul>',unsafe_allow_html=True)
-        support(data,event)
+def draw(data,event=None,*,assessment_summary=True):
+    from executive_health_ai.ui.agent_progress import AgentProgressPanel
+    failed=any(f['goal'].status in {'FAILED','ESCALATED','CANCELLED'} for f in data['files'])
+    title='健康管理助手正在整理资料' if data['processing'] else '健康资料整理完成' if data['ready'] and not failed else '健康管理助手'
+    st.subheader(title)
+    if not data['files']:
+        st.write('当前：暂无正在处理的健康资料')
+        st.caption('上传资料后，自动整理有依据的信息，再处理少量例外。')
+        support(data)
+        return
+    p=data.get('progress')
+    next_text=(projection.PHASES[min(p.current_step,6)] if p and p.running else
+        '处理下方待确认、缺失或冲突资料' if not data['finished'] else '继续健管专业确认，建立年度健康基线')
+    AgentProgressPanel.render(p,flow_name='健康资料整理',next_action=next_text)
+    st.caption(f'资料来源 {len(data["files"])} 份 · 已发现 {data["count"]} 项健康信息')
+    if data['ready'] and assessment_summary:
+        s=data['stats']
+        c.summary_strip([('自动整理',s['prefilled']),('待确认',s['pending']),('缺失',s['missing']),('冲突',s['conflicts'])])
+    support(data,event)
+    with st.expander('处理记录与来源'):
+        st.caption('健康档案更新：'+str(data['updates'])+' 项；正式医疗事实继续遵守现有确认规则。')
+        for at,name,text in data['events']:
+            at=(at.replace(tzinfo=timezone.utc) if at.tzinfo is None else at).astimezone()
+            st.caption(at.strftime('%H:%M')+' · 《'+name+'》'+text)
 
 
 def workspace(app,patient,view, *, uploader=True, show_actions=True):
@@ -158,7 +103,20 @@ def workspace(app,patient,view, *, uploader=True, show_actions=True):
             from executive_health_ai.ui.intake_execution import submit
             submit(current['current']['goal'].id)
         if data['processing'] and not current['processing']:st.rerun()
-    live()
+    queue_open=bool(view.intake and st.session_state.get(f'exception-open-{view.intake.id}')) and not data['processing']
+    if exception_mode and show_actions:
+        if queue_open:
+            exception_column,board_column=st.columns([2.6,1],gap='large')
+            with board_column,st.container(key='v7-context-intake-progress'):
+                from executive_health_ai.ui.agent_progress import AgentProgressPanel
+                AgentProgressPanel.render(data.get('progress'),flow_name='健康管理助手 · 资料已整理，当前处理例外')
+                with st.expander('AI整理结果与处理记录'):
+                    support(data)
+                    for at,name,text in data['events']:st.caption(at.strftime('%H:%M')+' · 《'+name+'》'+text)
+        else:
+            board_column,exception_column=st.columns([2.6,1],gap='large')
+            with board_column:live()
+    else:live()
     if not show_actions:return data
     failed=[f for f in data['files'] if f['goal'].status=='ESCALATED' and f['goal'].context_json.get('intake_id')]
     for f in failed:
@@ -178,7 +136,10 @@ def workspace(app,patient,view, *, uploader=True, show_actions=True):
             st.button('转人工处理',key='progress-manual-'+str(f['goal'].id),on_click=continue_intake,args=(patient,view))
     if exception_mode:
         from executive_health_ai.ui.pages.manager.intake_exceptions import panel
-        panel(patient,view)
+        if not queue_open:
+            with exception_column,st.container(key='v7-context-intake'):panel(patient,view)
+        else:
+            with exception_column:panel(patient,view)
     # Preserve the established confirmation workflow for uploads after submission.
     from executive_health_ai.ui.pages.manager.profile_intake import review_updates
     review_files=[item for item in data['files'] if not item['goal'].context_json.get('intake_id') and item['goal'].status not in {'RUNNING','PROCESSING'}]
@@ -189,7 +150,9 @@ def workspace(app,patient,view, *, uploader=True, show_actions=True):
                 from executive_health_ai.models import AgentGoal
                 review_updates(app,session,session.get(AgentGoal,review_files[index]['goal'].id))
     if uploader:
-        upload_area(patient,view)
+        if data["files"]:
+            with st.expander("上传健康资料",expanded=data["processing"]):upload_area(patient,view)
+        else:upload_area(patient,view)
     return data
 
 
@@ -233,7 +196,7 @@ def cards(patient,view,data):
     from executive_health_ai.services.intake_exceptions import state as exception_state
     exception_mode=bool(view.intake and exception_state(view.intake).get('enabled'))
     formal_review=any(not f['goal'].context_json.get('intake_id') and f['goal'].status=='WAITING_MANAGER' for f in data.get('files',[]))
-    st.button('查看 / 手工修正（11步）' if exception_mode else label,key=f'workspace-primary-{patient.id}',type='secondary' if exception_mode or formal_review else 'primary',on_click=continue_intake,args=(patient,view))
+    st.button('完整查看 / 手工修正（11步）' if exception_mode else label,key=f'workspace-primary-{patient.id}',type='secondary' if exception_mode or formal_review else 'primary',on_click=continue_intake,args=(patient,view))
     if view.intake:
         if state!='已完成':
             st.button('查看已填写内容',key=f'workspace-preview-{patient.id}',on_click=intake_entry.open_intake,args=(patient,view),kwargs={'read_only':True})

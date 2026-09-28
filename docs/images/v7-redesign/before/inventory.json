@@ -1,0 +1,1588 @@
+[
+  {
+    "page": "01-today",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "A",
+        "label": "最近完成\n1",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "查看最近运行",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "查看",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "查看全部历史",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "工作筛选",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "text",
+        "label": "查找待办",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "负责人",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "DIV",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 17,
+    "primary": 0
+  },
+  {
+    "page": "02-members",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "keyboard_double_arrow_left",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "text",
+        "label": "搜索成员",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "状态",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "负责人",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "SUMMARY",
+        "label": "keyboard_arrow_right\n\n会员入组 · 新建年度服务周期",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "会员管理\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "DIV",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 16,
+    "primary": 0
+  },
+  {
+    "page": "03-member360-overview",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "← 返回会员",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "处理资料与初评",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "处理下一步",
+        "primary": true,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "新增管理记录",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "SUMMARY",
+        "label": "keyboard_arrow_right\n\n年度目标与健康基线",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "DIV",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 18,
+    "primary": 1
+  },
+  {
+    "page": "05-health-record-agent-completed",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "← 返回会员",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "upload\n\nUpload",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "上传并整理资料",
+        "primary": false,
+        "disabled": true
+      },
+      {
+        "type": "submit",
+        "label": "基础资料\n已完成\n已确认 · 点击查看",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "家族史\n已完成\n已确认 · 点击查看",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "个人病史\n已完成\n已确认 · 点击查看",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "手术 / 住院\n已完成\n已确认 · 点击查看",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "过敏\n已完成\n已确认 · 点击查看",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "用药\n已完成\n已确认 · 点击查看",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "生活方式\n已完成\n已确认 · 点击查看",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "环境与暴露\n已完成\n已确认 · 点击查看",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "会员重点关注\n已完成\n已确认 · 点击查看",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "专项症状评估\n已完成\n已确认 · 点击查看",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "查看 / 手工修正（11步）",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "补充/修正",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "查看完整健康档案",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 28,
+    "primary": 0
+  },
+  {
+    "page": "07-management",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "← 返回会员",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "处理资料与初评",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "开始阶段复盘",
+        "primary": true,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "新增管理记录",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "创建随访",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "安排复查",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "申请服务",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "提交医生判断",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "SUMMARY",
+        "label": "keyboard_arrow_right\n\n阶段服务进度与结果",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "管理工作",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "text",
+        "label": "搜索记录",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "DIV",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 28,
+    "primary": 1
+  },
+  {
+    "page": "08-stage-review",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "← 返回会员",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "处理资料与初评",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "← 返回本会员管理工作区",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "checkbox",
+        "label": "未解决问题需要医生判断",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "checkbox",
+        "label": "我已核对阶段结果，确认本次复盘",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "确认阶段总结",
+        "primary": true,
+        "disabled": false
+      }
+    ],
+    "count": 18,
+    "primary": 1
+  },
+  {
+    "page": "09-annual",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "keyboard_double_arrow_left",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "年度",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "当前阶段",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "责任健管",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "是否逾期",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "是否等待医生",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "是否待复盘",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "text",
+        "label": "查找年度目标或会员",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "周期状态",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "DIV",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 24,
+    "primary": 0
+  },
+  {
+    "page": "10-service-management",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "keyboard_double_arrow_left",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "text",
+        "label": "搜索服务",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "DIV",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 18,
+    "primary": 0
+  },
+  {
+    "page": "11-medical-collaboration",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "keyboard_double_arrow_left",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 10,
+    "primary": 0
+  },
+  {
+    "page": "12-special-programs",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "keyboard_double_arrow_left",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "text",
+        "label": "搜索专项",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "DIV",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 10,
+    "primary": 0
+  },
+  {
+    "page": "13-doctor",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "keyboard_double_arrow_left",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 4,
+    "primary": 0
+  },
+  {
+    "page": "14-member",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "keyboard_double_arrow_left",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "combobox",
+        "label": "查看成员",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "button",
+        "label": "Open",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "个人设置\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "SUMMARY",
+        "label": "keyboard_arrow_right\n\n当前管理进展与下一步",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "查看健康变化",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "查看服务安排",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 13,
+    "primary": 0
+  },
+  {
+    "page": "15-admin",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "keyboard_double_arrow_left",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "Deploy",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "Main menu",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "DIV",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "检查数据与集成",
+        "primary": true,
+        "disabled": false
+      },
+      {
+        "type": "SUMMARY",
+        "label": "keyboard_arrow_right\n\n运行方式与责任边界",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "SUMMARY",
+        "label": "keyboard_arrow_right\n\n组织与人员",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "SUMMARY",
+        "label": "keyboard_arrow_right\n\n操作记录",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "SUMMARY",
+        "label": "keyboard_arrow_right\n\nAI质量治理（高级）",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "SUMMARY",
+        "label": "keyboard_arrow_right\n\n高级信息 · 兼容工具",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 15,
+    "primary": 1
+  },
+  {
+    "page": "06-intake-exceptions",
+    "controls": [
+      {
+        "type": "submit",
+        "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "← 返回会员",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "radio",
+        "label": "",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "A",
+        "label": "上传健康资料",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "upload\n\nUpload",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "上传并整理资料",
+        "primary": false,
+        "disabled": true
+      },
+      {
+        "type": "submit",
+        "label": "基础资料\n待补充\n点击查看与补充",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "家族史\n待补充\n点击查看与补充",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "个人病史\n待补充\n点击查看与补充",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "手术 / 住院\n待补充\n点击查看与补充",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "过敏\n待补充\n点击查看与补充",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "用药\n待补充\n点击查看与补充",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "生活方式\n待补充\n点击查看与补充",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "环境与暴露\n待补充\n点击查看与补充",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "会员重点关注\n待补充\n点击查看与补充",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "专项症状评估\n待补充\n点击查看与补充",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "继续完成初始评估",
+        "primary": true,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "查看已填写内容",
+        "primary": false,
+        "disabled": false
+      },
+      {
+        "type": "submit",
+        "label": "查看完整健康档案",
+        "primary": false,
+        "disabled": false
+      }
+    ],
+    "count": 29,
+    "primary": 1
+  }
+]

@@ -53,8 +53,10 @@ def integrations(app):
 def workspace(app):
     ux.inject_design("admin")
     st.sidebar.caption("系统配置与运行保障")
-    section = st.sidebar.radio("系统", ["系统状态", "自动化运行", "数据与集成", "规则与知识"], key="ux-admin-navigation")
-    if section == "数据与集成":
+    section = st.sidebar.radio("系统", ["系统状态", "自动化运行", "数据与集成", "规则与知识", "组织与人员"], key="ux-admin-navigation")
+    if section == "组织与人员":
+        organization(app)
+    elif section == "数据与集成":
         integrations(app)
     elif section == "自动化运行":
         ux.page_header("自动化运行", "按成员查看长期管理的等待、失败和下一步。")
@@ -84,15 +86,6 @@ def workspace(app):
             st.button("检查数据与集成", key="system-open-integrations", type="primary", on_click=_open_integrations)
         with c.secondary_details("运行方式与责任边界"):
             st.info("当前为演示角色预览；角色切换不等于登录或权限认证。")
-        with st.expander('组织与人员'):
-            from executive_health_ai.models import HealthProgram, DoctorReview
-            with app.SessionLocal() as session:
-                managers = sorted({x for x in session.scalars(select(HealthProgram.owner)) if x})
-                doctors = sorted({x for x in session.scalars(select(DoctorReview.doctor_name)) if x and x != '待分配医生'})
-            rows = [{'人员 / 责任记录':name,'角色':role,'归属':'当前本地工作台；机构未配置'}
-                for role,names in [('健管',managers),('医生',doctors),('管理员',['演示管理员'])] for name in names]
-            data_table(rows,rows,key='organization-responsibilities',selectable=False)
-            st.caption('来自现有责任记录，不是已认证员工目录。生产 RBAC、多机构隔离与人员归属管理尚未实现。')
         with st.expander("操作记录"):
             include_archived = st.checkbox('显示已归档成员')
             members = app._members(include_archived=include_archived)
@@ -146,3 +139,15 @@ def legacy_tools(app):
 
 def _open_integrations():
     st.session_state["ux-admin-navigation"] = "数据与集成"
+
+
+def organization(app):
+    c.page_shell("admin","组织与人员","当前责任记录与人员归属。")
+    from executive_health_ai.models import HealthProgram, DoctorReview
+    with app.SessionLocal() as session:
+        managers = sorted({x for x in session.scalars(select(HealthProgram.owner)) if x})
+        doctors = sorted({x for x in session.scalars(select(DoctorReview.doctor_name)) if x and x != '待分配医生'})
+    rows = [{'人员 / 责任记录':name,'角色':role,'归属':'当前本地工作台；机构未配置'}
+        for role,names in [('健管',managers),('医生',doctors),('管理员',['演示管理员'])] for name in names]
+    data_table(rows,rows,key='organization-responsibilities',selectable=False)
+    st.caption('来自现有责任记录，不是已认证员工目录。生产 RBAC、多机构隔离与人员归属管理尚未实现。')
