@@ -2,7 +2,7 @@
 from datetime import date
 from uuid import UUID, uuid4
 from sqlalchemy import select
-from executive_health_ai.models import AgentGoal, AgentRunTrace, Document, ReportExtractionRun
+from executive_health_ai.models import AgentGoal, AgentRunTrace, Document, ReportExtractionRun, ReportExtractionCandidate
 from executive_health_ai.services.assessment_import import AssessmentImportService, DATA_STEPS
 from executive_health_ai.services.management_workflow import ManagementWorkflowService
 from executive_health_ai.services.profile_ingestion import ProfileIngestionService
@@ -44,13 +44,18 @@ def upload(session,patient,view,files):
     require_active(session,patient.id)
     if not files or len(files)>20 or sum(len(data) for _,data in files)>100*1024*1024:
         raise ValueError('请选择 1–20 份资料，每批不超过 100 MB。')
-    row=view.intake
+    # UI projections outlive their read session; mutate only an owned attached row.
+    from executive_health_ai.models.management_workflow import IntakeAssessment
+    from executive_health_ai.services.management_workflow import owned
+    row=owned(session,IntakeAssessment,view.intake.id,patient.id) if view.intake else None
     if row is None:
         year=(view.program.cycle_year or view.program.start_date.year) if view.program else date.today().year
         row=ManagementWorkflowService().start_intake(session,patient.id,year,view.owner)
         session.flush()
     if row.status=='DRAFT':
         results=imports.upload_batch(session,patient.id,row.id,files,actor=view.owner)
+        from executive_health_ai.services.intake_exceptions import enable
+        if any(r['goal_id'] for r in results):enable(row)
     else:
         results=[]
         for name,data in files:
@@ -70,6 +75,21 @@ def upload(session,patient,view,files):
 
 def project(session,patient_id,row,goal_id=None):
     imported,sections,stats=assessment(session,patient_id,row)
+    exceptions=None
+    if row:
+        from executive_health_ai.services.intake_exceptions import state,project as exception_project
+        if state(row).get('enabled'):
+            exceptions=exception_project(session,row)
+            counts=state(row).get('completion',exceptions['counts']) if row.status!='DRAFT' else exceptions['counts']
+            stats={'percent':round(counts['filled']/max(1,counts['total'])*100),'prefilled':counts['auto_filled'],
+                   'pending':counts['pending'],'missing':counts['missing'],'conflicts':counts['conflicts']}
+            for section in sections:
+                from executive_health_ai.services.assessment_import import step_for
+                queue=[q for q in exceptions['queue'] if step_for(q['section'])==section['step']] if row.status=='DRAFT' else []
+                section['pending']=sum(q['kind']=='CONFIRM' for q in queue)
+                section['conflicts']=sum(q['kind']=='CONFLICT' for q in queue)
+                section['exceptions']=len(queue)
+                section['status']='已完成' if row.status!='DRAFT' else '存在冲突' if section['conflicts'] else '待补充' if any(q['kind']=='MISSING' for q in queue) else '待确认'
     goals=list(session.scalars(select(AgentGoal).where(AgentGoal.member_id==patient_id,AgentGoal.goal_type=='PROFILE_INTAKE')
         .order_by(AgentGoal.started_at.desc(),AgentGoal.id)))
     if goals:
@@ -85,14 +105,25 @@ def project(session,patient_id,row,goal_id=None):
     for goal in goals:
         doc=session.get(Document,UUID(goal.source_id));run=session.get(ReportExtractionRun,UUID(goal.context_json['run_id']))
         support,traces=support_for(session,goal)
-        files.append(dict(goal=goal,document=doc,run=run,support=support,count=run.candidate_count or 0))
+        measurements=list(session.scalars(select(ReportExtractionCandidate.id).where(
+            ReportExtractionCandidate.extraction_run_id==run.id,ReportExtractionCandidate.candidate_type=='OBSERVATION',
+            ReportExtractionCandidate.status=='CONFIRMED'))) if goal.context_json.get('intake_id') else []
+        files.append(dict(goal=goal,document=doc,run=run,support=support,count=run.candidate_count or 0,
+                          confirmed_measurements=len(measurements)))
         events.extend((t.started_at,doc.title,t.result_summary) for t in traces if t.action=='profile_activity' and t.result_summary)
+        for trace in traces:
+            call=(trace.metadata_json or {}).get('capability',{})
+            if trace.action=='capability_activity' and call.get('kind')=='LLM' and call.get('request_sent'):
+                events.append((trace.started_at,doc.title,'本地AI开始整理自由文本'))
+                if trace.completed_at:
+                    result=f'本地AI完成：提取 {call.get("result_count",0)} 项有依据候选资料' if call.get('accepted') else '本地AI未能提供可采用结果，保留原文转人工核对'
+                    events.append((trace.completed_at,doc.title,result))
     pending=next((f for f in files if f['goal'].status in {'RUNNING','PROCESSING','WRITING'}),None)
     waiting=any(f['goal'].status in {'WAITING_MANAGER','WAITING_DOCTOR','ESCALATED'} for f in files)
     finished=bool(files) and all(f['goal'].status=='COMPLETED' for f in files)
     ready=bool(files) and not pending
     phase=PHASE_INDEX.get(pending['goal'].current_stage,1) if pending else 6 if finished else 5 if files else 0
-    return dict(imported=imported,sections=sections,stats=stats,files=files,events=sorted(events,key=lambda e:e[0]),
+    return dict(imported=imported,sections=sections,stats=stats,exceptions=exceptions,files=files,events=sorted(events,key=lambda e:e[0]),
         current=pending,processing=bool(pending),ready=ready,finished=finished,waiting=waiting,phase=phase,
         count=sum(f['count'] for f in files),processed=sum(f['goal'].status=='COMPLETED' or f['goal'].current_stage=='REVIEW' for f in files),
-        updates=sum(sum((f['goal'].context_json.get('output') or {}).get(k,0) for k in ('profile','history','measurements')) for f in files))
+        updates=sum(f['confirmed_measurements']+sum((f['goal'].context_json.get('output') or {}).get(k,0) for k in ('profile','history','measurements')) for f in files))

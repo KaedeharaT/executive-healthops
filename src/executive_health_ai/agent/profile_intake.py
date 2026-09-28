@@ -104,7 +104,7 @@ def advance(supervisor,session,goal):
         goal.status='WAITING_MANAGER' if following=='REVIEW' else 'RUNNING'
         goal.next_action='确认档案更新；有冲突的资料须逐项选择' if following=='REVIEW' else '正在'+LABELS[following]
         if following=='REVIEW' and goal.context_json.get('intake_id'):
-            goal.next_action='回到初始健康评估，逐步核对来源、处理冲突并补充资料后提交'
+            goal.next_action='在健康档案处理待确认、冲突和缺失资料，再确认提交初评'
         if following=='REVIEW':
             waiting=session.scalar(select(AgentPlanStep).where(AgentPlanStep.plan_id==goal.current_plan_id,AgentPlanStep.step_type=='REVIEW'))
             waiting.status='WAITING_MANAGER'

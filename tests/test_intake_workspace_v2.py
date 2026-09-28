@@ -70,7 +70,7 @@ def test_agent_completion_summary_visible(env):
     assert not app.exception and data['ready'] and not data['finished']
     assert app.subheader[0].value=='本次资料整理已完成'
     assert '待健管确认' in text(app) and '健康档案更新' in text(app)
-    assert data['stats']['prefilled']>0 and data['stats']['pending']>0
+    assert data['stats']['prefilled']>0 and data['exceptions']['counts']['exceptions']>0
     assert all(f['goal'].status=='WAITING_MANAGER' for f in data['files'])
 
 

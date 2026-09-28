@@ -35,7 +35,7 @@ def extract(session,goal,doc,run,client=None):
     from executive_health_ai.llm.activity import notify_progress
     content=Path(doc.storage_reference).read_bytes();suffix=Path(doc.title).suffix.lower()
     proposals=[];warnings=[];pages=[];residual=[];source_date=None
-    def add(section,field,value,evidence,where,page=None,record=None,method='FIELD_MAPPING'):
+    def add(section,field,value,evidence,where,page=None,record=None,method='FIELD_MAPPING',fact_date=None):
         value=str(value).strip()
         if not value:return
         if section not in SECTIONS or field not in SECTIONS[section] or len(value)>500 or len(evidence)>2000:
@@ -44,7 +44,7 @@ def extract(session,goal,doc,run,client=None):
             warnings.append(where+'：来源无法逐字核实');return
         if any(t in evidence for t in ('否认','未确诊','疑似','可能','无','未','不')) and not any(t in value for t in ('否认','未确诊','疑似','可能','无','未','不')) and field in {'疾病或问题','具体疾病','症状'}:
             warnings.append(where+'：否定或不确定描述需人工核对');return
-        proposals.append((ProfileFact(section=section,field=field,value=value,evidence=evidence,record=record or {}),where,page,method))
+        proposals.append((ProfileFact(section=section,field=field,value=value,evidence=evidence,record=record or {},source_date=fact_date or source_date),where,page,method))
     if suffix=='.json':
         payload=json.loads(content.decode('utf-8-sig'))
         if not isinstance(payload,dict) or not isinstance(payload.get('responses'),dict):
@@ -110,7 +110,9 @@ def extract(session,goal,doc,run,client=None):
     # Only unhandled text requests semantic assistance; native questionnaires do not.
     if residual:
         client=client or LocalLLMClient()
-        prefix='允许字段：'+json.dumps({k:sorted(v) for k,v in SECTIONS.items()},ensure_ascii=False)+'\n返回结构：'+json.dumps(HistoryExtraction.model_json_schema(),ensure_ascii=False)+'\n资料：\n'
+        # Compact contract leaves room for actual source text in the existing client's
+        # input budget. Source identity/location/confidence are bound by the server.
+        prefix='允许字段：'+json.dumps({k:sorted(v) for k,v in SECTIONS.items()},ensure_ascii=False)+'\n只返回 {"facts":[{"section":"步骤","field":"字段","value":"原文值","evidence":"逐字原文片段","record":{},"source_date":null}]}。不添加解释。资料：\n'
         limit=getattr(getattr(client,'settings',None),'max_input_chars',3000)-len(prefix)
         blocks=[];block=[];size=0
         for unit in residual:
@@ -131,15 +133,17 @@ def extract(session,goal,doc,run,client=None):
                     source=next((u for u in units if fact.evidence in u[0]),units[0])
                     if fact.source_date and fact.source_date!=source_date and fact.source_date.isoformat() not in fact.evidence:
                         warnings.append(source[1]+'：提取日期缺少原文依据');continue
-                    add(fact.section,fact.field,fact.value,fact.evidence,source[1],source[2],fact.record,'LLM')
+                    add(fact.section,fact.field,fact.value,fact.evidence,source[1],source[2],fact.record,'LLM',fact.source_date)
                 from executive_health_ai.llm.activity import result_checked
                 result_checked('parse_health_intake',len(proposals)-before)
+                notify_progress('AI_RESULT_CHECKED')
                 for unit in units:
                     if not any(fact.evidence in unit[0] for fact,_,_,_ in proposals[before:]):
                         warnings.append(unit[1]+'：尚有未映射原文，请人工核对')
                 if not facts:warnings.append(units[0][1]+'：未映射到初评字段，请核对原文')
             except (LocalLLMUnavailable,ValueError,TypeError):
                 run.llm_status='UNAVAILABLE';warnings.append(units[0][1]+'：AI 整理暂不可用或结果不能核实，请人工补充')
+                notify_progress('AI_UNAVAILABLE')
         if len(blocks)>30:warnings.append('后续长文本超出本次整理范围，请人工核对原文件')
     seen=set()
     for fact,where,page,method in proposals:
@@ -152,7 +156,9 @@ def extract(session,goal,doc,run,client=None):
             source_section=fact.section,evidence_text=fact.evidence,status='PENDING_REVIEW',
             structured_data_json={'section':fact.section,'field':fact.field,'value':fact.value,'record':fact.record,
                 'source_document_id':str(doc.id),'source_filename':doc.title,'source_locator':where,
-                'source_date':str(source_date or ''),'source_type':'上传资料原文',**({'intake_id':goal.context_json['intake_id']} if goal.context_json.get('intake_id') else {}),
+                'source_document':doc.title,'source_location':where,'source_excerpt':fact.evidence,
+                'confidence':'MEDIUM' if method=='LLM' else 'HIGH','status':'PENDING_REVIEW',
+                'source_date':str(fact.source_date or source_date or ''),'source_type':'上传资料原文',**({'intake_id':goal.context_json['intake_id']} if goal.context_json.get('intake_id') else {}),
                 'confirmation_status':'待健管确认','extracted_at':utc_now().isoformat()}))
     session.flush()
     from executive_health_ai.services.profile_ingestion import candidates

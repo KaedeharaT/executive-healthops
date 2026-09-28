@@ -145,6 +145,7 @@ class AssessmentImportService:
 
     def form_data(self,view,section):
         """Merge only empty fields; retained answers always win."""
+        from executive_health_ai.services.intake_exceptions import editor_data
         row=view['intake'];current=deepcopy(row.responses.get(section));suggested=deepcopy(view['prefill'].get(section))
         if section in TABLE_FIELDS:
             result=current or []
@@ -156,8 +157,8 @@ class AssessmentImportService:
                 else:
                     for k,v in proposal.items():
                         if not existing.get(k):existing[k]=v
-            return result
-        return {**(suggested or {}),**{k:v for k,v in (current or {}).items() if v}}
+            return editor_data(view,section,result)
+        return editor_data(view,section,{**(suggested or {}),**{k:v for k,v in (current or {}).items() if v}})
 
     def record_review(self,session,row,step,actor,note='',role='HEALTH_MANAGER'):
         from executive_health_ai.services.profile_ingestion import manager
