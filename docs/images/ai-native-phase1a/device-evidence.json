@@ -1,0 +1,12 @@
+{
+  "raw_events": 50,
+  "observations": 50,
+  "raw_wake_count": 0,
+  "meaningful_events": 1,
+  "meaningful_wake_count": 1,
+  "goals": 0,
+  "tasks": 0,
+  "formal_risks": 0,
+  "member_agent": "4f3bc1fa-e45f-42ca-99a1-b7dcea6e7419",
+  "passed": true
+}

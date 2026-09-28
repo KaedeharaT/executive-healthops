@@ -85,7 +85,7 @@ def project(goal, traces=(), entry=None, review=None):
     elif state == 'WAITING_DOCTOR':
         current, headline = '等待医生判断', '健康管理助手正在等待医生判断'
         next_action, after = '医生提交后自动继续', '系统会整理医生意见为行动草稿，再请您确认安排。'
-    elif state == 'RUNNING':
+    elif state in {'RUNNING','PROCESSING'}:
         headline = '健康管理助手继续工作' if ctx.get('doctor_result') else '健康管理助手正在工作'
         current = '正在建立正式后续安排' if stage == 'CREATING_ACTIONS' else '正在将医生意见整理为后续行动' if ctx.get('doctor_result') else '正在整理报告、健康资料与基线比较'
         next_action, after = '整理完成后，请健管确认安排' if ctx.get('doctor_result') else '准备健管确认内容', '当前无需操作；完成当前工作后自动进入下一步。'

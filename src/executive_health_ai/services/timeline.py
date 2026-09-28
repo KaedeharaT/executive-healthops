@@ -70,7 +70,7 @@ def build_patient_timeline(
         title = "已记录服药" if event.status == "taken" else "服药计划"
         items.append(TimelineItem(event.taken_at or event.scheduled_at, "medication", title, f"状态：{event.status}", "用户记录"))
     for event in session.scalars(select(HealthEvent).where(
-        HealthEvent.patient_id == patient_id, HealthEvent.start_at >= start
+        HealthEvent.patient_id == patient_id, HealthEvent.start_at >= start, HealthEvent.event_category.is_(None)
     )):
         items.append(TimelineItem(event.start_at, "health_event", _health_event_title(event.event_type), event.description, event.source))
     for encounter in session.scalars(select(Encounter).where(

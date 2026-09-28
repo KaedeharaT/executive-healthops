@@ -26,6 +26,7 @@ from executive_health_ai.models.sleep_session import SleepSession
 from executive_health_ai.models.training import TrainingSession
 from executive_health_ai.models.ai_governance import FeedbackDatasetVersion, FeedbackRecord, ModelVersionRegistry, RiskRuleReviewCandidate
 from executive_health_ai.models.agent import AgentApprovalRequest, AgentEvent, AgentGoal, AgentPlan, AgentPlanStep, AgentRunTrace
+from executive_health_ai.models.member_agent import MemberAgent
 from executive_health_ai.models.longitudinal import (
     ExternalReferral, HealthAssessment, ManagementRule, ManagementSignal,
     MemberDeviceAssignment,
@@ -46,7 +47,7 @@ __all__ = [
     "HealthAssessment", "ManagementRule", "ManagementSignal", "MemberDeviceAssignment", "ExternalReferral",
     "ServiceCatalogItem", "ServicePlan", "ServicePlanItem", "MemberEntitlement", "ServiceRequest", "MemberPlanChoice", "TrainingSession",
     "FeedbackRecord", "FeedbackDatasetVersion", "ModelVersionRegistry", "RiskRuleReviewCandidate",
-    "AgentEvent", "AgentGoal", "AgentPlan", "AgentPlanStep", "AgentApprovalRequest", "AgentRunTrace",
+    "AgentEvent", "AgentGoal", "AgentPlan", "AgentPlanStep", "AgentApprovalRequest", "AgentRunTrace", "MemberAgent",
 ]
 from executive_health_ai.models.management_workflow import IntakeAssessment, ManagementLog, RecheckPlan, ConsultationCase, FamilyRelation, StageReview
 from executive_health_ai.models import archive_guard  # noqa: F401 -- stale-session write protection

@@ -149,7 +149,7 @@ def move(supervisor, session, goal, stage, next_action, *, status=None):
                 step.started_at = step.started_at or utc_now()
                 if stage == 'COMPLETED':
                     step.completed_at = utc_now()
-                if stage in {'WAITING_MANAGER_REVIEW', 'WAITING_ACTION_APPROVAL'}:
+                if stage in {'WAITING_MANAGER_REVIEW', 'WAITING_ACTION_APPROVAL'} and goal.status in {'WAITING_MANAGER','WAITING_INPUT'}:
                     supervisor._approval(session, goal, step, stage, 'HEALTH_MANAGER')
     supervisor._trace(session, goal, action='state_changed', status=goal.status, summary=LABELS[stage]+'；'+next_action)
     session.flush()
@@ -175,6 +175,11 @@ def llm_summary(context):
         return summary, 'AVAILABLE'
     except Exception:
         return '已提取报告资料，请核对数值、变化及后续处理路径。', 'UNAVAILABLE'
+
+
+def external_ai_enabled():
+    from executive_health_ai.llm.local_llm_client import LocalLLMSettings
+    return LocalLLMSettings.from_environment().enabled
 
 
 def analyze(supervisor, session, goal):
@@ -212,6 +217,11 @@ def analyze(supervisor, session, goal):
                 'started_at':knowledge_started.isoformat(),'completed_at':utc_now().isoformat(), 'input_sources':['本次体检指标']})
             supervisor._trace(session, goal, action='knowledge_unavailable', status='COMPLETED', summary='知识检索暂不可用，继续人工核对；不生成替代医学依据')
         goal.context_json = {**goal.context_json, 'knowledge': knowledge}
+        if external_ai_enabled():
+            goal.context_json={**goal.context_json,'pending_ai':{'kind':'summary'}}
+            goal.next_action='正在准备体检资料摘要'
+            session.flush()
+            return goal
         with collect_calls() as calls:
             summary, llm_status = llm_summary(goal.context_json)
         activity_audit.llm_calls(session,goal,calls,accepted=llm_status=='AVAILABLE',
@@ -293,6 +303,10 @@ def prepare_actions(supervisor, session, goal):
     # Optional language assistance can only reuse an exact doctor quote as a
     # follow-up title; types, dates, permissions and writes remain deterministic.
     if result:
+        if external_ai_enabled():
+            goal.context_json={**context,'actions':actions,'pending_ai':{'kind':'doctor_actions'}}
+            move(supervisor,session,goal,'WAITING_ACTION_APPROVAL','正在准备已确认医生意见的后续安排',status='RUNNING')
+            return
         accepted = False
         calls = []
         try:
@@ -319,11 +333,11 @@ def approve_actions(supervisor, session, goal, *, actions, actor, role):
         move(supervisor,session,goal,'ESCALATED','需要优先人工处理')
         return goal
     care_routing.guard(session, goal, actions=True)
-    if goal.current_stage != 'WAITING_ACTION_APPROVAL':
+    if goal.current_stage != 'WAITING_ACTION_APPROVAL' or goal.status!='WAITING_MANAGER':
         raise ValueError('当前不能建立后续安排。')
     with session.begin_nested():
         claim = session.execute(update(AgentGoal).where(AgentGoal.id == goal.id,
-            AgentGoal.current_stage == 'WAITING_ACTION_APPROVAL').values(current_stage='CREATING_ACTIONS', status='RUNNING'))
+            AgentGoal.current_stage == 'WAITING_ACTION_APPROVAL',AgentGoal.status=='WAITING_MANAGER').values(current_stage='CREATING_ACTIONS', status='RUNNING'))
         if claim.rowcount != 1:
             raise ValueError('后续安排正在处理，请刷新。')
         move(supervisor, session, goal, 'CREATING_ACTIONS', '正在建立正式管理安排')

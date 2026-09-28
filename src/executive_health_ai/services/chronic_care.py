@@ -66,6 +66,8 @@ def create_program(
     program = HealthProgram(patient_id=journey.patient_id, journey_id=journey.id, program_type=program_type, title=title.strip(), main_goal=main_goal.strip(), supporting_goals_json=[goal.strip() for goal in supporting_goals if goal.strip()], status="ACTIVE", current_phase="STARTUP" if program_type == "NINETY_DAY" else "ONGOING", owner=owner, doctor=doctor or journey.doctor, start_date=start_date, end_date=end_date)
     session.add(program)
     session.flush()
+    from executive_health_ai.services.member_agents import ensure_member_agent
+    ensure_member_agent(session,journey.patient_id)
     stage = {"NINETY_DAY": "90_DAY_PROGRAM", "STABILIZATION": "STABILIZATION", "ANNUAL": "ANNUAL_MANAGEMENT"}[program_type]
     journey.current_stage = stage
     for rank, problem in enumerate(priority_problems or [], start=1):

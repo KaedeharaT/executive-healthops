@@ -43,7 +43,7 @@ class DeterministicNarrator:
 def generate_possible_associations(session: Session, patient_id: UUID) -> list[PossibleAssociation]:
     """Find repeatable temporal co-occurrences or abstain when evidence is sparse."""
 
-    events = list(session.scalars(select(HealthEvent).where(HealthEvent.patient_id == patient_id)))
+    events = list(session.scalars(select(HealthEvent).where(HealthEvent.patient_id == patient_id, HealthEvent.event_category.is_(None))))
     sleeps = list(session.scalars(select(SleepSession).where(SleepSession.patient_id == patient_id)))
     observations = list(session.scalars(select(Observation).where(Observation.patient_id == patient_id)))
     medication_events = list(session.scalars(select(MedicationEvent).where(MedicationEvent.patient_id == patient_id)))

@@ -9,6 +9,8 @@ class AgentProgressPanel:
     def render(p,*,show_activity=True,flow_name="健康管理助手",next_action=""):
         if p is None:return
         st.caption(flow_name)
+        if getattr(p,'trigger_reason',''):
+            st.caption('触发原因：'+p.trigger_reason+' · 来源：'+p.trigger_source)
         minutes,seconds=divmod(p.elapsed_seconds,60)
         st.markdown(f'<div class="agent-progress-title">整体进度 {p.progress_percent}% · {escape(p.step_label)}</div>'
             f'<div class="agent-progress-track" role="progressbar" aria-label="整体业务进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{p.progress_percent}">'

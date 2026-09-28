@@ -156,7 +156,7 @@ def manager_detail(app, goal_id):
     from executive_health_ai.ui.pages.manager.operations_board import render
     # A waiting board updates quietly every 30s; active processing is checked
     # every 5s. Data is always re-read from the same persisted goal.
-    @st.fragment(run_every=5 if goal.status == 'RUNNING' else 30 if goal.status == 'WAITING_DOCTOR' else None)
+    @st.fragment(run_every=5 if goal.status in {'RUNNING','PROCESSING'} else 30 if goal.status == 'WAITING_DOCTOR' else None)
     def live_board():
         with SessionLocal() as session:
             current = session.get(AgentGoal, UUID(str(goal_id)))
@@ -190,7 +190,7 @@ def _manager_action(app, goal, activity, live):
             st.session_state.pop('care-detail',None)
             st.session_state[f'workflow-mode-{goal.member_id}']='管理事项'
             app._open_member_management(goal.member_id);st.rerun()
-    elif goal.current_stage == 'WAITING_DOCTOR_REVIEW' and goal.status != 'RUNNING':
+    elif goal.current_stage == 'WAITING_DOCTOR_REVIEW' and goal.status not in {'RUNNING','PROCESSING'}:
         from executive_health_ai.models import DoctorReview
         with SessionLocal() as session:
             review = session.get(DoctorReview, UUID(context['review_id']))
@@ -198,7 +198,7 @@ def _manager_action(app, goal, activity, live):
         st.info('当前无需健管操作。助手已准备医学问题和可用资料并提交医生。')
         st.info(f"责任医生：{review.doctor_name} · 提交时间：{ux.local_time(review.created_at).strftime('%Y-%m-%d %H:%M')}")
         st.caption('医生提交后系统会自动继续；需要您确认的后续行动会重新进入今日工作。')
-    elif goal.status=='RUNNING':
+    elif goal.status in {'RUNNING','PROCESSING'}:
         st.subheader(activity.headline)
         st.info('当前正在：'+activity.current)
         st.write('下一步：'+activity.next_action)

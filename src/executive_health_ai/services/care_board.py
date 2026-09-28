@@ -36,7 +36,7 @@ def project(session, goal):
     decision = care_routing.evaluate(session, goal)
     risks, review = care_routing.facts(session, goal)
     owner = ('医生 '+review.doctor_name if goal.status == 'WAITING_DOCTOR' and review else
-             '健康管理助手' if goal.status in {'RUNNING', 'COMPLETED'} and decision.route_type != 'ESCALATE' else
+             '健康管理助手' if goal.status in {'RUNNING', 'PROCESSING', 'COMPLETED'} and decision.route_type != 'ESCALATE' else
              (goal.takeover_by or goal.owner or '待指派健康管理师'))
     rows = []
     for risk in risks:

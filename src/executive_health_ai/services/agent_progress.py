@@ -47,6 +47,8 @@ class AgentProgressProjection:
     ai_count: int=0
     ai_status: str='NOT_USED'
     timeout: bool=False
+    trigger_reason: str=''
+    trigger_source: str=''
 
     @property
     def step_label(self):return self.labels[self.current_step-1]
@@ -110,7 +112,8 @@ def project(goal,steps=(),traces=(),*,now=None):
         stamp(goal.started_at),seconds(goal.started_at,end),seconds(stage_start,now),running,goal.status,
         ai_running=ai_running,ai_started_at=ai_start,ai_elapsed_seconds=seconds(ai_start,now if ai_running else ai_end),
         ai_used=bool(ai_start or calls),ai_count=sum(t.metadata_json['capability'].get('result_count',0) for t in calls if t.metadata_json['capability'].get('accepted')),
-        ai_status='RUNNING' if ai_running else data.get('status','UNAVAILABLE' if timeout or events.get('AI_UNAVAILABLE') else 'SUCCESS' if ai_end else 'NOT_USED'),timeout=timeout)
+        ai_status='RUNNING' if ai_running else data.get('status','UNAVAILABLE' if timeout or events.get('AI_UNAVAILABLE') else 'SUCCESS' if ai_end else 'NOT_USED'),timeout=timeout,
+        trigger_reason=ctx.get('trigger_reason',''),trigger_source=ctx.get('trigger_source',''))
 
 
 def load(session,goal,*,now=None):

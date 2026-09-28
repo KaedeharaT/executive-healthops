@@ -65,7 +65,9 @@ def test_admin_profile_board_reuses_foreground_renderer(monkeypatch):
     monkeypatch.setattr(management_workflow,'owned',Mock(return_value=assessment))
     data={'same_goal':goal.id};project=Mock(return_value=data);draw=Mock()
     monkeypatch.setattr(projection,'project',project);monkeypatch.setattr(intake_workspace,'draw',draw)
-    monkeypatch.setattr(intake_workspace,'styles',Mock());monkeypatch.setattr(agent_capabilities,'load',Mock(return_value=([],[])))
+    # V7 uses the shared design tokens; the removed local styles renderer is not
+    # part of this reuse contract. Keep verifying the actual board and goal.
+    monkeypatch.setattr(agent_capabilities,'load',Mock(return_value=([],[])))
     operations_board.render(None,goal,admin=True)
     assert project.call_args.args[1:]==(goal.member_id,assessment,str(goal.id))
     draw.assert_called_once_with(data)

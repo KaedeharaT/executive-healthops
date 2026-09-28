@@ -1,0 +1,16 @@
+{
+  "intake": {
+    "identity_preserved": true,
+    "status": "WAITING_MANAGER",
+    "wake_count": 1
+  },
+  "doctor": {
+    "identity_preserved": true,
+    "status": "WAITING_MANAGER",
+    "wake_count": 2
+  },
+  "streamlit": 200,
+  "fastapi": 200,
+  "platform_running": true,
+  "database_rebuilt": false
+}

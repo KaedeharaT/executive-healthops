@@ -150,7 +150,6 @@ def render(app, goal, *, admin=False):
             assessment=owned(session,IntakeAssessment,intake_id,goal.member_id) if intake_id else None
             data=intake_project(session,goal.member_id,assessment,str(goal.id))
             _,traces=load(session,goal)
-        intake_workspace.styles()
         intake_workspace.draw(data)
         if admin:
             with st.expander('技术详情'):ai_support.technical(traces)

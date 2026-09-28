@@ -41,6 +41,13 @@ class HealthOpsAgentSupervisor:
         self.default_max_retries = max(0, int(os.getenv("AGENT_MAX_RETRIES", "3")))
 
     def receive_event(self, session: Session, event: AgentEvent) -> AgentGoal | None:
+        from executive_health_ai.services.health_events import MIGRATED, from_legacy
+        if event.event_type in MIGRATED:
+            return from_legacy(session,event,self)
+        return self._receive_business_event(session,event)
+
+    def _receive_business_event(self, session: Session, event: AgentEvent) -> AgentGoal | None:
+        """Existing bounded policies, reached after the unified routing decision."""
         from executive_health_ai.services.member_archive import is_archived
         if is_archived(session,event.member_id):
             # A replay must not rewrite the history of a previously processed
@@ -448,7 +455,12 @@ class HealthOpsAgentSupervisor:
         return needed
 
     def _goal_for_event(self, session: Session, event: AgentEvent) -> AgentGoal | None:
-        direct = session.scalar(select(AgentGoal).where(AgentGoal.source_type == event.source_type, AgentGoal.source_id == event.source_id).order_by(AgentGoal.started_at.desc()))
+        routed=(event.metadata_json or {}).get('routed_goal_id')
+        if routed:
+            return session.scalar(select(AgentGoal).where(AgentGoal.id==UUID(routed),AgentGoal.member_id==event.member_id))
+        if event.source_type=='agent_goal':
+            return session.scalar(select(AgentGoal).where(AgentGoal.id==UUID(event.source_id),AgentGoal.member_id==event.member_id))
+        direct = session.scalar(select(AgentGoal).where(AgentGoal.member_id==event.member_id,AgentGoal.source_type == event.source_type, AgentGoal.source_id == event.source_id).order_by(AgentGoal.started_at.desc()))
         if direct:
             return direct
         return session.scalar(select(AgentGoal).where(AgentGoal.member_id == event.member_id, AgentGoal.status.in_(("ACTIVE", "WAITING", "BLOCKED"))).order_by(AgentGoal.started_at.desc()))

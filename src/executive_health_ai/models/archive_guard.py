@@ -47,7 +47,7 @@ def protect_archived_members(session, flush_context, instances):
         # Audit is append-only; late events may record that execution was ignored.
         if row in session.new and table.name in {'audit_logs','agent_run_traces'}:
             continue
-        if table.name=='agent_events' and row not in session.deleted and row.status=='IGNORED':
+        if table.name in {'agent_events','health_events'} and row not in session.deleted and row.status=='IGNORED':
             continue
         values={column.key:getattr(row,column.key,None) for column in state.mapper.columns}
         member_id=owner_id(connection,table,values)

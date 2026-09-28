@@ -1,0 +1,73 @@
+HealthOps
+swap_horiz
+
+切换演示角色
+
+expand_more
+
+当前：医生 · 演示预览
+
+医生工作
+
+待我判断
+
+历史
+
+← 返回待我判断
+
+李四（医生流程合成） · 体检后医学复核
+需要判断的问题
+
+请结合原始资料判断是否需要进一步医学评估。
+
+责任医生：演示医生 · 来源：体检后健康管理
+
+本次发现
+
+本次资料已由健管核对入档。变化表示数值差异，不代表医学判断。
+
+3 条 · 点击列名排序
+
+keyboard_arrow_right
+
+系统整理结果与会员背景
+
+依据
+
+1 条 · 点击行查看详情；点击列名排序
+
+暂无匹配的已审核知识依据
+
+查看原始报告
+
+填写医学判断
+
+医学判断
+
+建议
+
+是否复查
+
+不需要
+
+需要
+
+建议时间
+
+Press the down arrow key to interact with the calendar and select a date. Press the escape button to close the calendar.
+
+Selected date is 2026/12/28. Select the second date.
+
+复查项目
+
+随访时间
+
+Press the down arrow key to interact with the calendar and select a date. Press the escape button to close the calendar.
+
+Selected date is 2026/10/29. Select the second date.
+
+keyboard_arrow_right
+
+其他说明
+
+提交判断

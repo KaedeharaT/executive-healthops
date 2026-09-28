@@ -18,7 +18,20 @@ class AgentSchedulerService:
 
     def run_due(self, session: Session, *, now: datetime, durable_profile: bool = False) -> int:
         supervisor = self.supervisor
-        processed = 0
+        from executive_health_ai.services.health_events import process_pending
+        processed = process_pending(session,supervisor,now=now)
+        # Reconcile migrated identities and changes made before a worker restart.
+        from executive_health_ai.models import MemberAgent, Patient
+        from executive_health_ai.services.member_agents import synchronize
+        for member_id in session.scalars(select(MemberAgent.member_id).join(Patient,Patient.id==MemberAgent.member_id)
+                .where(Patient.archived_at.is_(None))):
+            synchronize(session,member_id)
+        if durable_profile:
+            from executive_health_ai.agent.post_checkup_execution import execute
+            for goal in list(session.scalars(select(AgentGoal).where(AgentGoal.goal_type=='POST_CHECKUP_MANAGEMENT',
+                    AgentGoal.status.in_(('RUNNING','PROCESSING')),AgentGoal.automation_paused.is_(False)))):
+                if goal.context_json.get('pending_ai'):
+                    execute(supervisor,session,goal);processed+=1
         statuses=['RUNNING','PROCESSING'] if durable_profile else ['RUNNING']
         for goal in list(session.scalars(select(AgentGoal).where(AgentGoal.goal_type == "PROFILE_INTAKE", AgentGoal.status.in_(statuses), AgentGoal.automation_paused.is_(False)))):
             supervisor.execute_next_step(session, goal.id, **({'durable_profile':True} if durable_profile else {}))
