@@ -132,7 +132,7 @@ def test_ai_activity_reflects_real_calls_only(env):
         with observe_call('parse_health_intake','local'):pass
         assert events==[]
         with observe_call('parse_health_intake','local'):request_started()
-        assert events==['AI_REQUEST_STARTED']
+    assert events==['AI_REQUEST_STARTED','AI_REQUEST_FINISHED']
     data=process(env)
     app=AppTest.from_function(board,args=(data,)).run()
     assert 'AI语义整理' in text(app) and '本次未使用' in text(app)

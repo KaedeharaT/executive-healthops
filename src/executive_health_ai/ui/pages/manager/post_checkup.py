@@ -60,7 +60,7 @@ def command(goal_id, callback, *, activity="正在保存确认并继续后续管
             st.error(str(exc))
 
 
-def stepper(goal):
+def stepper(goal, progress=None):
     labels = ['报告接收', '系统分析', '责任分流', '专业确认', '行动建立', '完成']
     current = {'REPORT_RECEIVED': 0, 'ANALYZING': 1, 'WAITING_MANAGER_REVIEW': 3,
                'WAITING_DOCTOR_REVIEW': 3, 'WAITING_ACTION_APPROVAL': 4, 'CREATING_ACTIONS': 4,
@@ -71,6 +71,9 @@ def stepper(goal):
         status = '已跳过' if skipped else '已完成' if index < current or goal.status == 'COMPLETED' else '当前' if index == current else '待开始'
         if index == 1 and goal.status in {'ESCALATED','FAILED'} and not goal.context_json.get('structured'):
             status='需人工核对'
+        if progress:
+            current=progress.current_step-1
+            status='已完成' if progress.done[index] else '当前' if index==current else '待开始'
         mark = '—' if skipped else '✓' if status == '已完成' else '●' if status == '当前' else '○'
         pieces.append(f'<div role="listitem" class="flow-step {"active" if index == current else "done" if status == "已完成" else ""}"><b class="flow-dot">{mark}</b><span>{label}<br><small>{status}</small></span></div>')
     st.markdown('<div role="list" aria-label="体检后管理进度" class="v2-workflow">'+''.join(pieces)+'</div>', unsafe_allow_html=True)

@@ -26,7 +26,9 @@ def execute(supervisor, session, goal):
     now=utc_now()
     token=uuid4().hex
     lease=timedelta(seconds=LocalLLMSettings.from_environment().timeout_seconds+120)
-    context={**goal.context_json, 'execution': {'token':token, 'event':'RUNNING'}}
+    context={**goal.context_json, 'execution': {'token':token, 'event':'RUNNING', 'started_at':now.isoformat(), 'event_at':now.isoformat()}}
+    if goal.current_stage=='PARSING':
+        context['progress_events']={'PARSING_STARTED':now.isoformat()}
     claimed=session.execute(update(AgentGoal).where(
         AgentGoal.id==goal.id, AgentGoal.current_stage==goal.current_stage,
         AgentGoal.automation_paused.is_(False),
@@ -57,9 +59,12 @@ def execute(supervisor, session, goal):
             return
         # A separate short transaction publishes actual worker progress without
         # flushing the parser's pending ORM metadata or unconfirmed candidates.
+        at=utc_now().isoformat()
+        context['progress_events']={**context.get('progress_events',{}),event:at}
+        context['execution']={**context['execution'],'event':event,'event_at':at}
         with Session(session.get_bind()) as status:
             updated=status.execute(update(AgentGoal).where(owner).values(
-                context_json={**context,'execution':{'token':token,'event':event}},
+                context_json=context,
                 next_check_at=utc_now()+lease)).rowcount
             status.commit()
         if not updated:raise ClaimLost('Intake execution was superseded.')
@@ -67,7 +72,8 @@ def execute(supervisor, session, goal):
     try:
         with observe_progress(progress,chain=True):
             result=advance(supervisor,session,goal,claimed=True)
-        result.context_json={k:v for k,v in result.context_json.items() if k!='execution'}
+        result.context_json={**{k:v for k,v in result.context_json.items() if k!='execution'},
+                             'progress_events':context.get('progress_events',{})}
         result.next_check_at=None
         session.commit()
         return result

@@ -5,7 +5,7 @@ from executive_health_ai.models.base import utc_now
 
 ALLOWED = {'kind', 'task', 'provider', 'request_sent', 'started_at', 'completed_at', 'latency_ms',
            'status', 'accepted', 'input_sources', 'result_count', 'knowledge_hit_count', 'citations',
-           'reason', 'parse_method', 'retrieval_policy', 'operation_id'}
+           'reason', 'parse_method', 'retrieval_policy', 'operation_id', 'failure_reason'}
 CITATION_KEYS = ('title', 'source', 'source_url', 'version', 'location', 'excerpt', 'retrieved_at', 'scope')
 
 

@@ -52,12 +52,17 @@ def observe_call(task, provider):
     try:
         yield
         row['status'] = 'SUCCESS'
-    except Exception:
+    except Exception as exc:
         row['status'] = 'UNAVAILABLE'
+        from requests.exceptions import Timeout
+        row['failure_reason'] = 'TIMEOUT' if isinstance(exc,Timeout) or isinstance(exc.__cause__,Timeout) else 'UNAVAILABLE'
         raise
     finally:
         row.update(completed_at=datetime.now(timezone.utc).isoformat(), latency_ms=round((perf_counter()-started)*1000))
         _current.reset(token)
+        if row['request_sent']:
+            notify_progress('AI_REQUEST_FINISHED' if row['status']=='SUCCESS' else
+                            'AI_REQUEST_TIMEOUT' if row.get('failure_reason')=='TIMEOUT' else 'AI_REQUEST_FAILED')
 
 
 def request_started():

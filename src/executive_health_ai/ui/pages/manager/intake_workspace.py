@@ -45,6 +45,9 @@ def support(data, event=None):
         rows=[a for a in activities if a.key==key]
         with col:
             st.markdown('**'+title+'**')
+            if key=='semantic':
+                from executive_health_ai.ui.agent_progress import ai_timing
+                for f in data['files']:ai_timing(f.get('progress'))
             if key=='semantic' and event=='AI_REQUEST_STARTED':
                 st.write('● 正在进行')
                 st.caption('本地AI正在整理资料 · 用途：从自由文本中提取有原文依据的健康信息')
@@ -62,7 +65,9 @@ def support(data, event=None):
 
 def execution_mark(data,event=None):
     """Only a running goal or the actual request callback can animate."""
-    if event=='AI_UNAVAILABLE':return '! '
+    if data.get('progress') and not data['progress'].running:
+        return '✓ ' if data['finished'] else '! ' if data['progress'].status in {'FAILED','ESCALATED','CANCELLED'} else '● '
+    if event in {'AI_UNAVAILABLE','AI_REQUEST_TIMEOUT','AI_REQUEST_FAILED'}:return '! '
     if event=='AI_RESULT_CHECKED':return '✓ '
     if event=='AI_REQUEST_STARTED' or (data['current'] and data['current']['goal'].status in {'RUNNING','PROCESSING'}):
         return '<span class="intake-spinner" aria-label="正在执行"></span>'
@@ -74,7 +79,7 @@ def draw(data, event=None, *, assessment_summary=True):
     if event is None and data['current'] and data['current']['goal'].status=='PROCESSING':
         event=data['current']['goal'].context_json.get('execution',{}).get('event')
     with st.container():
-        title='健康管理助手正在整理资料' if data['processing'] else '本次资料整理已完成' if data['ready'] and not any(f['goal'].status in {'ESCALATED','CANCELLED'} for f in data['files']) else '健康管理助手'
+        title='健康管理助手正在整理资料' if data['processing'] else '本次资料整理已完成' if data['ready'] and not any(f['goal'].status in {'FAILED','ESCALATED','CANCELLED'} for f in data['files']) else '健康管理助手'
         st.subheader(title)
         if not data['files']:
             st.write('当前：暂无正在处理的健康资料')
@@ -82,14 +87,19 @@ def draw(data, event=None, *, assessment_summary=True):
             st.markdown('[上传健康资料](#intake-upload)')
             support(data)
             return
+        from executive_health_ai.ui.agent_progress import render as progress_bar
+        progress_bar(data.get('progress'),show_activity=False)
         phase=2 if event in {'CONTENT_READ','AI_REQUEST_STARTED'} else 4 if event=='PREFILL_READY' else data['phase']
+        if data.get('progress'):phase=data['progress'].current_step-1
+        done=data['progress'].done if data.get('progress') else tuple(i<phase or data['finished'] for i in range(7))
         st.markdown('<ol class="intake-agent-steps" aria-label="健康资料整理进度">'+''.join(
-            f'<li class="{"done" if i<phase or data["finished"] else "current" if i==phase else ""}"><b>{"✓" if i<phase or data["finished"] else "●" if i==phase else "○"}</b>{label}<br><small>{"已完成" if i<phase or data["finished"] else "当前" if i==phase else "待开始"}</small></li>'
+            f'<li class="{"done" if done[i] else "current" if i==phase else ""}"><b>{"✓" if done[i] else "●" if i==phase else "○"}</b>{label}<br><small>{"已完成" if done[i] else "当前" if i==phase else "待开始"}</small></li>'
             for i,label in enumerate(projection.PHASES))+'</ol>',unsafe_allow_html=True)
         current=data['current']
         linked=any(f['goal'].context_json.get('intake_id') for f in data['files'])
         filename=current['document'].title if current else '本批资料已整理，等待逐项核对' if not data['finished'] else '本批资料来源已核对并提交'
         action=('正在从 '+str(len(data['files']))+' 份健康资料中'+('提取可核对的健康信息' if phase==2 else '读取内容' if phase==1 else '匹配现有档案并准备初评预填' if phase in {3,4} else '接收原始资料')) if current else '需要您核对来源、处理冲突并补充初评' if not data['finished'] else '初始评估已提交，后续医学事实仍按现有规则确认'
+        if current and data.get('progress'):action=data['progress'].current_activity
         if current and phase==6:action='正在写入已经确认的健康档案更新'
         if not current and data.get('exceptions') and not data['finished']:
             remaining=data['exceptions']['counts']['exceptions']
@@ -102,10 +112,11 @@ def draw(data, event=None, *, assessment_summary=True):
         if not current and any(f['goal'].status=='WAITING_DOCTOR' for f in data['files']):
             action='等待医生判断；医生提交后再继续健管确认'
             filename='医学问题已交给医生，当前无需重复整理资料'
-        elif not current and any(f['goal'].status in {'ESCALATED','CANCELLED'} for f in data['files']):
+        elif not current and any(f['goal'].status in {'FAILED','ESCALATED','CANCELLED'} for f in data['files']):
             action='资料需要人工接手，请核对原文件并补充可读取资料'
             filename='部分资料未能可靠读取，尚未全部完成'
-        st.markdown('<div class="intake-agent-current" role="status"><strong>'+execution_mark(data,event)+'当前正在进行</strong>'+escape(action)+'<br>当前处理：'+escape(filename)+'</div>',unsafe_allow_html=True)
+        heading='当前正在进行' if data['processing'] else '当前状态'
+        st.markdown('<div class="intake-agent-current" role="status"><strong>'+execution_mark(data,event)+heading+'</strong>'+escape(action)+'<br>当前处理：'+escape(filename)+'</div>',unsafe_allow_html=True)
         c.summary_strip([('上传资料',str(len(data['files']))+' 份'),('已经完成',f'{data["processed"]} / {len(data["files"])} 文件'),('已发现',str(data['count'])+' 项健康信息')])
         if data['ready']:
             s=data['stats']
@@ -143,19 +154,28 @@ def workspace(app,patient,view, *, uploader=True, show_actions=True):
         with st.container(key='intake-agent-board'):
             board=st.empty()
         with board.container():draw(current,assessment_summary=assessment_summary)
-        if current['current'] and current['current']['goal'].status=='RUNNING':
-            from executive_health_ai.agent.supervisor import HealthOpsAgentSupervisor
-            from executive_health_ai.llm.activity import observe_progress
-            def display(event):
-                if event!='BEFORE_PERSIST':
-                    with board.container():draw(current,event,assessment_summary=assessment_summary)
-            with observe_progress(display), SessionLocal() as session:
-                HealthOpsAgentSupervisor().execute_next_step(session,current['current']['goal'].id,durable_profile=True)
-                session.commit()
-            st.rerun()
+        if current['current'] and current['current']['goal'].status in {'RUNNING','PROCESSING'}:
+            from executive_health_ai.ui.intake_execution import submit
+            submit(current['current']['goal'].id)
         if data['processing'] and not current['processing']:st.rerun()
     live()
     if not show_actions:return data
+    failed=[f for f in data['files'] if f['goal'].status=='ESCALATED' and f['goal'].context_json.get('intake_id')]
+    for f in failed:
+        with st.container(border=True):
+            st.warning(f['document'].title+'：'+f['goal'].next_action)
+            from pathlib import Path
+            path=Path(f['document'].storage_reference)
+            if path.is_file():st.download_button('查看原文件',path.read_bytes(),file_name=f['document'].title,key='progress-original-'+str(f['goal'].id))
+            if st.button('重新尝试',key='progress-retry-'+str(f['goal'].id)):
+                from executive_health_ai.agent.profile_intake import retry
+                from executive_health_ai.models import AgentGoal
+                try:
+                    with SessionLocal() as session:
+                        retry(session,session.get(AgentGoal,f['goal'].id),actor=view.owner,role='HEALTH_MANAGER');session.commit()
+                    st.rerun()
+                except ValueError as error:st.error(str(error))
+            st.button('转人工处理',key='progress-manual-'+str(f['goal'].id),on_click=continue_intake,args=(patient,view))
     if exception_mode:
         from executive_health_ai.ui.pages.manager.intake_exceptions import panel
         panel(patient,view)

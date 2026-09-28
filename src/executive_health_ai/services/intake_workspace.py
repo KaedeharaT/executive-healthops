@@ -108,7 +108,8 @@ def project(session,patient_id,row,goal_id=None):
         measurements=list(session.scalars(select(ReportExtractionCandidate.id).where(
             ReportExtractionCandidate.extraction_run_id==run.id,ReportExtractionCandidate.candidate_type=='OBSERVATION',
             ReportExtractionCandidate.status=='CONFIRMED'))) if goal.context_json.get('intake_id') else []
-        files.append(dict(goal=goal,document=doc,run=run,support=support,count=run.candidate_count or 0,
+        from executive_health_ai.services.agent_progress import load as progress_for
+        files.append(dict(goal=goal,document=doc,run=run,support=support,progress=progress_for(session,goal),count=run.candidate_count or 0,
                           confirmed_measurements=len(measurements)))
         events.extend((t.started_at,doc.title,t.result_summary) for t in traces if t.action=='profile_activity' and t.result_summary)
         for trace in traces:
@@ -123,7 +124,9 @@ def project(session,patient_id,row,goal_id=None):
     finished=bool(files) and all(f['goal'].status=='COMPLETED' for f in files)
     ready=bool(files) and not pending
     phase=PHASE_INDEX.get(pending['goal'].current_stage,1) if pending else 6 if finished else 5 if files else 0
-    return dict(imported=imported,sections=sections,stats=stats,exceptions=exceptions,files=files,events=sorted(events,key=lambda e:e[0]),
+    from executive_health_ai.services.agent_progress import batch
+    progress=batch(files)
+    return dict(imported=imported,sections=sections,stats=stats,exceptions=exceptions,files=files,progress=progress,events=sorted(events,key=lambda e:e[0]),
         current=pending,processing=bool(pending),ready=ready,finished=finished,waiting=waiting,phase=phase,
         count=sum(f['count'] for f in files),processed=sum(f['goal'].status=='COMPLETED' or f['goal'].current_stage=='REVIEW' for f in files),
         updates=sum(f['confirmed_measurements']+sum((f['goal'].context_json.get('output') or {}).get(k,0) for k in ('profile','history','measurements')) for f in files))

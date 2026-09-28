@@ -176,7 +176,11 @@ def render(app, goal, *, admin=False):
             st.markdown(f'<div class="board-current"><strong>{escape(activity.headline)}</strong></div>', unsafe_allow_html=True)
     progress = st.empty()
     with progress.container(), st.container(key='soft-board-process'):
-        stepper(goal)
+        from executive_health_ai.services.agent_progress import load as load_progress
+        from executive_health_ai.ui.agent_progress import render as render_progress
+        with SessionLocal() as session:progress_data=load_progress(session,goal)
+        render_progress(progress_data)
+        stepper(goal,progress_data)
     ai_support.route(goal, support, support_traces)
     action_approval = goal.current_stage == 'WAITING_ACTION_APPROVAL' and not admin
     if action_approval:
