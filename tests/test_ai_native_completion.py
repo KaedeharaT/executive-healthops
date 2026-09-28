@@ -153,3 +153,126 @@ def test_due_scheduler_original_task_is_only_human_work(care_db):
         outcome='已完成',next_action='无需后续',follow_at=None,request_key='complete-task')
     s.commit()
     assert goal.status=='COMPLETED'
+
+
+def test_result_extraction_requires_verbatim_evidence():
+    from executive_health_ai.services.care_result_extraction import validate
+    text='会员最近不喝酒，睡眠每天6个小时，准备10月15日复查血脂。'
+    checked=validate({'facts':[{'field':'睡眠','value':'8小时','evidence':'睡眠每天6个小时'},
+        {'field':'诊断','value':'高血压','evidence':text},{'field':'饮酒','value':'不喝酒','evidence':'会员最近不喝酒'}],
+        'actions':[{'kind':'RECHECK','title':'血脂','date_text':'10月15日','evidence':'准备10月15日复查血脂'}]},text,date(2026,9,29))
+    assert len(checked['facts'])==1 and checked['facts'][0]['value']=='不喝酒'
+    assert checked['actions'][0]['date']=='2026-10-15'
+
+
+def test_cancelled_recheck_and_missing_dates_not_invented():
+    from executive_health_ai.services.care_result_extraction import rules
+    assert not rules('会员不需要10月15日复查血脂',date.today())['actions']
+    assert not rules('会员考虑复查血脂',date.today())['actions']
+
+
+def test_nlp_worker_releases_transaction_and_confirmation_is_idempotent(care_db,monkeypatch):
+    from executive_health_ai.services import care_results
+    from executive_health_ai.agent.care_result_execution import execute
+    from executive_health_ai.agent.supervisor import HealthOpsAgentSupervisor
+    from executive_health_ai.services import care_result_extraction
+    from executive_health_ai.models.management_workflow import ManagementLog
+    from executive_health_ai.models import HealthEvent
+    s,p,g,engine=care_db;g.status='COMPLETED'
+    item=AgentToolRegistry().execute(s,'create_followup',g,followup(p))
+    from uuid import UUID
+    text='会员最近不喝酒，睡眠每天6个小时，准备10月15日复查血脂。'
+    result=care_results.submit(s,member_id=p.patient_id,program_id=p.id,task_id=UUID(item['task_id']),
+        text=text,actor=p.owner,outcome='已完成',request_key='result-once');s.commit()
+    def extract(note,**kwargs):
+        assert not s.in_transaction()
+        with Session(engine) as concurrent:
+            concurrent.add(Task(patient_id=p.patient_id,title='并发写入',instruction='验证事务边界',source='concurrent'))
+            concurrent.commit()
+        return {**care_result_extraction.rules(note,date(2026,9,29)),'ai_used':False,'warning':''}
+    monkeypatch.setattr(care_result_extraction,'extract',extract)
+    supervisor=HealthOpsAgentSupervisor();execute(supervisor,s,result)
+    assert result.status=='WAITING_MANAGER'
+    assert len(care_results.proposals(s,result))==1
+    care_results.confirm(s,result,supervisor,actor=p.owner,role='HEALTH_MANAGER');s.commit()
+    care_results.confirm(s,result,supervisor,actor=p.owner,role='HEALTH_MANAGER');s.commit()
+    assert s.scalar(select(func.count(ManagementLog.id)))==1
+    assert result.status=='COMPLETED' and result.context_json['outputs']
+    assert s.scalar(select(func.count(HealthEvent.id)).where(HealthEvent.event_type=='TIME_DUE'))==1
+    assert s.get(Task,UUID(item['task_id'])).status=='COMPLETED'
+
+
+def test_one_hundred_raw_samples_wake_zero_then_one_change(care_db):
+    from executive_health_ai.services.health_events import ingest_health_event
+    from executive_health_ai.services.health_event_measurements import evaluate_window
+    from executive_health_ai.models import Observation,HealthEvent
+    s,p,g,_=care_db;g.status='COMPLETED';s.commit()
+    agent=s.scalar(select(MemberAgent).where(MemberAgent.member_id==p.patient_id));before=agent.wake_count
+    start=utc_now()-timedelta(minutes=1)
+    for i in range(100):
+        ingest_health_event(s,member_id=p.patient_id,event_type='DEVICE_RAW_MEASUREMENT',event_category='NEW_INFORMATION',
+            source_type='DEVICE',source_id='native-bp-'+str(i),payload_ref={'measurement':{
+                'metric':'systolic_bp','value':145,'unit':'mmHg','observed_at':utc_now().isoformat()}})
+    s.commit();s.refresh(agent)
+    assert agent.wake_count==before and s.scalar(select(func.count(Observation.id)))==100
+    end=utc_now()+timedelta(seconds=1)
+    for _ in range(3):
+        evaluate_window(s,member_id=p.patient_id,metric='systolic_bp',threshold=140,minimum_count=3,
+            window_start=start,window_end=end,rule_id='synthetic-repeat-bp')
+    s.commit();s.refresh(agent)
+    assert agent.wake_count==before+1
+    assert s.scalar(select(func.count(HealthEvent.id)).where(HealthEvent.event_category=='MEANINGFUL_CHANGE'))==1
+    assert s.scalar(select(func.count(Task.id)))==1
+
+
+def test_stage_summary_wait_and_next_phase_same_goal(care_db):
+    from executive_health_ai.services.management_action_loop import ManagementActionLoop
+    from executive_health_ai.models import ProgramPhase
+    s,p,g,_=care_db;g.status='COMPLETED';p.status='ACTIVE'
+    workflow=ManagementWorkflowService()
+    phase=workflow.add_phase(s,p.patient_id,p.id,title='本阶段',goal='沟通与跟进',content='电话随访',
+        start=date.today(),end=date.today()+timedelta(days=30),owner=p.owner)
+    phase.status='ACTIVE';p.current_phase=phase.phase_code
+    item=AgentToolRegistry().execute(s,'create_followup',g,followup(p));s.commit()
+    from uuid import UUID
+    loop=ManagementActionLoop()
+    loop.process_task(s,p.patient_id,p.id,UUID(item['task_id']),actor=p.owner,result='已记录会员反馈',outcome='已完成',
+        next_action='无需后续',follow_at=None,request_key='stage-core-complete');s.commit()
+    goal=s.scalar(select(AgentGoal).where(AgentGoal.goal_type=='STAGE_REVIEW'))
+    assert goal and goal.status=='WAITING_MANAGER' and goal.context_json['stage_summary']
+    content=loop.stage_summary(loop.project(s,p.patient_id,p.id))
+    loop.review_stage(s,p.patient_id,p.id,phase_id=phase.id,content=content,actor=p.owner)
+    next_row=loop.enter_next_phase(s,p.patient_id,p.id,phase.id,actor=p.owner,title='下一阶段',goal='继续跟进',
+        content='沿用确认计划',start=phase.end_date+timedelta(days=1),end=phase.end_date+timedelta(days=30),action='下阶段随访')
+    s.commit();assert goal.status=='COMPLETED' and goal.context_json['next_phase_id']==str(next_row.id)
+
+
+def test_crashed_semantic_claim_recovers_and_stale_result_cannot_write(care_db,monkeypatch):
+    from executive_health_ai.services import care_results,care_result_extraction
+    from executive_health_ai.agent.care_result_execution import execute
+    from executive_health_ai.agent.supervisor import HealthOpsAgentSupervisor
+    from uuid import UUID
+    s,p,g,engine=care_db
+    task=AgentToolRegistry().execute(s,'create_followup',g,followup(p))
+    goal=care_results.submit(s,member_id=p.patient_id,program_id=p.id,task_id=UUID(task['task_id']),
+        text='会员反馈夜班工作',actor=p.owner,outcome='已完成',request_key='crash-result')
+    goal.status='PROCESSING';goal.next_check_at=utc_now()-timedelta(seconds=1)
+    goal.context_json={**goal.context_json,'execution':{'token':'dead-process'}};s.commit()
+    def external(*args,**kwargs):
+        assert not s.in_transaction()
+        with Session(engine) as other:
+            other.get(AgentGoal,goal.id).status='CANCELLED';other.commit()
+        return {'facts':[],'actions':[],'ai_used':False,'warning':''}
+    monkeypatch.setattr(care_result_extraction,'extract',external)
+    execute(HealthOpsAgentSupervisor(),s,goal);s.refresh(goal)
+    assert goal.status=='CANCELLED' and 'parsed' not in goal.context_json
+
+
+def test_longitudinal_context_has_time_and_original_log(care_db):
+    from executive_health_ai.services.care_memory import remember_result,longitudinal
+    s,p,g,_=care_db
+    row=ManagementWorkflowService().record_log(s,p.patient_id,p.id,actor=p.owner,request_key='memory-log',
+        category='电话',member_issue='本周执行安排',manager_action='核对可行时间',result='会员反馈夜班安排影响作息',owner=p.owner,occurred_at=utc_now())
+    g.context_json={'log_id':str(row.id)};remember_result(s,g);remember_result(s,g);s.commit()
+    memory=longitudinal(s,p.patient_id)
+    assert len(memory)==1 and memory[0]['source']['source_id']==str(row.id) and memory[0]['recorded_at']

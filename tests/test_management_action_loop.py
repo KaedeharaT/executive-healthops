@@ -133,8 +133,8 @@ def test_overview_button_opens_executable_detail(env,monkeypatch):
     app=AppTest.from_function(workspace_page,args=(str(p.patient_id),)).run()
     next(b for b in app.button if b.label=='处理下一步').click();app.run()
     assert not app.exception
-    assert len([b for b in app.button if b.label=='完成本次处理'])==1
-    assert any(t.label=='处理结果' for t in app.text_area)
+    assert len([b for b in app.button if b.label=='整理本次结果'])==1
+    assert any(t.label=='记录处理结果' for t in app.text_area)
 
 def test_no_open_item_ui_keeps_every_quick_action(env,monkeypatch):
     from sqlalchemy.orm import sessionmaker

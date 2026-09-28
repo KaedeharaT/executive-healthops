@@ -133,10 +133,12 @@ def apply_result(session,goal,context):
 
 def register(registry):
     from executive_health_ai.agent.tools import AgentTool, AUTO, MANAGER_APPROVAL
+    from executive_health_ai.services.care_memory import longitudinal
     reads = {'get_member_profile': profile, 'get_health_record': archive,
         'get_observations': registry._observations, 'get_annual_baseline': registry._baseline,
         'get_current_phase': phase, 'get_open_management_items': items,
         'get_recent_management_logs': logs, 'get_doctor_review': doctor,
+        'get_care_context': lambda s,g,c: {'context':longitudinal(s,g.member_id)},
         'prepare_stage_review': prepare_review}
     for name, handler in reads.items():
         registry.register(AgentTool(name, '读取已有会员业务事实与来源', AUTO, 'read', True, 10, handler))

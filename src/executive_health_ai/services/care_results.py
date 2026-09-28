@@ -48,8 +48,10 @@ def proposals(session,goal):
     result=[]
     for action in data.get('actions',[]):
         item=dict(action)
-        review=next((r for r in reviews if action['title'] in (r.opinion or '')+' '+(getattr(r,'recommendation','') or '')
-            +' '+(getattr(r,'followup_instruction','') or '')),None)
+        import re
+        review=next((r for r in reviews if any(action['title'] in line and '复查' in line
+            and not any(word in line for word in ('无需','不需要','暂不','不建议','取消','不必'))
+            for line in re.split(r'[。；;\n]',r.opinion or ''))),None)
         if item['kind']=='RECHECK':
             item['doctor_review_id']=str(review.id) if review else None
             item['operation']='建立复查安排' if review else '建立复查协调事项（核对正式医疗依据）'
@@ -107,4 +109,6 @@ def confirm(session,goal,supervisor,*,actor,role,follow_at=None):
     goal.context_json={**goal.context_json,'actions_verified':True,'outputs':written,
         'confirmed_by':actor,'confirmed_at':utc_now().isoformat()}
     runtime.finish(session,goal)
+    from executive_health_ai.services.care_memory import remember_result
+    remember_result(session,goal)
     return goal

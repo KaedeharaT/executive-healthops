@@ -18,6 +18,10 @@ def monitor():
             st.session_state.pop('admin-care-board',None)
             st.session_state['admin-care-epoch']=st.session_state.get('admin-care-epoch',0)+1
             st.rerun()
+        if goal.goal_type in {'DAILY_CARE','FOLLOWUP_RESULT','STAGE_REVIEW'}:
+            from executive_health_ai.ui.pages.admin.native_runtime import detail
+            detail(goal)
+            return
         render(None,goal,admin=True)
         if goal.goal_type!='PROFILE_INTAKE' and goal.status in {'ESCALATED','FAILED','WAITING_INPUT'}:
             if st.button('重新读取已补充资料',key='care-admin-retry'):
@@ -28,10 +32,12 @@ def monitor():
                 st.rerun()
         return
     with SessionLocal() as session:
-        goals = [g for g in session.scalars(select(AgentGoal).order_by(AgentGoal.started_at.desc())) if is_care_goal(g) or g.goal_type == 'PROFILE_INTAKE']
+        goals = [g for g in session.scalars(select(AgentGoal).order_by(AgentGoal.started_at.desc())) if is_care_goal(g) or g.goal_type in {'PROFILE_INTAKE','DAILY_CARE','FOLLOWUP_RESULT','STAGE_REVIEW'}]
         members = {p.id: p.display_name for p in session.scalars(select(Patient))}
-    selected = data_table(goals, [{'会员': members.get(g.member_id, '会员'), '流程': '健康资料导入' if g.goal_type == 'PROFILE_INTAKE' else '体检后健康管理',
-        '入口事件': 'HEALTH_DOCUMENT_UPLOADED' if g.goal_type == 'PROFILE_INTAKE' else 'REPORT_UPLOADED', '当前状态': g.status, '当前业务步骤': LABELS.get(g.current_stage, g.current_stage),
+    from executive_health_ai.ui.pages.admin.native_runtime import identities
+    identities()
+    selected = data_table(goals, [{'会员': members.get(g.member_id, '会员'), '流程': g.title,
+        '入口事件': g.context_json.get('trigger_reason','已有业务流程'), '当前状态': g.status, '当前业务步骤': LABELS.get(g.current_stage, g.current_stage),
         '等待对象': '医生' if g.status == 'WAITING_DOCTOR' else '健管' if g.status in {'WAITING_MANAGER','WAITING_INPUT'} else '—',
         '启动时间': ux.local_time(g.started_at), '最后更新时间': ux.local_time(g.updated_at),
         '异常': g.context_json.get('error', '')} for g in goals], key=f"care-admin-runs-{st.session_state.get('admin-care-epoch',0)}", search=True, auto_select=False)

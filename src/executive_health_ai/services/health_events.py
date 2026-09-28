@@ -20,6 +20,8 @@ LABELS={'HEALTH_DOCUMENT_UPLOADED':'收到新的健康资料','CHECKUP_REPORT_UP
         'DOCTOR_REVIEW_COMPLETED':'收到医生已确认的意见','TIME_DUE':'计划跟进时间已到',
         'MEANINGFUL_CHANGE':'检测到健康状态发生值得关注的变化'}
 SOURCE_LABELS={'MANUAL':'人工上传 / 录入','MOBILE':'手机提交','DEVICE':'健康设备','SYSTEM':'系统业务结果'}
+LABELS.update(FOLLOWUP_RESULT_RECORDED='收到本次工作处理结果',MANAGEMENT_ITEM_COMPLETED='收到已完成的管理事项',
+    STAGE_REVIEW_CONFIRMED='收到已确认的阶段结果')
 
 
 def ingest_health_event(session: Session,**values) -> tuple[HealthEvent,bool]:

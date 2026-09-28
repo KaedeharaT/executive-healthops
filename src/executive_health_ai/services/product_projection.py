@@ -161,6 +161,9 @@ class ProductProjectionService:
         service_states = {r.id: r.status for r in session.scalars(select(ServiceRequest).where(ServiceRequest.id.in_(service_ids)))} if service_ids else {}
         # Preserve raw workflow state; UI applies the shared service vocabulary.
         items = [replace(i, status=service_states[i.source_id]) if i.source_type == "service_request" and i.source_id in service_states else i for i in items]
+        preparing={g.context_json.get('task_id') for g in session.scalars(select(AgentGoal).where(
+            AgentGoal.goal_type=='FOLLOWUP_RESULT',AgentGoal.status.in_(('RUNNING','PROCESSING'))))}
+        items=[i for i in items if str(i.source_id) not in preparing]
         pending = tuple(pending_doctor_work(session))
         represented_reviews = {i.source_id for i in items if i.source_type == "doctor_review"}
         represented_risks = {i.source_id for i in items if i.source_type == "risk_event"}

@@ -164,27 +164,9 @@ def detail(app,patient,view,item):
             st.info('此事项尚无当前管理计划。先建立有负责人和周期的计划，再保存处理结果。')
             create(app,patient,view,'创建随访');return
         request_key=st.session_state.setdefault('action-request-'+item.id,str(uuid4()))
-        with st.form('action-process-'+item.id):
-            fields,action=st.columns([3,1])
-            with fields:
-                result=st.text_area('随访情况 / 处理结果' if item.kind=='FOLLOWUP' else '处理结果',height=85)
-                outcome=st.radio('结果状态',['已完成','部分完成','未完成'],horizontal=True)
-                left,right=st.columns(2)
-                following=left.selectbox('下一步',['无需后续','继续随访','安排复查','申请服务','提交医生'])
-                follow=right.date_input('下一次跟进日期',value=None)
-            with action:
-                st.caption('核对处理结果后保存；完成后继续下一项。')
-                submit=st.form_submit_button('完成本次处理',type='primary')
-        if submit:
-            try:
-                with SessionLocal() as session:
-                    service.process_task(session,patient.id,view.program.id,item.record.id,actor=view.owner,result=result,outcome=outcome,
-                        next_action=following,follow_at=datetime.combine(follow,time(9),ux.LOCAL) if follow else None,request_key=request_key)
-                    session.commit()
-                st.session_state.pop('action-request-'+item.id,None)
-                st.session_state[f'action-following-{patient.id}']=following
-                focus(patient,'DONE:'+outcome)
-            except ValueError as exc:st.error(str(exc))
+        from executive_health_ai.ui.pages.manager.care_result_input import render as result_input
+        result_input(patient,view,item,request_key)
+
 
 def create(app,patient,view,kind):
     from executive_health_ai.ui.pages.manager import workflow
