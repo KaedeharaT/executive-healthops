@@ -53,6 +53,7 @@ def project_assistant(goals):
 
 
 def open_care(app, goal, origin='今日工作'):
+    st.session_state.pop('today-detail', None)
     st.session_state['care-detail'] = str(goal.id)
     st.session_state['care-origin'] = origin
     app.request_navigation(surface='运营后台', ops_page='今日', rerun=False)
@@ -77,8 +78,16 @@ def assistant(app, people):
     st.markdown('#### 活动流程')
     if not pending:
         st.caption('当前没有需要您处理的自动流程。')
+        if recent:
+            st.caption('最近完成：' + ' · '.join(completed_values(recent[0], app._member_display(people.get(recent[0].member_id)))[1:3]))
+            st.button('查看最近运行', key='assistant-latest', on_click=open_care, args=(app, recent[0]))
+        else:
+            st.caption('最近完成：暂无已完成的自动流程。')
+            st.button('查看最近运行', key='assistant-latest', disabled=True, help='尚无可查看的运行记录。')
     with st.container(key='assistant-active'):
-        _cards(app, people, active)
+        _cards(app, people, active[:3])
+        if len(active) > 3:
+            st.caption(f'共 {len(active)} 条活动流程；其余流程可在工作事项或对应会员的自动跟进中查看。')
     if groups.attention:
         st.markdown('#### 需要人工协助')
         with st.container(key='assistant-attention'):
@@ -151,11 +160,13 @@ def _cards(app, people, goals):
         if index % 3 == 0:
             columns = st.columns(min(3, len(goals) - index))
         if getattr(goal,'goal_type',None) == 'PROFILE_INTAKE':
-            from executive_health_ai.ui.pages.manager.profile_intake import STATUS
+            from executive_health_ai.ui.pages.manager.profile_intake import STATUS, progress_steps
             with columns[index % 3], st.container(border=True):
                 st.markdown('**'+app._member_display(people.get(goal.member_id))+' · 健康资料导入**')
                 st.write('当前：'+STATUS.get(goal.status,'待处理'))
                 st.caption('开始：'+ux.when(goal.started_at))
+                completed = [label for label,done,_ in progress_steps(goal) if done]
+                st.caption('已完成：'+('、'.join(completed[-3:]) if completed else '尚无已完成步骤'))
                 st.write('下一步：'+goal.next_action)
                 st.button('查看运行看板',key='profile-assistant-'+str(goal.id),on_click=open_care,args=(app,goal))
             continue

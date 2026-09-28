@@ -320,14 +320,23 @@ def doctor_detail(goal, *, read_only=False):
 def member_summary(member_id,app=None):
     with SessionLocal() as session:
         goals = [g for g in session.scalars(select(AgentGoal).where(AgentGoal.member_id == member_id).order_by(AgentGoal.updated_at.desc(), AgentGoal.started_at.desc())) if flow.is_care_goal(g) or g.goal_type == "PROFILE_INTAKE"]
+    st.subheader('自动跟进')
     if not goals:
+        st.caption('当前没有自动流程记录。上传体检报告或导入健康资料后，将在这里显示实际处理进展。')
+        st.write('最近完成：暂无记录')
+        st.write('下一步：在医疗或健康档案中补充资料。')
+        st.button('查看运行看板', key=f'member-no-progress-{member_id}', disabled=True,
+                  help='尚无运行实例；查看入口不会创建新流程。')
         return
     goal = goals[0]
     if goal.goal_type == 'PROFILE_INTAKE':
-        from executive_health_ai.ui.pages.manager.profile_intake import STATUS
+        from executive_health_ai.ui.pages.manager.profile_intake import STATUS, stepper as profile_stepper, progress_steps
         st.markdown('**自动跟进 · 健康资料导入**')
         st.caption('开始：'+ux.when(goal.started_at))
         st.write('当前：'+STATUS.get(goal.status,'待处理'))
+        profile_stepper(goal)
+        completed = [label for label,done,_ in progress_steps(goal) if done]
+        st.write('最近完成：'+(completed[-1] if completed else '尚无已完成步骤'))
         st.write('下一步：'+goal.next_action)
         if app:
             from executive_health_ai.ui.pages.manager.assistant import open_care
@@ -343,7 +352,7 @@ def member_summary(member_id,app=None):
         board=project(session,goal)
     st.caption('当前责任：'+board.owner+' · '+board.route.reason_summary)
     stepper(goal)
-    st.write('最近系统完成：'+(activity.done[-1].title if activity.done else '尚无已完成工作记录'))
+    st.write('最近完成：'+(activity.done[-1].title if activity.done else '尚无已完成工作记录'))
     st.info('下一步：'+activity.next_action)
     if goal.status=='WAITING_DOCTOR':st.caption('医生提交后系统会自动继续。')
     if app:

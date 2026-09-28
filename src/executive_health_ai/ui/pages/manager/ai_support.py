@@ -39,6 +39,8 @@ def panel(goal, activities, *, key='board-ai-support'):
             with knowledge if activity.key == 'knowledge' else ai:
                 st.markdown(f'**{activity.title}**　{activity.mark} {activity.label}')
                 st.caption('用途：'+activity.purpose)
+                if not activity.used:
+                    st.caption('未使用：本步骤没有已发起的调用记录。')
                 st.write('结果：'+activity.result)
                 if activity.at: st.caption('记录时间：'+ux.when(activity.at))
                 if activity.citations and st.button('查看依据',key=f'{key}-knowledge-{goal.id}-{index}'):

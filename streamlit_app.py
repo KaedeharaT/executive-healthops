@@ -394,6 +394,7 @@ def _render_sidebar_navigation() -> str:
     return st.sidebar.radio(
         "工作区", ["今日", "成员", "年度管理", "医疗协同", "服务运营"],
         key="ops-navigation", label_visibility="collapsed", format_func=lambda value: {"今日":"今日工作", "成员":"会员", "服务运营":"服务"}.get(value,value),
+        on_change=manager_pages.reset_today_selection,
     )
 
 

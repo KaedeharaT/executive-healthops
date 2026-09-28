@@ -117,12 +117,24 @@ def detail(app,goal_id):
     live()
 
 
+def progress_steps(goal):
+    """Business labels from the same persisted plan used by the running board."""
+    with SessionLocal() as session:
+        steps=list(session.scalars(select(AgentPlanStep).where(AgentPlanStep.plan_id==goal.current_plan_id).order_by(AgentPlanStep.step_order)))
+    return [(flow.LABELS[step.step_type], step.status == 'COMPLETED', step.step_type == goal.current_stage) for step in steps]
+
+
+def stepper(goal):
+    steps=progress_steps(goal)
+    for col,(label,done,current) in zip(st.columns(6),steps):
+        col.markdown(('✓ ' if done else '● ' if current else '○ ')+label)
+
+
 def render(app,session,goal):
     doc=session.get(Document,UUID(goal.source_id));patient=session.get(Patient,goal.member_id)
     rows=candidates(session,goal);route=latest(session,goal)
     traces=list(session.scalars(select(AgentRunTrace).where(AgentRunTrace.goal_id==goal.id,
         AgentRunTrace.action.in_(('profile_activity','profile_exception'))).order_by(AgentRunTrace.started_at)))
-    steps=list(session.scalars(select(AgentPlanStep).where(AgentPlanStep.plan_id==goal.current_plan_id).order_by(AgentPlanStep.step_order)))
     from executive_health_ai.services.agent_capabilities import load as load_support
     from executive_health_ai.ui.pages.manager import ai_support
     support, support_traces = load_support(session,goal)
@@ -132,9 +144,7 @@ def render(app,session,goal):
         st.caption('开始原因：收到'+TYPES[goal.context_json['document_type']]+' · '+doc.title+' · '+ux.when(goal.started_at))
         c.summary_strip([('当前',STATUS.get(goal.status,'待处理')),('当前责任',RESPONSIBILITY[route.route_type] if route else '系统自动处理'),('责任健管',goal.owner)])
         st.divider()
-        cols=st.columns(6)
-        for col,step in zip(cols,steps):
-            col.markdown(('✓ ' if step.status=='COMPLETED' else '● ' if step.step_type==goal.current_stage else '○ ')+flow.LABELS[step.step_type])
+        stepper(goal)
     ai_support.route(goal,support,support_traces)
     ai_support.panel(goal,support,key='soft-profile-ai-support')
     if goal.context_json.get('intake_id'):

@@ -1,7 +1,8 @@
 """Chromium acceptance via visible controls only, against an isolated DB copy."""
-import json,sqlite3,sys
+import json,sqlite3,sys,os
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];WORK=ROOT/'.runtime/management-action-loop';OUT=ROOT/'docs/images/management-action-loop'
+OUT=Path(os.getenv('HEALTHOPS_QA_OUTPUT',str(OUT)))
 WORK.mkdir(parents=True,exist_ok=True);OUT.mkdir(parents=True,exist_ok=True)
 if '--prepare' in sys.argv:
     with sqlite3.connect(ROOT/'executive_health_ai.db') as source,sqlite3.connect(WORK/'qa.db') as target:source.backup(target)
@@ -24,7 +25,7 @@ with sync_playwright() as p:
         if anchor:page.get_by_text(anchor,exact=True).first.scroll_into_view_if_needed()
         page.screenshot(path=str(OUT/name))
     try:
-        page.goto('http://127.0.0.1:18570',wait_until='networkidle');settle()
+        page.goto(os.getenv('HEALTHOPS_QA_URL','http://127.0.0.1:18570'),wait_until='networkidle');settle()
         button('进入 HealthOps 运营后台')
         radio('会员');field=page.get_by_label('搜索成员',exact=True);field.fill('Demo Executive A');field.press('Enter');settle()
         page.locator('[data-testid="stDataFrame"]').last.click(position={'x':100,'y':55});settle();button('查看会员 / 进入Member360')

@@ -43,6 +43,13 @@ def approvals(app, patient_id, role="HEALTH_MANAGER", selected_id=None):
                     st.error("此确认已更新或不属于当前角色，请刷新后重试。")
 
 
+def reset_today_selection():
+    """Sidebar navigation opens the workspace, not a previous nested detail."""
+    for key in ('care-detail', 'care-origin', 'today-detail'):
+        st.session_state.pop(key, None)
+    st.session_state['today-work-grid-epoch'] = st.session_state.get('today-work-grid-epoch', 0) + 1
+
+
 def today(app):
     from executive_health_ai.ui.pages.manager.workbench import today as render
     render(app)
@@ -176,8 +183,11 @@ def member_detail(app, patient):
         updated=ux.when(max(updated)) if updated else '暂无记录')
     with st.container(key='soft-member-navigation'):
         section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
-    if section == "概览":
+    if section in {'概览', '管理'}:
         from executive_health_ai.ui.pages.manager.post_checkup import member_summary
+        with st.container(border=True, key='member-auto-followup'):
+            member_summary(patient.id, app=app)
+    if section == "概览":
         from executive_health_ai.ui.pages.manager import intake_entry
         if intake_entry.state(management_view.intake) != '已完成':
             reminder, action = st.columns([4,1])
@@ -209,7 +219,6 @@ def member_detail(app, patient):
         with st.expander('年度目标与健康基线'):
             st.write(ux.business_text(program.main_goal) if program else '待建立年度方案')
             ux.baseline_summary(baseline,rows,compact=True)
-        member_summary(patient.id,app=app)
         st.markdown('**下一步**')
         st.write(next_text)
     elif section == "健康":
