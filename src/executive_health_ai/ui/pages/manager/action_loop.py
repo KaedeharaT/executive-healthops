@@ -235,6 +235,8 @@ def stage_detail(patient,state):
     phase=state['phase'];view=state['view']
     if not phase:st.info('先在年度方案与阶段中建立当前阶段。');quick_actions(patient);return
     st.subheader('阶段复盘 · '+phase.title)
+    from executive_health_ai.ui.pages.manager.care_runtime import for_phase
+    for_phase(patient.id,phase.id)
     if not state['review']:
         if not state['review_ready']:st.info('当前尚未满足复盘条件。');quick_actions(patient);return
         st.caption('自动汇总已有记录；核对阶段结果，并确认下一阶段安排。医学问题仍交由医生判断。')

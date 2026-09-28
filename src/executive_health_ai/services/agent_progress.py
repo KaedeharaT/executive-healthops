@@ -84,7 +84,8 @@ def project(goal,steps=(),traces=(),*,now=None):
             labels=CARE_STEPS
         else:
             # Legacy plans retain their own actual step count, never the intake seven.
-            labels=tuple('业务步骤 '+str(i+1) for i in range(len(steps))) or ('流程完成',)
+            labels=tuple(s.step_type if goal.goal_type in {'DAILY_CARE','FOLLOWUP_RESULT','STAGE_REVIEW'}
+                else '业务步骤 '+str(i+1) for i,s in enumerate(steps)) or ('流程完成',)
             done=tuple(s.status=='COMPLETED' for s in steps) or (False,)
     if ended:done=(True,)*len(labels)
     elif all(done):done=(*done[:-1],False)

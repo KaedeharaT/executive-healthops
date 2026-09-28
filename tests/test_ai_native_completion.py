@@ -117,3 +117,39 @@ def test_completion_needs_actual_business_result(care_db):
     assert g.status=='COMPLETED'
     agent=s.scalar(select(MemberAgent).where(MemberAgent.member_id==p.patient_id))
     assert agent is not None and agent.status=='IDLE'
+
+
+@pytest.mark.parametrize('state',['WAITING_MANAGER','WAITING_DOCTOR','WAITING_MEMBER','WAITING_TIME','WAITING_INPUT'])
+def test_durable_wait_and_same_goal_resume(care_db,state):
+    from executive_health_ai.services.care_runtime import wait,resume
+    s,p,g,engine=care_db
+    wait(s,g,state,next_action='等待原事项结果',due=utc_now()-timedelta(seconds=1) if state=='WAITING_TIME' else None,
+        expected_event='TIME_DUE' if state=='WAITING_TIME' else 'RESULT_RECEIVED',expected_source='original')
+    s.commit();identity=g.id
+    with Session(engine) as fresh:
+        original=fresh.get(AgentGoal,identity)
+        assert original.status==state
+        with pytest.raises(ValueError):resume(fresh,original,event_type='OTHER',source_id='original')
+        assert resume(fresh,original,event_type='TIME_DUE' if state=='WAITING_TIME' else 'RESULT_RECEIVED',source_id='original')
+        assert not resume(fresh,original,event_type='RESULT_RECEIVED',source_id='original')
+        assert original.id==identity and original.status=='RUNNING'
+
+
+def test_due_scheduler_original_task_is_only_human_work(care_db):
+    from executive_health_ai.agent.scheduler import AgentSchedulerService
+    from executive_health_ai.models import HealthEvent
+    s,p,g,_=care_db;g.status='COMPLETED';s.flush()
+    row=AgentToolRegistry().execute(s,'create_followup',g,followup(p))
+    scheduler=AgentSchedulerService();scheduler.run_due(s,now=utc_now());s.commit()
+    goal=s.scalar(select(AgentGoal).where(AgentGoal.status=='WAITING_MANAGER'))
+    assert goal and goal.goal_type=='DAILY_CARE'
+    assert goal.context_json['work_refs']==[row['task_id']]
+    scheduler.run_due(s,now=utc_now());s.commit()
+    assert s.scalar(select(func.count(Task.id)))==1
+    assert s.scalar(select(func.count(HealthEvent.id)))==1
+    from executive_health_ai.services.management_action_loop import ManagementActionLoop
+    from uuid import UUID
+    ManagementActionLoop().process_task(s,p.patient_id,p.id,UUID(row['task_id']),actor=p.owner,result='已核对会员反馈',
+        outcome='已完成',next_action='无需后续',follow_at=None,request_key='complete-task')
+    s.commit()
+    assert goal.status=='COMPLETED'

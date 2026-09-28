@@ -8,7 +8,7 @@ from executive_health_ai.models.base import Base, UTCDateTime, utc_now
 
 class MemberAgent(Base):
     __tablename__='member_agents'
-    __table_args__=(CheckConstraint("status IN ('IDLE','RUNNING','WAITING_MANAGER','WAITING_DOCTOR','WAITING_MEMBER','WAITING_TIME','FAILED')",name='ck_member_agent_status'),)
+    __table_args__=(CheckConstraint("status IN ('IDLE','RUNNING','WAITING_MANAGER','WAITING_DOCTOR','WAITING_MEMBER','WAITING_TIME','WAITING_INPUT','FAILED')",name='ck_member_agent_status'),)
     id: Mapped[UUID] = mapped_column(primary_key=True,default=uuid4)
     member_agent_id = synonym('id')
     member_id: Mapped[UUID] = mapped_column(ForeignKey('patients.id'),unique=True,nullable=False)

@@ -44,4 +44,6 @@ class EventRouter:
             return RouteDecision('RESUME_CURRENT_GOAL',goal.id) if goal else RouteDecision('STORE_ONLY')
         if event.event_category in {'MEANINGFUL_CHANGE','TIME_DUE'}:
             return RouteDecision('WAKE_MEMBER_AGENT')
+        if event.event_type in {'MANAGEMENT_ITEM_COMPLETED','FOLLOWUP_RESULT_RECORDED','STAGE_REVIEW_CONFIRMED'}:
+            return RouteDecision('WAKE_MEMBER_AGENT')
         return RouteDecision('STORE_ONLY')

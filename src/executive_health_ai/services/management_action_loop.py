@@ -103,7 +103,10 @@ class ManagementActionLoop:
             manager_action='记录本次处理：'+outcome,result=result,next_action='' if next_action=='无需后续' else next_action,
             follow_up_at=follow_at or (utc_now() if next_action!='无需后续' else None),owner=actor,related_task_id=task.id,
             create_followup=outcome=='已完成' and next_action!='无需后续')
-        if outcome=='已完成':TaskTransitionService().complete(session,task.id,actor=actor,outcome=result)
+        if outcome=='已完成':
+            TaskTransitionService().complete(session,task.id,actor=actor,outcome=result)
+            from executive_health_ai.services.daily_care import work_completed
+            work_completed(session,member_id,task.id)
         else:
             # Retain the original open task, never turn partial work into Completed.
             task.due_at=follow_at
@@ -154,4 +157,14 @@ class ManagementActionLoop:
         for task in state['view'].tasks:
             if task.source==f"stage_result:{state['review'].id}" and task.status not in CLOSED:
                 TaskTransitionService().complete(session,task.id,actor=actor,outcome='健管已确认并进入下一阶段')
+        # Complete the original stage goal only after the service has actually
+        # created/activated the next phase and its first accountable action.
+        from executive_health_ai.models import AgentGoal
+        from executive_health_ai.services import care_runtime
+        for goal_record in session.scalars(select(AgentGoal).where(AgentGoal.member_id==member_id,
+                AgentGoal.goal_type=='STAGE_REVIEW',AgentGoal.source_id==str(phase_id))):
+            if goal_record.status!='COMPLETED':
+                goal_record.context_json={**goal_record.context_json,'review_id':str(state['review'].id),
+                    'next_phase_id':str(result.id)}
+                care_runtime.finish(session,goal_record)
         return result

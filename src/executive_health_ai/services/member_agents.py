@@ -28,7 +28,7 @@ def goal_state(goal,session=None):
     if goal.status in {'RUNNING','PROCESSING','WRITING','ACTIVE'}:return 'RUNNING'
     if goal.status in {'FAILED','ESCALATED','BLOCKED'}:return 'FAILED'
     if goal.status in {'WAITING_MANAGER','WAITING_DOCTOR','WAITING_MEMBER','WAITING_TIME'}:return goal.status
-    if goal.status=='WAITING_INPUT':return 'WAITING_MANAGER'
+    if goal.status=='WAITING_INPUT':return 'WAITING_INPUT'
     if goal.status=='WAITING' and session is not None:
         step=session.scalar(select(AgentPlanStep).where(AgentPlanStep.plan_id==goal.current_plan_id,
             AgentPlanStep.status.in_(('WAITING_DOCTOR','WAITING_MEMBER','WAITING_MANAGER'))).order_by(AgentPlanStep.step_order))
@@ -42,12 +42,13 @@ def synchronize(session, member_id):
     if not row:return
     goals=list(session.scalars(select(AgentGoal).where(AgentGoal.member_id==member_id,
         AgentGoal.status.not_in(('COMPLETED','CANCELLED')))))
-    order={'RUNNING':0,'WAITING_DOCTOR':1,'WAITING_MANAGER':2,'FAILED':3,'WAITING_MEMBER':4,'WAITING_TIME':5}
+    order={'RUNNING':0,'WAITING_DOCTOR':1,'WAITING_MANAGER':2,'WAITING_INPUT':2,'FAILED':3,'WAITING_MEMBER':4,'WAITING_TIME':5}
     next_wake=session.scalar(select(func.min(HealthEvent.occurred_at)).where(HealthEvent.member_id==member_id,
         HealthEvent.event_category=='TIME_DUE',HealthEvent.status=='PENDING'))
     states={g.id:goal_state(g,session) for g in goals}
     goal=min(goals,key=lambda g:(order[states[g.id]],g.started_at),default=None)
-    if goal and goal.next_check_at:next_wake=min(filter(None,(next_wake,goal.next_check_at)))
+    times=[g.next_check_at for g in goals if g.next_check_at]
+    if times:next_wake=min(filter(None,(next_wake,*times)))
     state=states[goal.id] if goal else ('WAITING_TIME' if next_wake else 'IDLE')
     values=dict(status=state,
         current_goal_id=goal.id if goal else None,waiting_for=state.removeprefix('WAITING_') if state.startswith('WAITING_') else None,

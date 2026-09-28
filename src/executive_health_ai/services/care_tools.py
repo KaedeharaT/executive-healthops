@@ -122,6 +122,15 @@ def next_phase(session, goal, context):
     return {'phase_id': str(row.id), 'status': row.status}
 
 
+def apply_result(session,goal,context):
+    reference(context)
+    values={k:context[k] for k in ('actor','result','outcome','next_action','request_key')}
+    values['follow_at']=datetime.fromisoformat(context['follow_at']) if context.get('follow_at') else None
+    row=ManagementActionLoop().process_task(session,goal.member_id,UUID(context['program_id']),
+        UUID(context['task_id']),**values)
+    return {'log_id':str(row.id)}
+
+
 def register(registry):
     from executive_health_ai.agent.tools import AgentTool, AUTO, MANAGER_APPROVAL
     reads = {'get_member_profile': profile, 'get_health_record': archive,
@@ -135,6 +144,7 @@ def register(registry):
         ('create_management_item', create_item, MANAGER_APPROVAL),
         ('create_followup', create_item, AUTO), ('create_recheck', recheck, MANAGER_APPROVAL),
         ('write_management_log', write_log, AUTO),
+        ('apply_management_result', apply_result, MANAGER_APPROVAL),
         ('complete_management_item', complete_item, MANAGER_APPROVAL),
         ('start_next_phase', next_phase, MANAGER_APPROVAL)):
         registry.register(AgentTool(name, '复用现有服务，保留业务来源及责任边界', permission, 'write', True, 15, handler))

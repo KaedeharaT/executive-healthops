@@ -18,8 +18,14 @@ class AgentSchedulerService:
 
     def run_due(self, session: Session, *, now: datetime, durable_profile: bool = False) -> int:
         supervisor = self.supervisor
+        from executive_health_ai.services.daily_care import schedule_due, advance, reconcile
+        reconcile(session,supervisor)
+        schedule_due(session,now)
         from executive_health_ai.services.health_events import process_pending
         processed = process_pending(session,supervisor,now=now)
+        for goal in list(session.scalars(select(AgentGoal).where(AgentGoal.goal_type=='DAILY_CARE',
+                AgentGoal.status=='RUNNING',AgentGoal.automation_paused.is_(False)))):
+            advance(session,goal,supervisor)
         # Reconcile migrated identities and changes made before a worker restart.
         from executive_health_ai.models import MemberAgent, Patient
         from executive_health_ai.services.member_agents import synchronize
@@ -27,6 +33,10 @@ class AgentSchedulerService:
                 .where(Patient.archived_at.is_(None))):
             synchronize(session,member_id)
         if durable_profile:
+            from executive_health_ai.agent.care_result_execution import execute as execute_result
+            for goal in list(session.scalars(select(AgentGoal).where(AgentGoal.goal_type=='FOLLOWUP_RESULT',
+                    AgentGoal.status.in_(('RUNNING','PROCESSING')),AgentGoal.automation_paused.is_(False)))):
+                execute_result(supervisor,session,goal);processed+=1
             from executive_health_ai.agent.post_checkup_execution import execute
             for goal in list(session.scalars(select(AgentGoal).where(AgentGoal.goal_type=='POST_CHECKUP_MANAGEMENT',
                     AgentGoal.status.in_(('RUNNING','PROCESSING')),AgentGoal.automation_paused.is_(False)))):

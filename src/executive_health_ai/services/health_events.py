@@ -134,8 +134,8 @@ def dispatch_event(session,event,*,supervisor=None):
         if not legacy or legacy.member_id!=event.member_id:raise ValueError('到期事件来源无效。')
         goal=supervisor._receive_business_event(session,legacy)
     else:
-        # Phase 1A wake/check only: no general planner, risk decision or new task.
-        goal=session.get(AgentGoal,decision.goal_id) if decision.goal_id else None
+        from executive_health_ai.services.daily_care import on_event
+        goal=on_event(session,event,supervisor)
     if goal:
         event.goal_id=goal.id
         goal.context_json={**goal.context_json,'member_agent_id':str(agent.id),'health_event_id':str(event.id),
