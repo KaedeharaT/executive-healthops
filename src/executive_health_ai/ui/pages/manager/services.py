@@ -99,5 +99,4 @@ def service_detail(app, selected, member):
     else:
         st.write(selected.result_summary or "服务已完成，等待补充结果。")
         st.caption("完成依据：" + (selected.completion_evidence or "人工确认的服务完成记录"))
-        st.caption("下一步：" + (selected.next_action or "健康管理师确认后续安排"))
         st.button('进入会员管理',key=f'service-management-{selected.id}',type='primary',on_click=app._open_member_management,args=(selected.patient_id,))

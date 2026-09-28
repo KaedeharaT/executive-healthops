@@ -1346,8 +1346,9 @@
       "function": "render_portfolio_landing"
     },
     {
-      "path": "src/executive_health_ai/ui/pages/shell.py",
-      "function": "render_more_workspace_shell"
+      "path": "src/executive_health_ai/ui/pages/support_navigation.py",
+      "function": "render_support_directory",
+      "migration": "UI dedup: old menu resolves to existing admin pages; advanced capabilities retained."
     }
   ],
   "calls": [

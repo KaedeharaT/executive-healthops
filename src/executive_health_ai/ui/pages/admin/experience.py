@@ -64,14 +64,10 @@ def workspace(app):
         else:
             app._render_admin_automation()
     elif section == "规则与知识":
-        mode = st.radio("配置内容", ["规则", "专业知识", "设备"], horizontal=True)
-        if mode == "设备":
-            st.info("设备配置已归入数据与集成；此兼容入口打开同一份配置。")
-            st.button("打开设备接入", on_click=_open_device, type="primary")
-        else:
-            if mode == "专业知识":
-                st.caption("内部规范、已审核资料与知识治理；合作方连接沿用集成中心的同一配置。")
-            {"规则": app.render_risk_rules, "专业知识": app._render_knowledge_service_integration}[mode]()
+        mode = st.radio("配置内容", ["规则", "专业知识"], horizontal=True, key='admin-knowledge-mode')
+        if mode == "专业知识":
+            st.caption("检索、内部规范与知识治理；连接测试和知识包导入在数据与集成中办理。")
+        {"规则": app.render_risk_rules, "专业知识": app.render_knowledge_library_entry}[mode]()
     else:
         c.page_shell("admin", "系统状态", "先查看需要处理的问题，再进入连接与配置。")
         try:
@@ -105,9 +101,6 @@ def workspace(app):
 def legacy_tools(app):
     """Explicit, discoverable home for retained historical UI capabilities."""
     with st.expander("高级信息 · 兼容工具"):
-        with st.container():
-            from executive_health_ai.ui.pages.support_navigation import render_support_directory
-            render_support_directory(app)
         st.caption("保留历史详细视图和管理工具。这里的操作仍使用原有业务服务；仅用于演示管理与核对。")
         members = app._members()
         if not members:
@@ -144,8 +137,3 @@ def legacy_tools(app):
 
 def _open_integrations():
     st.session_state["ux-admin-navigation"] = "数据与集成"
-
-
-def _open_device():
-    st.session_state["integration-center-mode"] = "设备接入"
-    _open_integrations()

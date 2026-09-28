@@ -75,13 +75,13 @@ def test_device_adapter_translates_data_without_medical_decision_methods() -> No
 
 def test_product_navigation_hides_quality_governance_and_uses_blue_tokens() -> None:
     app = Path("streamlit_app.py").read_text(encoding="utf-8")
-    shell = Path("src/executive_health_ai/ui/pages/shell.py").read_text(encoding="utf-8")
+    shell = Path("src/executive_health_ai/ui/pages/admin/experience.py").read_text(encoding="utf-8")
     assert '"运营后台": "健康管理师"' in app
     assert '"成员健康中心": "成员"' in app
     assert '["首页", "健康", "计划", "服务", "历程"]' in app
     assert '["今日", "成员", "年度管理", "医疗协同", "服务运营"]' in app
-    assert 'options = ["风险规则", "操作记录", "系统"]' in shell
-    assert 'with st.expander("AI 质量治理（高级）")' in shell
+    assert '["系统状态", "自动化运行", "数据与集成", "规则与知识"]' in shell
+    assert 'with st.expander("AI质量治理（高级）")' in shell
     styles = Path("src/executive_health_ai/ui/styles.py").read_text(encoding="utf-8")
     assert "#185da8" in styles and "linear-gradient" not in styles
     assert "健管培训助手" not in shell

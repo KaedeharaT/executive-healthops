@@ -63,7 +63,7 @@ def test_no_assessment_entry_starts_same_member_without_member_selector():
     button(app, '保存草稿并继续').click().run()
     button(app, '← 返回健康档案').click().run()
     assert button(app, '继续完成初始评估')
-    assert any('10%' in m.value for m in app.markdown)
+    assert any('10%' in m.value for m in app.caption)
     button(app, '查看已填写内容').click().run()
     assert not app.exception
     button(app, '继续填写').click().run()

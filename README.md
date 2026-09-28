@@ -281,6 +281,8 @@ Enter the operations workbench, inspect Today, then select a member to open Memb
 
 Use a disposable checkout: an existing migration test rebuilds that checkout's synthetic portfolio database. Coverage includes ingestion confirmation/provenance, duplicate protection, assessment states, doctor wait/resume, action creation, risk separation, baseline preservation and UI contracts. Acceptance documents also record real Chromium journeys. CI installs the package, builds synthetic data and runs pytest on Python 3.11.
 
+See [development rules](docs/DEVELOPMENT.md) for action/navigation uniqueness and the requirement to keep LLM calls, network requests, file parsing and long computations outside database write transactions. The [UI dedup audit](docs/ui-dedup-audit/INVENTORY.md) records the current navigation contracts and Chromium evidence.
+
 ## Current Limitations
 
 - Images and pure scanned reports have no reliably configured production OCR path. Unreadable files, unavailable semantic services and unverifiable extraction require manual handling; originals remain available.

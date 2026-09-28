@@ -70,7 +70,7 @@ def execution_mark(data,event=None):
     return '✓ ' if data['finished'] else '● '
 
 
-def draw(data, event=None):
+def draw(data, event=None, *, assessment_summary=True):
     if event is None and data['current'] and data['current']['goal'].status=='PROCESSING':
         event=data['current']['goal'].context_json.get('execution',{}).get('event')
     with st.container():
@@ -109,7 +109,10 @@ def draw(data, event=None):
         c.summary_strip([('上传资料',str(len(data['files']))+' 份'),('已经完成',f'{data["processed"]} / {len(data["files"])} 文件'),('已发现',str(data['count'])+' 项健康信息')])
         if data['ready']:
             s=data['stats']
-            c.summary_strip([('自动预填',s['prefilled']),('待健管确认',s['pending']),('仍需补充',s['missing']),('冲突',s['conflicts']),('健康档案更新',data['updates'])])
+            if assessment_summary:
+                c.summary_strip([('自动预填',s['prefilled']),('待健管确认',s['pending']),('仍需补充',s['missing']),('冲突',s['conflicts']),('健康档案更新',data['updates'])])
+            else:
+                st.caption(f'健康档案更新：{data["updates"]} 项；初评准备度与待处理项见下方。')
             st.caption('健康档案候选已保留原文、测量及冲突核对结果；未经确认不会写入正式医疗事实。')
         st.markdown('**活动时间轴**')
         lines=[f'✓ 收到 {len(data["files"])} 份健康资料']
@@ -127,36 +130,35 @@ def draw(data, event=None):
         support(data,event)
 
 
-def workspace(app,patient,view, *, uploader=True):
+def workspace(app,patient,view, *, uploader=True, show_actions=True):
     styles()
     selected=st.session_state.get(f'intake-workspace-goal-{patient.id}')
     with SessionLocal() as session:data=projection.project(session,patient.id,view.intake,selected)
+    from executive_health_ai.services.intake_exceptions import state as exception_state
+    exception_mode=bool(view.intake and exception_state(view.intake).get('enabled'))
+    assessment_summary=not (show_actions and exception_mode)
     @st.fragment(run_every=2 if data['processing'] else None)
     def live():
         with SessionLocal() as session:current=projection.project(session,patient.id,view.intake,selected)
         with st.container(key='intake-agent-board'):
             board=st.empty()
-        with board.container():draw(current)
+        with board.container():draw(current,assessment_summary=assessment_summary)
         if current['current'] and current['current']['goal'].status=='RUNNING':
             from executive_health_ai.agent.supervisor import HealthOpsAgentSupervisor
             from executive_health_ai.llm.activity import observe_progress
             def display(event):
                 if event!='BEFORE_PERSIST':
-                    with board.container():draw(current,event)
+                    with board.container():draw(current,event,assessment_summary=assessment_summary)
             with observe_progress(display), SessionLocal() as session:
                 HealthOpsAgentSupervisor().execute_next_step(session,current['current']['goal'].id,durable_profile=True)
                 session.commit()
             st.rerun()
         if data['processing'] and not current['processing']:st.rerun()
     live()
-    from executive_health_ai.services.intake_exceptions import state as exception_state
-    exception_mode=bool(view.intake and exception_state(view.intake).get('enabled'))
+    if not show_actions:return data
     if exception_mode:
         from executive_health_ai.ui.pages.manager.intake_exceptions import panel
         panel(patient,view)
-    elif data['ready']:
-        label=('确认并提交初始健康评估' if data['stats']['percent']==100 else '继续填写') if not view.intake or view.intake.status=='DRAFT' else '查看初评与健管确认'
-        st.button(label,key=f'workspace-continue-{patient.id}',on_click=continue_intake,args=(patient,view))
     # Preserve the established confirmation workflow for uploads after submission.
     from executive_health_ai.ui.pages.manager.profile_intake import review_updates
     review_files=[item for item in data['files'] if not item['goal'].context_json.get('intake_id') and item['goal'].status not in {'RUNNING','PROCESSING'}]
@@ -179,7 +181,7 @@ def upload_area(patient,view):
         epoch=st.session_state.get(key+'-epoch',0)
         files=st.file_uploader('选择文件',type=['pdf','docx','xlsx','csv','txt','json','png','jpg','jpeg'],accept_multiple_files=True,key=key+'-'+str(epoch))
         st.caption('PDF / DOCX / XLSX / CSV / TXT / JSON / PNG / JPG · 每批最多 20 份、100 MB')
-        if st.button('上传并整理资料',key=key+'-submit',type='primary',disabled=not files):
+        if st.button('上传并整理资料',key=key+'-submit',disabled=not files):
             try:
                 with SessionLocal() as session:
                     results=projection.upload(session,patient,view,[(f.name,f.getvalue()) for f in files]);session.commit()
@@ -196,7 +198,7 @@ def upload_area(patient,view):
 def cards(patient,view,data):
     st.subheader('初始健康评估')
     s=data['stats']
-    c.summary_strip([('完成度',str(s['percent'])+'%'),('自动预填',s['prefilled']),('待确认',s['pending']),('待补充',s['missing']),('冲突',s['conflicts'])])
+    st.caption(f'资料完成度：{s["percent"]}% · 点击分类查看或修正；不是健康评分。')
     with st.container(key='intake-section-cards'):
         for start in range(0,10,4):
             for col,item in zip(st.columns(4),data['sections'][start:start+4]):
@@ -210,7 +212,9 @@ def cards(patient,view,data):
     label='确认并提交初始健康评估' if s['percent']==100 and view.intake and view.intake.status=='DRAFT' else '继续完成初始评估' if state in {'未开始','填写中'} else '开始健管确认' if state=='待健管确认' else '查看评估'
     from executive_health_ai.services.intake_exceptions import state as exception_state
     exception_mode=bool(view.intake and exception_state(view.intake).get('enabled'))
-    st.button('查看 / 手工修正（11步）' if exception_mode else label,key=f'workspace-primary-{patient.id}',type='secondary' if exception_mode else 'primary',on_click=continue_intake,args=(patient,view))
+    formal_review=any(not f['goal'].context_json.get('intake_id') and f['goal'].status=='WAITING_MANAGER' for f in data.get('files',[]))
+    st.button('查看 / 手工修正（11步）' if exception_mode else label,key=f'workspace-primary-{patient.id}',type='secondary' if exception_mode or formal_review else 'primary',on_click=continue_intake,args=(patient,view))
     if view.intake:
-        st.button('查看已填写内容',key=f'workspace-preview-{patient.id}',on_click=intake_entry.open_intake,args=(patient,view),kwargs={'read_only':True})
+        if state!='已完成':
+            st.button('查看已填写内容',key=f'workspace-preview-{patient.id}',on_click=intake_entry.open_intake,args=(patient,view),kwargs={'read_only':True})
         if state=='已完成':st.button('补充/修正',key=f'workspace-amend-{patient.id}',on_click=intake_entry.amend,args=(patient,view))

@@ -155,9 +155,9 @@ def test_member_page_has_one_filter_and_explicit_secondary_delete():
     assert len([x for x in app.text_input if x.label=='搜索成员'])==1
     app.run(timeout=45)
     assert len([x for x in app.text_input if x.label=='搜索成员'])==1
-    select_table_row(app,prefix='member-directory-').run(timeout=45)
+    next(s for s in app.selectbox if s.label=='管理会员档案').select_index(0).run(timeout=45)
     assert any(b.label=='删除成员' for b in app.button)
-    assert any(b.label=='查看会员 / 进入Member360' for b in app.button)
+    assert not any(b.label=='查看会员 / 进入Member360' for b in app.button)
     next(b for b in app.button if b.label=='删除成员').click().run(timeout=45)
     assert next(b for b in app.button if b.label=='确认删除').disabled
     # Native dialog fragment reruns (wrong name, cancel, confirm) are exercised

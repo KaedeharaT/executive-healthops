@@ -45,8 +45,8 @@ def test_more_root_routes_before_loading_its_selected_module() -> None:
     directory = (MORE_SHELL.parent / "support_navigation.py").read_text(encoding="utf8")
     assert 'request_navigation(surface="系统管理")' in directory
     assert 'pop("more-navigation", None)' in directory
-    assert 'st.session_state.get("more-navigation")' in shell_source
-    assert shell_source.index('else:\n        render_integration_center()') > shell_source.index('elif more == "操作记录"')
+    assert 'render_more_workspace_shell' not in shell_source
+    assert "TARGETS.get(legacy,'系统状态')" in directory
     assert "render_data_gateway(load_members())" not in shell_source
     assert "render_audit(_context(" not in shell_source
 

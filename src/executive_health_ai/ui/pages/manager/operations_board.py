@@ -139,6 +139,22 @@ def technical(goal):
 
 
 def render(app, goal, *, admin=False):
+    if goal.goal_type=='PROFILE_INTAKE':
+        from executive_health_ai.ui.pages.manager import intake_workspace,ai_support
+        from executive_health_ai.services.intake_workspace import project as intake_project
+        from executive_health_ai.services.agent_capabilities import load
+        from executive_health_ai.models.management_workflow import IntakeAssessment
+        from executive_health_ai.services.management_workflow import owned
+        with SessionLocal() as session:
+            intake_id=goal.context_json.get('intake_id')
+            assessment=owned(session,IntakeAssessment,intake_id,goal.member_id) if intake_id else None
+            data=intake_project(session,goal.member_id,assessment,str(goal.id))
+            _,traces=load(session,goal)
+        intake_workspace.styles()
+        intake_workspace.draw(data)
+        if admin:
+            with st.expander('技术详情'):ai_support.technical(traces)
+        return
     from executive_health_ai.ui.pages.manager.post_checkup import stepper, _manager_action, evidence
     styles()
     activity = care_activity.load(goal)
@@ -157,7 +173,7 @@ def render(app, goal, *, admin=False):
         with live.container():
             c.summary_strip([('责任健管',goal.owner or '待确认'),('现在轮到',board.owner),
                 ('运行时长（含等待）',f'{hours} 小时 {minutes} 分钟'),('当前状态',activity.current)])
-            st.markdown(f'<div class="board-current"><strong>{escape(activity.headline)}</strong><p>当前：{escape(activity.current)}</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="board-current"><strong>{escape(activity.headline)}</strong></div>', unsafe_allow_html=True)
     progress = st.empty()
     with progress.container(), st.container(key='soft-board-process'):
         stepper(goal)
@@ -171,9 +187,6 @@ def render(app, goal, *, admin=False):
         with right, st.container(border=True, key='board-routing'):
             routing(board,goal,activity)
             st.divider()
-            for item in support:
-                if item.key in {'summary','knowledge'}:
-                    st.caption(item.title+'：'+item.label+' · '+item.result)
             if board.route.route_type == 'DOCTOR':
                 st.caption('医生需要做：医学判断。AI只整理资料，知识库只提供已审核依据。')
         with left, st.container(border=True, key='board-activity'):
@@ -181,11 +194,7 @@ def render(app, goal, *, admin=False):
             st.caption('输入：本次报告、已有健康资料与年度基线 → 产出：已确认的后续安排' if goal.status == 'COMPLETED'
                 else '输入：本次报告、已有健康资料与年度基线 → 产出：待核对摘要与行动草稿')
             if goal.status == 'COMPLETED':
-                st.markdown('**已建立的后续安排**')
-                refs=ctx.get('created',{})
-                c.summary_strip([(label,len(refs.get(key,[]))) for label,key in [('管理事项','tasks'),('复查','rechecks'),('随访','followups'),('服务','services')]])
-                st.info('下一节点：'+activity.next_action)
-                st.caption('报告已转成实际安排，后续执行进入会员360与今日工作。')
+                st.write('本次整理与确认已完成。最终产出及下一节点见下方，后续执行进入会员360与今日工作。')
             elif action_approval:
                 st.write(activity.next_action)
                 st.caption(activity.after_confirmation)

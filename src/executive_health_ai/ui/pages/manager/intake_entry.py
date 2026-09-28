@@ -6,7 +6,6 @@ import pandas as pd
 
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.services.management_workflow import ManagementWorkflowService, STEPS
-from executive_health_ai.ui import components as c, experience as ux
 
 WIZARD_STEPS = tuple(s for s in STEPS if s != '最近用药')
 
@@ -21,12 +20,6 @@ def state(row):
     if row.status == 'CONFIRMED' and row.review_status == 'CONFIRMED':
         return '已完成'
     return '待健管确认'
-
-
-def progress(row):
-    responses = row.responses if row else {}
-    return sum(s in responses and (s != '当前用药 / 营养补充' or '最近用药' in responses)
-               for s in WIZARD_STEPS[:-1])
 
 
 def open_intake(patient, view, *, read_only=False, step=None, assessment_id=None):
@@ -68,40 +61,6 @@ def amend(patient, view, step=None):
                 actor=view.owner, decision='RETURN')
             session.commit()
     open_intake(patient, view, step=step)
-
-
-def card(patient, view):
-    row = view.intake
-    status = state(row)
-    with st.container(border=True, key='neu-initial-assessment'):
-        st.subheader('初始健康评估')
-        c.summary_strip([('状态', status), ('已完成部分', f'{progress(row)} / 10'),
-                         ('最近保存', ux.local_time(row.updated_at).strftime('%Y-%m-%d %H:%M') if row and row.responses else '尚未开始')])
-        if status == '未开始':
-            st.write('用于建立会员最初的健康资料和管理基础。')
-            st.caption('基础资料 · 家族史 · 个人病史 · 手术/住院 · 过敏 · 用药 · 生活方式 · 环境暴露 · 本人希望改善的问题 · 专项症状评估')
-        elif status == '待健管确认':
-            st.write('会员资料已提交，请进行健管初评。')
-        elif status == '待医生确认':
-            st.write('涉及医学判断的资料已提交医生；医生确认后继续健管初评。')
-        elif status == '已完成':
-            completed = row.review.get('confirmed_at')
-            completed = datetime.fromisoformat(completed) if completed else row.updated_at
-            st.caption('完成时间：' + ux.local_time(completed).strftime('%Y-%m-%d %H:%M') + ' · 健管确认：已完成 · ' + (row.reviewed_by or view.owner))
-            st.write('本人关注：' + (row.member_concern or '未填写'))
-            st.write('专业管理重点：' + (row.professional_focus or '未填写'))
-        label = {'未开始':'开始评估', '填写中':'继续填写', '待健管确认':'开始健管确认',
-                 '待医生确认':'查看评估', '已完成':'查看评估'}[status]
-        st.button(label, key=f'intake-entry-{patient.id}', type='primary', on_click=open_intake,
-                  args=(patient, view), kwargs={'read_only':status in {'已完成','待医生确认'}})
-        if row and (row.review or {}).get('import_prefill'):
-            st.caption(f"系统已根据已有资料预填 {len(row.review['import_prefill'])} 项；请核对来源并补充其余部分。")
-        if status == '填写中':
-            st.button('查看已填写内容', key=f'intake-preview-{patient.id}', on_click=open_intake,
-                      args=(patient, view), kwargs={'read_only':True})
-        if status == '已完成':
-            st.button('补充/修正', key=f'intake-amend-{patient.id}',on_click=amend,args=(patient,view))
-    st.divider()
 
 
 def answers(row):

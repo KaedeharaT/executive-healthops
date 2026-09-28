@@ -24,7 +24,7 @@ def focus(patient,value):
 def clear(patient):
     st.session_state.pop(f'action-focus-{patient.id}',None);st.rerun()
 
-def render(app,patient,view):
+def render(app,patient,view,*,show_recent=True,primary_next=True):
     from executive_health_ai.ui.pages.manager import workflow
     with SessionLocal() as session:state=service.project(session,patient.id,view.program.id if view.program else None)
     key=f'action-focus-{patient.id}';selected=st.session_state.get(key)
@@ -37,12 +37,14 @@ def render(app,patient,view):
             if state['next']:
                 st.write('下一步：'+state['next'].title)
                 if st.button('继续处理下一项',type='primary'):focus(patient,state['next'].id)
-            stage_prompt(patient,state)
+            stage_prompt(patient,state,primary=not state['next'])
             following=st.session_state.get(f'action-following-{patient.id}')
+            duplicate=set()
             if following in {'安排复查','申请服务','提交医生'}:
                 label='提交医生判断' if following=='提交医生' else following
                 if st.button('继续'+label,key='action-following'):focus(patient,'CREATE:'+label)
-            quick_actions(patient)
+                duplicate.add(label)
+            quick_actions(patient,exclude=duplicate)
             return True
         if selected=='CREATE':
             st.info('当前没有开放事项，可从下面直接开展管理工作。')
@@ -57,7 +59,7 @@ def render(app,patient,view):
             if state['next']:
                 st.write('下一步：'+state['next'].title)
                 if st.button('继续处理下一项',type='primary'):focus(patient,state['next'].id)
-            stage_prompt(patient,state);quick_actions(patient);return True
+            stage_prompt(patient,state,primary=not state['next']);quick_actions(patient);return True
         detail(app,patient,view,item);return True
     with st.container(border=True,key='soft-management-next'):
         st.subheader('当前阶段 · '+(state['phase'].title if state['phase'] else '待安排阶段'))
@@ -66,33 +68,35 @@ def render(app,patient,view):
         if state['next']:
             item=state['next'];st.write(item.title)
             c.summary_strip([('负责人',item.owner),('截止时间',ux.when(item.due)),('来源',item.source),('状态',status_label(item.status))])
-            if st.button('立即处理',type='primary',key='action-immediate'):focus(patient,item.id)
+            if st.button('立即处理',type='primary' if primary_next else 'secondary',key='action-immediate'):focus(patient,item.id)
         else:st.write('当前阶段事项已处理，请确认阶段复盘或下一阶段。' if state['review'] or state['review_ready'] else '当前没有开放事项，可继续记录管理工作或安排后续。')
-        stage_prompt(patient,state)
+        stage_prompt(patient,state,primary=primary_next and not state['next'])
     quick_actions(patient)
-    st.subheader('当前开放事项')
-    item=data_table(state['items'],[{'事项':i.title,'类型':KINDS[i.kind],'状态':status_label(i.status),'负责人':i.owner,'截止时间':ux.local_time(i.due),'来源':i.source,'下一步':i.next_action} for i in state['items']],key=f'action-open-{patient.id}',auto_select=False,empty='当前开放事项已处理。下方保留全部记录；可使用上方快捷动作继续管理。')
+    remaining=[i for i in state['items'] if not state['next'] or i.id!=state['next'].id]
+    st.subheader('其他开放事项')
+    item=data_table(remaining,[{'事项':i.title,'类型':KINDS[i.kind],'状态':status_label(i.status),'负责人':i.owner,'截止时间':ux.local_time(i.due),'来源':i.source,'下一步':i.next_action} for i in remaining],key=f'action-open-{patient.id}',auto_select=False,empty='没有其他开放事项；当前优先事项在上方处理。')
     if item:focus(patient,item.id)
-    st.subheader('最近管理日志')
-    workflow.log_rows(view.logs[:3],key=f'action-recent-{patient.id}')
+    if show_recent:
+        st.subheader('最近管理日志')
+        workflow.log_rows(view.logs[:3],key=f'action-recent-{patient.id}')
     st.subheader('阶段进度')
     workflow.phases(view)
     return False
 
-def quick_actions(patient):
+def quick_actions(patient,*,exclude=()):
     st.markdown('**快捷管理动作**')
-    labels=['新增管理记录','创建随访','安排复查','申请服务','提交医生判断']
-    for col,label in zip(st.columns(5),labels):
+    labels=[label for label in ['新增管理记录','创建随访','安排复查','申请服务','提交医生判断'] if label not in exclude]
+    for col,label in zip(st.columns(len(labels)),labels):
         if col.button(label,key='action-create-'+label):focus(patient,'CREATE:'+label)
 
-def stage_prompt(patient,state):
+def stage_prompt(patient,state,*,primary=True):
     if state['review']:
         st.info('阶段复盘已经完成，下一阶段草稿待确认。')
-        if st.button('进入下一阶段',type='primary',key='action-next-phase'):focus(patient,'NEXT_PHASE')
+        if st.button('进入下一阶段',type='primary' if primary else 'secondary',key='action-next-phase'):focus(patient,'NEXT_PHASE')
     elif state['review_ready']:
         st.success('本阶段主要事项已完成' if state['all_done'] else '本阶段可以复盘；请核对未执行、取消或仍待处理的事项。')
         st.write('本阶段可以复盘 · 已整理完成事项、管理日志、复查与服务结果；指标变化使用已有健康数据。')
-        if st.button('开始阶段复盘',type='primary',key='action-review'):focus(patient,'STAGE_REVIEW')
+        if st.button('开始阶段复盘',type='primary' if primary else 'secondary',key='action-review'):focus(patient,'STAGE_REVIEW')
 
 def detail(app,patient,view,item):
     from executive_health_ai.ui.pages.manager import workflow

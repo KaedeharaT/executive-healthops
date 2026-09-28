@@ -1,0 +1,6892 @@
+{
+  "browser": "151.0.7922.34",
+  "phase": "after",
+  "pages": [
+    {
+      "page": "01-manager-today",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "最近完成\n0",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "处理资料与初评",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看运行看板",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看运行看板",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "工作筛选",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "查找待办",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "负责人",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "11-today-detail",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回今日工作",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "标记完成",
+          "testid": "stBaseButton-primary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n关键信息 / 数据 / 依据",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "进入会员360",
+          "testid": "stBaseButton-secondary"
+        }
+      ],
+      "primary_actions": [
+        "标记完成"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "02-members",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "搜索成员",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "状态",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "负责人",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n会员入组 · 新建年度服务周期",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "会员称呼",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "会员档案",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "责任健康管理师",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "Select a date.",
+          "testid": "stDateInputField"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "Select a date.",
+          "testid": "stDateInputField"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "年度目标",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "客户顾问（选填）",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondaryFormSubmit"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "会员管理\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "03-member360",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看运行看板",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "继续评估",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show data",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as PNG",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Copy Vega-Lite spec",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看趋势",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show data",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as PNG",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Copy Vega-Lite spec",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看趋势",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "处理下一步",
+          "testid": "stBaseButton-primary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "新增管理记录",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n年度目标与健康基线",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [
+        "处理下一步"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "34-manager-health-data",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回健康档案摘要",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "选择健康指标",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "7天",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "30天",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "3个月",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "6个月",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "1年",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "全部",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show data",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as PNG",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Copy Vega-Lite spec",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n数据来源与记录",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "04-health-record",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "上传健康资料",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "file upload",
+          "testid": "stFileUploaderDropzoneInput"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "upload\n\nUpload",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "上传并整理资料",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "基础资料\n待补充\n点击查看与补充",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "家族史\n待补充\n点击查看与补充",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "个人病史\n待补充\n点击查看与补充",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "手术 / 住院\n待补充\n点击查看与补充",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "过敏\n待补充\n点击查看与补充",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "用药\n待补充\n点击查看与补充",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "生活方式\n待补充\n点击查看与补充",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "环境与暴露\n待补充\n点击查看与补充",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "会员重点关注\n待补充\n点击查看与补充",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "专项症状评估\n待补充\n点击查看与补充",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "继续完成初始评估",
+          "testid": "stBaseButton-primary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看完整健康档案",
+          "testid": "stBaseButton-secondary"
+        }
+      ],
+      "primary_actions": [
+        "继续完成初始评估"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "12-full-archive",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回健康档案主页",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "06-management",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看运行看板",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "立即处理",
+          "testid": "stBaseButton-primary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "新增管理记录",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "创建随访",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "安排复查",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "申请服务",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "提交医生判断",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "管理工作",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        }
+      ],
+      "primary_actions": [
+        "立即处理"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "13-stage-review",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看运行看板",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "立即处理",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "新增管理记录",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "创建随访",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "安排复查",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "申请服务",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "提交医生判断",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "管理工作",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n记录阶段评估",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "阶段决定",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-primaryFormSubmit"
+        }
+      ],
+      "primary_actions": [
+        ""
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "14-recheck",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看运行看板",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "立即处理",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "新增管理记录",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "创建随访",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "安排复查",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "申请服务",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "提交医生判断",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "管理工作",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_down\n\n建立检查复查计划",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "检查项目",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "检查原因",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "Select a date.",
+          "testid": "stDateInputField"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "检查机构",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "复查负责人",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "已确认医生意见",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "建立复查事项",
+          "testid": "stBaseButton-primaryFormSubmit"
+        }
+      ],
+      "primary_actions": [
+        "建立复查事项"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "15-medical",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "搜索记录",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "16-manager-history",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n更多重要事件 · 14 条",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n查看完整历程与依据",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Remove 血糖",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Remove 血压",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Remove 步数",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "健康趋势（最多选择 4 项）",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Clear all",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show data",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as PNG",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Copy Vega-Lite spec",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Help for 健康历程时间范围",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "健康历程时间范围 — start",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "健康历程时间范围 — end",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "07-annual",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "年度",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "当前阶段",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "责任健管",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "是否逾期",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "是否等待医生",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "是否待复盘",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "查找年度目标或会员",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "周期状态",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "17-annual-member-destination",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回年度管理",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看运行看板",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "新增管理记录",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "创建随访",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "安排复查",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "申请服务",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "提交医生判断",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "管理工作",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_down\n\n增加阶段",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "阶段名称",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "阶段目标",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "Select a date.",
+          "testid": "stDateInputField"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "Select a date.",
+          "testid": "stDateInputField"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "阶段负责人",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "保存阶段",
+          "testid": "stBaseButton-secondaryFormSubmit"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "启动年度方案",
+          "testid": "stBaseButton-primary"
+        }
+      ],
+      "primary_actions": [
+        "启动年度方案"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "18-medical-collaboration",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "搜索记录",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "19-services",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "搜索服务",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "20-service-detail",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "搜索服务",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Clear selection",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "关闭",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n申请原因与完整说明",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "审核申请",
+          "testid": "stBaseButton-primary"
+        }
+      ],
+      "primary_actions": [
+        "审核申请"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "05-intake",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "处理剩余 10 项",
+          "testid": "stBaseButton-primary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "file upload",
+          "testid": "stFileUploaderDropzoneInput"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "upload\n\nUpload",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "上传并整理资料",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "基础资料\n待确认\n已整理 · 可随初评一次确认",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "家族史\n待确认\n已整理 · 可随初评一次确认",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "个人病史\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "手术 / 住院\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "过敏\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "用药\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "生活方式\n待补充\n2 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "环境与暴露\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "会员重点关注\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "专项症状评估\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看 / 手工修正（11步）",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看已填写内容",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看完整健康档案",
+          "testid": "stBaseButton-secondary"
+        }
+      ],
+      "primary_actions": [
+        "处理剩余 10 项"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "21-intake-exception",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "填写会员实际回答",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "保存答案并处理下一项",
+          "testid": "stBaseButton-primaryFormSubmit"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n需要医生判断",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "相关资料",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "请医生确认的问题",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n查看自动整理结果与来源",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "file upload",
+          "testid": "stFileUploaderDropzoneInput"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "upload\n\nUpload",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "上传并整理资料",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "基础资料\n待确认\n已整理 · 可随初评一次确认",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "家族史\n待确认\n已整理 · 可随初评一次确认",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "个人病史\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "手术 / 住院\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "过敏\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "用药\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "生活方式\n待补充\n2 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "环境与暴露\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "会员重点关注\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "专项症状评估\n待补充\n1 项例外 · 点击查看与修正",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看 / 手工修正（11步）",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看已填写内容",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看完整健康档案",
+          "testid": "stBaseButton-secondary"
+        }
+      ],
+      "primary_actions": [
+        "保存答案并处理下一项"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "22-intake-editor",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回会员",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回健康档案",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n资料来源与待核对内容",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "人工核对与补充处理记录",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "填写步骤",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Add row",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "已核对本步骤原始资料，确认当前填写或保留未知",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "冲突处理 / 暂不采用说明（存在冲突时必填）",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "保存草稿",
+          "testid": "stBaseButton-secondaryFormSubmit"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "保存草稿并继续",
+          "testid": "stBaseButton-primaryFormSubmit"
+        }
+      ],
+      "primary_actions": [
+        "保存草稿并继续"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "08-doctor",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "搜索记录",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "23-doctor-detail",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回待我判断",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show data",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as PNG",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Copy Vega-Lite spec",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show data",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as PNG",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Copy Vega-Lite spec",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n系统整理结果与会员背景",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看原始报告",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "Select a date.",
+          "testid": "stDateInputField"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "复查项目",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "Select a date.",
+          "testid": "stDateInputField"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n其他说明",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "提交判断",
+          "testid": "stBaseButton-primaryFormSubmit"
+        }
+      ],
+      "primary_actions": [
+        "提交判断"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "24-doctor-history",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "09-member-home",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "查看成员",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "个人设置\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "arrow_forward\n\n去完成",
+          "testid": "stBaseButton-primary"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n查看原因与完成说明",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n当前管理进展与下一步",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show data",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as PNG",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Copy Vega-Lite spec",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show data",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as PNG",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Copy Vega-Lite spec",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看健康变化",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "查看服务安排",
+          "testid": "stBaseButton-secondary"
+        }
+      ],
+      "primary_actions": [
+        "arrow_forward\n\n去完成"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "25-member-health",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "查看成员",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "个人设置\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "选择健康指标",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "7天",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "30天",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "3个月",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "6个月",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "1年",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": "radio",
+          "label": "全部",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show data",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as PNG",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Copy Vega-Lite spec",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n数据来源与记录",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "26-member-plan",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "查看成员",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "个人设置\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n接受或调整当前方案",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n为什么要处理 · 来源与完整说明",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "确认完成",
+          "testid": "stBaseButton-primary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n历史计划与阶段结果",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": null,
+          "testid": null
+        }
+      ],
+      "primary_actions": [
+        "确认完成"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "27-member-service",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "查看成员",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "个人设置\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "取消本次申请",
+          "testid": "stBaseButton-secondary"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "28-member-history",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "查看成员",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "个人设置\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n更多重要事件 · 14 条",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n查看完整历程与依据",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Remove 血糖",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Remove 血压",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Remove 步数",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "健康趋势（最多选择 4 项）",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Clear all",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show data",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as PNG",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Copy Vega-Lite spec",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Help for 健康历程时间范围",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "健康历程时间范围 — start",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "健康历程时间范围 — end",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "10-admin",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Deploy",
+          "testid": "stBaseButton-header"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Main menu",
+          "testid": "stMainMenuButton"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "检查数据与集成",
+          "testid": "stBaseButton-primary"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n运行方式与责任边界",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n操作记录",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "显示已归档成员",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "选择成员",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\nAI质量治理（高级）",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n高级信息 · 兼容工具",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "选择兼容工具",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-secondary"
+        }
+      ],
+      "primary_actions": [
+        "检查数据与集成"
+      ],
+      "exceptions": 0
+    },
+    {
+      "page": "29-admin-automation",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Deploy",
+          "testid": "stBaseButton-header"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Main menu",
+          "testid": "stMainMenuButton"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "搜索记录",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "30-agent-board",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Deploy",
+          "testid": "stBaseButton-header"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Main menu",
+          "testid": "stMainMenuButton"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "← 返回自动化运行",
+          "testid": "stBaseButton-secondary"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "SUMMARY",
+          "role": null,
+          "label": "keyboard_arrow_right\n\n技术详情",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "31-integrations",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Deploy",
+          "testid": "stBaseButton-header"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Main menu",
+          "testid": "stMainMenuButton"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "32-rules",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "keyboard_double_arrow_left",
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Deploy",
+          "testid": "stBaseButton-header"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Main menu",
+          "testid": "stMainMenuButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "label": null,
+          "testid": "stDataFrame"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Show/hide columns",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Download as CSV",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Search",
+          "testid": "stBaseButton-elementToolbar"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Fullscreen",
+          "testid": "stBaseButton-elementToolbar"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    },
+    {
+      "page": "33-knowledge",
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": null,
+          "testid": "stBaseButton-headerNoPadding"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "swap_horiz\n\n切换演示角色\n\nexpand_more",
+          "testid": "stPopoverButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Deploy",
+          "testid": "stBaseButton-header"
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Main menu",
+          "testid": "stMainMenuButton"
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "A",
+          "role": null,
+          "label": "Link to heading",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "radio",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": null,
+          "label": "关键词",
+          "testid": null
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "label": "来源",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "Open",
+          "testid": null
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "label": "搜索",
+          "testid": "stBaseButton-primary"
+        }
+      ],
+      "primary_actions": [],
+      "exceptions": 0
+    }
+  ]
+}

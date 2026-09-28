@@ -125,6 +125,7 @@ def work_detail(app, item, member):
 
 def open_directory_member(app, member):
     st.session_state['member-return-origin']='会员'
+    st.session_state['member-directory-epoch']=st.session_state.get('member-directory-epoch',0)+1
     app.request_navigation(ops_page='成员',member_id=member.id,member_section='概览',rerun=False)
 
 
@@ -150,6 +151,13 @@ def directory(app, members):
     rows = [r for r in rows if (not query or query in (app._member_display(r['member'])+r['focus']).casefold())
             and (state=='全部' or state==(status_label(r['program'].status) if r['program'] else '待建档'))
             and (owner=='全部' or owner==(r['program'].owner if r['program'] else '待分配'))]
+    with st.popover('会员管理'):
+        st.caption('删除采用安全归档，需另外选择会员并输入姓名确认。')
+        managed=st.selectbox('管理会员档案',[r['member'] for r in rows],index=None,
+            format_func=app._member_display,key='directory-managed-member',placeholder='选择需要管理的会员')
+        if managed:
+            from executive_health_ai.ui.pages.manager.member_delete import actions
+            actions(app,managed)
     records=[]
     for r in rows:
         p,t,phase,log = r['program'],r['task'],r['phase'],r['log']
@@ -160,8 +168,7 @@ def directory(app, members):
             '下一日期':ux.local_time(t.due_at) if t else None,'状态':status_label(p.status) if p else '待建档'})
     chosen = data_table(rows, records, key='member-directory',label='选择会员',empty='未找到匹配会员。',auto_select=False,activate_on_cell=True)
     if chosen:
-        from executive_health_ai.ui.pages.manager.member_delete import actions
-        actions(app,chosen['member'])
+        open_directory_member(app,chosen['member']);st.rerun()
 
 
 def archive(app, patient, view):

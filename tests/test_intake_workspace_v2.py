@@ -237,8 +237,10 @@ def test_existing_formal_archive_confirmation_is_accessible_in_workspace(tmp_pat
         session.commit();gid=goal.id
     app=AppTest.from_function(archive_page,args=(str(mid),)).run()
     assert not app.exception
+    assert len([b for b in app.button if b.proto.type=='primary'])==1
     button(app,'确认并更新健康档案').click().run()
     assert not app.exception
+    assert len([b for b in app.button if b.proto.type=='primary'])==1
     with SessionLocal() as session:
         assert session.get(AgentGoal,gid).status=='COMPLETED'
         assert session.get(IntakeAssessment,iid).status=='SUBMITTED'

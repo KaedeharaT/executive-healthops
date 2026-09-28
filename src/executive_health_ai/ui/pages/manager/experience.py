@@ -219,8 +219,6 @@ def member_detail(app, patient):
         with st.expander('年度目标与健康基线'):
             st.write(ux.business_text(program.main_goal) if program else '待建立年度方案')
             ux.baseline_summary(baseline,rows,compact=True)
-        st.markdown('**下一步**')
-        st.write(next_text)
     elif section == "健康":
         from executive_health_ai.ui.pages.manager.workbench import archive
         archive(app,patient,management_view)

@@ -56,7 +56,7 @@ def open_care(app, goal, origin='今日工作'):
     st.session_state.pop('today-detail', None)
     if getattr(goal,'goal_type',None)=='PROFILE_INTAKE':
         from executive_health_ai.ui.pages.manager.profile_intake import open_board
-        open_board(app,goal)
+        open_board(app,goal,origin=origin)
         return
     st.session_state['care-detail'] = str(goal.id)
     st.session_state['care-origin'] = origin

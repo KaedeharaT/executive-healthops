@@ -153,8 +153,8 @@ def manager_detail(app, goal_id):
             st.info('成员已归档，自动流程已停止；历史记录由管理员查阅。')
             return
     if goal and goal.goal_type == 'PROFILE_INTAKE':
-        from executive_health_ai.ui.pages.manager.profile_intake import detail
-        detail(app,goal_id)
+        from executive_health_ai.ui.pages.manager.profile_intake import open_board
+        open_board(app,goal,origin=st.session_state.get('care-origin','今日工作'));st.rerun()
         return
     if not goal or not flow.is_care_goal(goal):
         st.error('此报告事项不可用。'); return

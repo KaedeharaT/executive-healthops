@@ -105,7 +105,8 @@ def test_admin_all_integrations_rules_system_and_legacy_tools_are_accessible():
         select_table_row(app,index).run(timeout=30)
         assert not app.exception
     radio(app, "系统", "规则与知识")
-    for value in ["规则", "专业知识", "设备"]:
+    assert next(x for x in app.radio if x.label=='配置内容').options==["规则", "专业知识"]
+    for value in ["规则", "专业知识"]:
         radio(app, "配置内容", value)
     radio(app, "系统", "自动化运行")
     radio(app, "系统", "系统状态")

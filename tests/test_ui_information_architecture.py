@@ -98,15 +98,15 @@ def test_primary_surfaces_use_product_facing_page_headers() -> None:
     assert "c.page_shell('manager', '今日工作'" in _source("render_manager_dashboard", "def _render_member_header")
     assert "c.page_shell('manager','会员'" in _source("render_members_workspace", "KNOWLEDGE_CATEGORIES")
     assert "collaboration(_ui_adapter())" in _source("render_collaboration_workspace", "def _report_candidate_label")
-    assert 'page_header("更多"' in MORE_SHELL.read_text(encoding="utf-8")
+    assert 'page_header("更多"' not in MORE_SHELL.read_text(encoding="utf-8")
     assert "_page_header(\"健康数据\"" in _source("render_health_data", "def render_medications")
 
 
 def test_member_health_and_more_use_a_second_level_content_selector() -> None:
     archive = _source("render_member_archive", "def _select_archive_timeline")
-    more = MORE_SHELL.read_text(encoding="utf-8")
+    more = (MORE_SHELL.parent/'support_navigation.py').read_text(encoding="utf-8")
     assert 'st.radio("成员健康内容", views' in archive
-    assert "entries = [" in more and 'more-open-' in more
+    assert 'request_navigation(surface="系统管理")' in more and 'more-open-' not in more
 
 
 def test_report_first_screen_is_result_first_and_progressively_disclosed() -> None:
@@ -117,11 +117,11 @@ def test_report_first_screen_is_result_first_and_progressively_disclosed() -> No
     assert 'with st.expander("报告整理记录")' in source
 
 
-def test_more_root_remains_a_lazy_menu() -> None:
-    source = MORE_SHELL.read_text(encoding="utf-8")
-    assert 'if more is None:' in source
-    assert source.index('if more is None:') < source.index('render_integration_center()')
-    assert "管理工具" in source
+def test_legacy_more_redirect_is_lazy_and_has_no_duplicate_menu() -> None:
+    source = (MORE_SHELL.parent/'support_navigation.py').read_text(encoding="utf-8")
+    assert 'request_navigation(surface="系统管理")' in source
+    assert 'st.button(' not in source and 'st.radio(' not in source
+    assert 'render_integration_center()' not in source
 
 
 def test_primary_navigation_and_collaboration_are_task_and_member_oriented() -> None:
@@ -129,9 +129,10 @@ def test_primary_navigation_and_collaboration_are_task_and_member_oriented() -> 
     source = all_ui_source()
     more = MORE_SHELL.read_text(encoding="utf-8")
     assert '["今日", "成员", "年度管理", "医疗协同", "服务运营"]' in source
-    assert 'options = ["风险规则", "操作记录", "系统"]' in more
-    assert "render_integration_center()" in more
-    assert 'with st.expander("AI 质量治理（高级）")' in more
+    admin = (MORE_SHELL.parent/'admin'/'experience.py').read_text(encoding='utf-8')
+    assert '["系统状态", "自动化运行", "数据与集成", "规则与知识"]' in admin
+    assert 'app._render_data_package_import(' in admin
+    assert 'with st.expander("AI质量治理（高级）")' in admin
     assert "健管培训助手" not in more
     collaboration = _source("render_collaboration_workspace", "def _report_candidate_label")
     assert "collaboration(_ui_adapter())" in collaboration

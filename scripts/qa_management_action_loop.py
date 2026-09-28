@@ -28,7 +28,7 @@ with sync_playwright() as p:
         page.goto(os.getenv('HEALTHOPS_QA_URL','http://127.0.0.1:18570'),wait_until='networkidle');settle()
         button('进入 HealthOps 运营后台')
         radio('会员');field=page.get_by_label('搜索成员',exact=True);field.fill('Demo Executive A');field.press('Enter');settle()
-        page.locator('[data-testid="stDataFrame"]').last.click(position={'x':100,'y':55});settle();button('查看会员 / 进入Member360')
+        page.locator('[data-testid="stDataFrame"]').last.click(position={'x':100,'y':55});settle()
         expect(page.get_by_role('radio',name='概览',exact=True)).to_be_checked()
         shot('01-overview-next.png','处理下一步');button('处理下一步')
         expect(page.get_by_role('button',name='完成本次处理',exact=True)).to_be_visible()

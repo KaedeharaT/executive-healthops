@@ -1,0 +1,125 @@
+HealthOps
+swap_horiz
+
+切换演示角色
+
+expand_more
+
+当前：健康管理师 · 演示预览
+
+健康管理平台
+
+健康管理师工作区
+
+今日工作
+
+会员
+
+年度管理
+
+医疗协同
+
+服务
+
+← 返回年度管理
+
+H
+MEMBER 360 · 全周期健康管理
+Synthetic Workflow Member
+更新：今天 18:08
+当前年度
+2026年度健康管理 · 09/28—2027/09/27
+责任健管：
+Synthetic Care Manager
+当前阶段
+资料收集中
+会员本人关注
+待填写
+专业管理重点
+待初评
+下一步
+新增管理记录或创建随访 · Synthetic Care Manager
+
+概览
+
+健康档案
+
+管理
+
+医疗
+
+历程
+
+自动跟进
+
+当前没有自动流程记录。上传体检报告或导入健康资料后，将在这里显示实际处理进展。
+
+最近完成：暂无记录
+
+下一步：在医疗或健康档案中补充资料。
+
+查看运行看板
+
+当前阶段 · 待安排阶段
+
+可先记录工作、创建随访，或从年度方案与阶段建立计划。
+
+下一件要做
+
+当前没有开放事项，可继续记录管理工作或安排后续。
+
+快捷管理动作
+
+新增管理记录
+
+创建随访
+
+安排复查
+
+申请服务
+
+提交医生判断
+
+其他开放事项
+
+没有其他开放事项；当前优先事项在上方处理。
+
+最近管理日志
+
+暂无管理记录。完成沟通后记录结果与下一步。
+
+阶段进度
+
+尚未制定阶段；完成初评与基线后建立年度方案。
+
+年度目标：完成资料核对并建立持续执行习惯
+
+年度目标：完成资料核对并建立持续执行习惯
+
+keyboard_arrow_down
+
+增加阶段
+
+阶段名称
+
+阶段目标
+
+管理内容
+
+阶段开始
+
+Press the down arrow key to interact with the calendar and select a date. Press the escape button to close the calendar.
+
+Selected date is 2026/09/28. Select the second date.
+
+阶段结束
+
+Press the down arrow key to interact with the calendar and select a date. Press the escape button to close the calendar.
+
+Selected date is 2026/10/27. Select the second date.
+
+阶段负责人
+
+保存阶段
+
+启动年度方案

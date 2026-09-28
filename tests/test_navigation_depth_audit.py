@@ -57,11 +57,11 @@ def test_reports_medical_doctors_services_and_timeline_use_inline_detail_pattern
 def test_member_detail_and_more_respect_secondary_navigation_limits() -> None:
     source = APP.read_text(encoding="utf-8")
     detail = _source("render_member_detail", "def render_member_archive")
-    more = MORE_SHELL.read_text(encoding="utf-8")
+    more = (MORE_SHELL.parent/'admin/experience.py').read_text(encoding="utf-8")
     assert '["概览", "健康", "管理", "医疗", "历程"]' in detail
-    assert 'options = ["风险规则", "操作记录", "系统"]' in more
-    assert "render_integration_center()" in more
-    assert 'with st.expander("AI 质量治理（高级）")' in more
+    assert '["系统状态", "自动化运行", "数据与集成", "规则与知识"]' in more
+    assert 'integrations(app)' in more
+    assert 'AI质量治理（高级）' in more
     assert "健管培训助手" not in more
 
 

@@ -44,7 +44,7 @@ from executive_health_ai.ui.display import (
     get_provider_display, get_quality_display, get_risk_display, get_role_display,
     get_source_type_display, get_status_display, humanize_source_name,
 )
-from executive_health_ai.ui.pages.shell import render_more_workspace_shell, render_portfolio_landing
+from executive_health_ai.ui.pages.shell import render_portfolio_landing
 from executive_health_ai.ui.pages.ai_improvement import render_ai_improvement
 from executive_health_ai.services.knowledge import KnowledgeService
 from executive_health_ai.services.knowledge_retrieval import KnowledgeRetrievalService
@@ -3686,9 +3686,6 @@ def _render_knowledge_service_integration() -> None:
             except Exception:
                 LOGGER.exception("knowledge package import failed")
                 st.error("知识资料未能导入，所有变更已撤回。")
-    _render_knowledge_search(sources)
-    with st.expander("查看已审核内部规范"):
-        _render_saved_knowledge(sources)
 
 
 def _render_device_integration() -> None:

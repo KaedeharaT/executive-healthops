@@ -1,17 +1,15 @@
 """Health record upload and the shared assistant board, in business language."""
-from html import escape
 from pathlib import Path
 from uuid import UUID
 import pandas as pd
 import streamlit as st
 from sqlalchemy import select
 from executive_health_ai.database import SessionLocal
-from executive_health_ai.models import AgentGoal, Document, Patient, AgentRunTrace, AgentPlanStep, DoctorReview, ReportExtractionRun
+from executive_health_ai.models import AgentGoal, Document, AgentRunTrace, AgentPlanStep, DoctorReview, ReportExtractionRun
 from executive_health_ai.agent import profile_intake as flow
 from executive_health_ai.agent.supervisor import HealthOpsAgentSupervisor
 from executive_health_ai.agent.care_routing import latest
-from executive_health_ai.services.profile_ingestion import ProfileIngestionService, TYPES, candidates, confirmed_profile, business_evidence, FIELD_LABELS
-from executive_health_ai.services.responsibility import LABELS as RESPONSIBILITY
+from executive_health_ai.services.profile_ingestion import TYPES, candidates, confirmed_profile, business_evidence, FIELD_LABELS
 from executive_health_ai.ui import components as c, experience as ux
 from executive_health_ai.ui.presentation import data_table
 
@@ -19,10 +17,11 @@ STATUS={'RUNNING':'正在整理健康资料','PROCESSING':'正在整理健康资
     'WAITING_DOCTOR':'等待医生判断','ESCALATED':'需要人工处理','COMPLETED':'已完成','WRITING':'正在写入档案'}
 
 
-def open_board(app,goal):
+def open_board(app,goal,*,origin=None):
     st.session_state.pop('care-detail',None)
     st.session_state[f'intake-workspace-goal-{goal.member_id}']=str(goal.id)
     st.session_state.pop(f'archive-content-{goal.member_id}',None)
+    if origin and origin!='会员360':st.session_state['member-return-origin']=origin
     app.request_navigation(surface='运营后台',ops_page='成员',member_id=goal.member_id,member_section='健康',rerun=False)
 
 
@@ -69,26 +68,6 @@ def doctor_context(review):
     return True
 
 
-def detail(app,goal_id):
-    with SessionLocal() as session:goal=session.get(AgentGoal,UUID(str(goal_id)))
-    if not flow.is_profile_goal(goal):st.error('未找到本次资料导入。');return
-    if st.button('← 返回健康档案'):
-        st.session_state.pop('care-detail',None)
-        app.request_navigation(surface='运营后台',ops_page='成员',member_id=goal.member_id,member_section='健康',rerun=False)
-        st.session_state.pop(f'archive-content-{goal.member_id}',None);st.rerun()
-    @st.fragment(run_every=2 if goal.status in {'RUNNING','PROCESSING'} else 15 if goal.status=='WAITING_DOCTOR' else None)
-    def live():
-        with SessionLocal() as session:
-            current=session.get(AgentGoal,goal.id)
-            render(app,session,current)
-        if current.status=='RUNNING':
-            with SessionLocal() as session:
-                HealthOpsAgentSupervisor().execute_next_step(session,goal.id,durable_profile=True)
-                session.commit()
-        if current.status!=goal.status:st.rerun()
-    live()
-
-
 def progress_steps(goal):
     """Business labels from the same persisted plan used by the running board."""
     with SessionLocal() as session:
@@ -100,40 +79,6 @@ def stepper(goal):
     steps=progress_steps(goal)
     for col,(label,done,current) in zip(st.columns(6),steps):
         col.markdown(('✓ ' if done else '● ' if current else '○ ')+label)
-
-
-def render(app,session,goal):
-    doc=session.get(Document,UUID(goal.source_id));patient=session.get(Patient,goal.member_id)
-    rows=candidates(session,goal);route=latest(session,goal)
-    traces=list(session.scalars(select(AgentRunTrace).where(AgentRunTrace.goal_id==goal.id,
-        AgentRunTrace.action.in_(('profile_activity','profile_exception'))).order_by(AgentRunTrace.started_at)))
-    from executive_health_ai.services.agent_capabilities import load as load_support
-    from executive_health_ai.ui.pages.manager import ai_support
-    support, support_traces = load_support(session,goal)
-    with st.container(border=True, key='neu-profile-header'):
-        st.header('健康管理助手 · 健康资料导入')
-        st.subheader(app._member_display(patient))
-        st.caption('开始原因：收到'+TYPES[goal.context_json['document_type']]+' · '+doc.title+' · '+ux.when(goal.started_at))
-        c.summary_strip([('当前',STATUS.get(goal.status,'待处理')),('当前责任',RESPONSIBILITY[route.route_type] if route else '系统自动处理'),('责任健管',goal.owner)])
-        st.divider()
-        stepper(goal)
-    ai_support.route(goal,support,support_traces)
-    ai_support.panel(goal,support,key='soft-profile-ai-support')
-    if goal.context_json.get('intake_id'):
-        st.info('本份资料用于初始健康评估草稿。请在初评各步骤核对来源、处理冲突并补充缺失资料；不直接写入医学结论。')
-        st.write(goal.next_action)
-        if rows:st.dataframe(pd.DataFrame([{'步骤':r.source_section,'内容':r.summary or r.raw_value,'原文':r.evidence_text,'位置':r.structured_data_json.get('source_locator','')} for r in rows]),hide_index=True,width='stretch')
-        path=Path(doc.storage_reference)
-        if path.is_file():st.download_button('查看原始资料',path.read_bytes(),file_name=doc.title)
-        if st.button('继续初始健康评估',type='primary'):
-            from executive_health_ai.ui.pages.manager import intake_entry, workflow
-            intake_entry.open_intake(patient,workflow.view_for(patient.id),assessment_id=goal.context_json['intake_id'])
-            st.session_state.pop('care-detail',None)
-            app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='健康',rerun=False);st.rerun()
-        st.subheader('处理历程')
-        for item in traces:st.write(ux.when(item.started_at)+' · '+item.result_summary)
-        return
-    review_updates(app,session,goal)
 
 
 def review_updates(app,session,goal):
@@ -149,8 +94,6 @@ def review_updates(app,session,goal):
         c.summary_strip([('体检报告',out['reports']),('新增健康测量',out['measurements']),('更新健康档案',out['profile']),('新增历史记录',out['history']),('需要后续处理',out['deferred'])])
         st.write('会员360：已同步 · 成员端：已同步（同一份正式健康档案）')
         st.info('下一步：'+goal.next_action+' · 负责人：'+goal.owner)
-        if st.button('返回会员360',type='primary'):
-            st.session_state.pop('care-detail',None);app._open_member(goal.member_id);st.rerun()
     else:
         with st.container(border=True, key='neu-profile-current'):
             st.subheader('现在需要您处理' if goal.status=='WAITING_MANAGER' else '当前正在处理')

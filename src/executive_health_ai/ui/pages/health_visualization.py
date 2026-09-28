@@ -18,8 +18,7 @@ def render_previews(patient_id, *, key, open_trend, maximum=2, series=None, shar
     previews = HealthVisualizationService().previews(load_series(patient_id) if series is None else series, maximum)
     if not previews:
         st.caption("暂无足够数据形成趋势。")
-        return
-    columns = st.columns(len(previews))
+    columns = st.columns(len(previews)) if previews else []
     for col, (code, group) in zip(columns, previews):
         with col:
             render_compact_sparkline(code, group, key=f"{key}-{code}")

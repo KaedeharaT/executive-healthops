@@ -45,13 +45,9 @@ def confirm_delete(member_id,expected_name):
 
 
 def actions(app,member):
-    from executive_health_ai.ui.pages.manager.workbench import open_directory_member
     st.markdown('**选中会员：'+member_label(member)+'**')
     st.caption('会员标识：'+str(member.id)[:8])
-    primary,danger=st.columns([3,1])
-    if primary.button('查看会员 / 进入Member360',type='primary',key='directory-open-'+str(member.id)):
-        open_directory_member(app,member);st.rerun()
-    with danger,st.container(key='member-delete-danger'):
+    with st.container(key='member-delete-danger'):
         if st.button('删除成员',key='directory-delete-'+str(member.id),help='危险操作：需输入姓名确认；实际安全归档，保留历史记录。'):
             st.session_state.pop('member-delete-name-'+str(member.id),None)
             confirm_delete(str(member.id),member_label(member))

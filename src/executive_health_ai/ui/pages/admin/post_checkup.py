@@ -2,10 +2,10 @@
 import streamlit as st
 from sqlalchemy import select
 from executive_health_ai.database import SessionLocal
-from executive_health_ai.models import AgentGoal, AgentRunTrace, AgentPlanStep, Patient
+from executive_health_ai.models import AgentGoal, Patient
 from executive_health_ai.agent.post_checkup import is_care_goal, LABELS
 from executive_health_ai.ui.presentation import data_table
-from executive_health_ai.ui import experience as ux, components as c
+from executive_health_ai.ui import experience as ux
 
 
 def monitor():
@@ -18,22 +18,8 @@ def monitor():
             st.session_state.pop('admin-care-board',None)
             st.session_state['admin-care-epoch']=st.session_state.get('admin-care-epoch',0)+1
             st.rerun()
-        if goal.goal_type == 'PROFILE_INTAKE':
-            from executive_health_ai.services.agent_capabilities import load
-            from executive_health_ai.ui.pages.manager import ai_support
-            with SessionLocal() as session:
-                support,traces = load(session,goal)
-                member = session.get(Patient,goal.member_id)
-            st.header('健康资料导入 · 运行详情')
-            st.write(member.display_name if member else '会员')
-            st.write(goal.next_action)
-            ai_support.route(goal,support,traces)
-            ai_support.panel(goal,support)
-            with st.expander('技术详情'):
-                ai_support.technical(traces)
-            return
         render(None,goal,admin=True)
-        if goal.status in {'ESCALATED','FAILED','WAITING_INPUT'}:
+        if goal.goal_type!='PROFILE_INTAKE' and goal.status in {'ESCALATED','FAILED','WAITING_INPUT'}:
             if st.button('重新读取已补充资料',key='care-admin-retry'):
                 from executive_health_ai.agent.supervisor import HealthOpsAgentSupervisor
                 with SessionLocal() as session:
@@ -41,7 +27,6 @@ def monitor():
                     session.commit()
                 st.rerun()
         return
-    st.subheader('自动化运行')
     with SessionLocal() as session:
         goals = [g for g in session.scalars(select(AgentGoal).order_by(AgentGoal.started_at.desc())) if is_care_goal(g) or g.goal_type == 'PROFILE_INTAKE']
         members = {p.id: p.display_name for p in session.scalars(select(Patient))}

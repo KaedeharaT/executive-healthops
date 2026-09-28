@@ -128,7 +128,7 @@ def intake(app,patient,member=False,assessment_id=None):
                          ('责任健管',view.owner),('评估状态',intake_entry.state(row))])
     if not member:
         from executive_health_ai.ui.pages.manager.intake_workspace import workspace
-        workspace(app,patient,view)
+        workspace(app,patient,view,uploader=False,show_actions=False)
     if not row:
         st.button('开始评估',type='primary',on_click=intake_entry.open_intake,args=(patient,view));return
     st.caption('保存的是本人陈述，提交后由健管核对；症状评分不代表诊断。')
@@ -252,16 +252,19 @@ def management(app,patient):
     from executive_health_ai.ui.pages.manager import action_loop
     workspace=st.empty()
     with workspace.container():
-        if action_loop.render(app,patient,view):return
+        mode=st.session_state.get(f'workflow-mode-{patient.id}')
+        if action_loop.render(app,patient,view,show_recent=mode!='管理日志',primary_next=mode in {None,'管理事项','事项历史'}):return
     if not view.program:
         from executive_health_ai.ui.pages.manager.experience import management as legacy
         legacy(app,patient)
         with st.expander('计划关联服务与执行结果'):app.render_member_service_management(patient)
         return
     st.caption('年度目标：'+preview(view.program.main_goal,90))
-    mode=st.selectbox('管理工作',['管理事项','管理日志','年度方案与阶段','检查复查','阶段评估','关联服务','计划调整与随访'],key=f'workflow-mode-{patient.id}',label_visibility='collapsed')
-    if mode=='管理事项':
-        app.render_tasks({'tasks':list(view.tasks)})
+    if st.session_state.get(f'workflow-mode-{patient.id}')=='管理事项':
+        st.session_state[f'workflow-mode-{patient.id}']='事项历史'
+    mode=st.selectbox('管理工作',['事项历史','管理日志','年度方案与阶段','检查复查','阶段评估','关联服务','计划调整与随访'],key=f'workflow-mode-{patient.id}',label_visibility='collapsed')
+    if mode=='事项历史':
+        app.render_tasks({'tasks':[t for t in view.tasks if t.status in {'COMPLETED','CANCELLED'}],'history_only':True})
     elif mode=='管理日志':
         if not view.logs or st.session_state.get(f'workflow-open-log-{patient.id}',False):
             with st.container(): logs(patient,view)
@@ -286,8 +289,6 @@ def management(app,patient):
     if mode=='管理日志':
         st.subheader('管理日志')
         log_rows(view.logs,key=f'logs-{patient.id}',switch=True)
-    elif mode!='管理事项':
-        st.subheader('最近管理记录');log_rows(view.logs[:2],key=f'recent-logs-{patient.id}')
 
 
 def log_rows(rows, *, key='log-preview', switch=False):

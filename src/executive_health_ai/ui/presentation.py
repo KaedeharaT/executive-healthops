@@ -127,10 +127,11 @@ def task_detail(task):
 
 
 def tasks(app, ctx):
-    st.subheader('管理事项表')
+    history=ctx.get('history_only',False)
+    st.subheader('事项历史' if history else '管理事项表')
     rows = list(ctx['tasks'])
-    scope = st.radio('事项状态', ['未完成', '全部', '已完成'], horizontal=True, key='management-task-status')
-    rows = [t for t in rows if scope == '全部' or (t.status == 'COMPLETED' if scope == '已完成' else t.status not in {'COMPLETED','CANCELLED'})]
+    scope = st.radio('事项状态', ['全部','已完成','已取消'] if history else ['未完成', '全部', '已完成'], horizontal=True, key='management-history-status' if history else 'management-task-status')
+    rows = [t for t in rows if scope == '全部' or (t.status == 'COMPLETED' if scope == '已完成' else t.status == 'CANCELLED' if scope=='已取消' else t.status not in {'COMPLETED','CANCELLED'})]
     rows.sort(key=lambda t: (t.status in {'COMPLETED','CANCELLED'}, not (t.due_at and ux.local_time(t.due_at) < datetime.now(ux.LOCAL)), t.priority != 'HIGH', ux.local_time(t.due_at) or datetime.max.replace(tzinfo=ux.LOCAL)))
     selected = data_table(rows, task_records(rows), key='management-tasks', search=True, empty='此分类暂无管理事项。', auto_select=False)
     if selected is None:
