@@ -1,12 +1,12 @@
 """Central styles for role workspaces and retained detail surfaces."""
 
-TOKENS = {"blue": "#185da8", "ink": "#20354c", "muted": "#52677d", "border": "#dce5ef", "background": "#f4f7fa", "radius": "12px", "space": "1rem"}
+TOKENS = {"blue": "#185da8", "ink": "#20354c", "muted": "#52677d", "border": "#dce5ef", "background": "#eaf1f8", "radius": "12px", "space": "1rem"}
 
 
 def role_styles(role="manager"):
-    from executive_health_ai.ui.operations_styles import CSS
+    from executive_health_ai.ui.operations_styles import role_css
     width = "1120px" if role == "member" else "1180px" if role == "doctor" else "1440px"
-    return ROLE_STYLES.replace("__CONTENT_WIDTH__", width).replace("__DEVELOPER_CONTROLS__", "revert" if role == "admin" else "none") + CSS
+    return ROLE_STYLES.replace("__CONTENT_WIDTH__", width).replace("__DEVELOPER_CONTROLS__", "revert" if role == "admin" else "none") + role_css(role)
 
 
 ROLE_STYLES = """<style>

@@ -1,0 +1,118 @@
+{
+  "baseline": "707b26c",
+  "browser": "Chromium 151.0.7922.34",
+  "viewport": [
+    1440,
+    900
+  ],
+  "comparison_states": 14,
+  "buttons_before": 49,
+  "buttons_after": 49,
+  "clickable_before": 205,
+  "clickable_after": 205,
+  "primary_max": 1,
+  "duplicate_controls_restored": 0,
+  "max_navigation_depth": 3,
+  "page_height_increased": 0,
+  "horizontal_overflow_pages": 0,
+  "pages": [
+    {
+      "page": "01-today",
+      "before_height": 1083,
+      "after_height": 1083,
+      "tables_before": 1,
+      "tables_after": 1
+    },
+    {
+      "page": "02-members",
+      "before_height": 900,
+      "after_height": 900,
+      "tables_before": 1,
+      "tables_after": 1
+    },
+    {
+      "page": "03-member360-overview",
+      "before_height": 921,
+      "after_height": 920,
+      "tables_before": 1,
+      "tables_after": 1
+    },
+    {
+      "page": "05-health-record-agent-completed",
+      "before_height": 1176,
+      "after_height": 1153,
+      "tables_before": 0,
+      "tables_after": 0
+    },
+    {
+      "page": "07-management",
+      "before_height": 1194,
+      "after_height": 1193,
+      "tables_before": 0,
+      "tables_after": 0
+    },
+    {
+      "page": "08-stage-review",
+      "before_height": 1365,
+      "after_height": 1364,
+      "tables_before": 0,
+      "tables_after": 0
+    },
+    {
+      "page": "09-annual",
+      "before_height": 900,
+      "after_height": 900,
+      "tables_before": 1,
+      "tables_after": 1
+    },
+    {
+      "page": "10-service-management",
+      "before_height": 900,
+      "after_height": 900,
+      "tables_before": 1,
+      "tables_after": 1
+    },
+    {
+      "page": "11-medical-collaboration",
+      "before_height": 900,
+      "after_height": 900,
+      "tables_before": 1,
+      "tables_after": 1
+    },
+    {
+      "page": "12-special-programs",
+      "before_height": 900,
+      "after_height": 900,
+      "tables_before": 1,
+      "tables_after": 1
+    },
+    {
+      "page": "13-doctor",
+      "before_height": 900,
+      "after_height": 900,
+      "tables_before": 0,
+      "tables_after": 0
+    },
+    {
+      "page": "14-member",
+      "before_height": 1068,
+      "after_height": 1068,
+      "tables_before": 0,
+      "tables_after": 0
+    },
+    {
+      "page": "15-admin",
+      "before_height": 920,
+      "after_height": 920,
+      "tables_before": 2,
+      "tables_after": 2
+    },
+    {
+      "page": "06-intake-exceptions",
+      "before_height": 1062,
+      "after_height": 1048,
+      "tables_before": 0,
+      "tables_after": 0
+    }
+  ]
+}

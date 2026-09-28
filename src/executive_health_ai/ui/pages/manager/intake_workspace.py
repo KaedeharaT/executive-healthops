@@ -7,14 +7,6 @@ from executive_health_ai.services import intake_workspace as projection
 from executive_health_ai.ui import components as c
 
 
-def styles():
-    st.markdown('''<style>
-    .st-key-intake-section-cards button {width:100%;min-height:80px;text-align:left;white-space:pre-line;cursor:pointer}
-    .st-key-intake-section-cards button:hover {border-color:#1969b4;transform:translateY(-1px)}
-    .st-key-intake-section-cards button:focus-visible {outline:2px solid #1969b4;outline-offset:2px}
-    </style>''',unsafe_allow_html=True)
-
-
 def continue_intake(patient,view,step=None):
     from executive_health_ai.ui.pages.manager import intake_entry
     with SessionLocal() as session:
@@ -87,7 +79,6 @@ def draw(data,event=None,*,assessment_summary=True):
 
 
 def workspace(app,patient,view, *, uploader=True, show_actions=True):
-    styles()
     selected=st.session_state.get(f'intake-workspace-goal-{patient.id}')
     with SessionLocal() as session:data=projection.project(session,patient.id,view.intake,selected)
     from executive_health_ai.services.intake_exceptions import state as exception_state

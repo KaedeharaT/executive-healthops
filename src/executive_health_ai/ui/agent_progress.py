@@ -9,15 +9,6 @@ class AgentProgressPanel:
     def render(p,*,show_activity=True,flow_name="健康管理助手",next_action=""):
         if p is None:return
         st.caption(flow_name)
-        st.markdown('''<style>
-        .agent-progress-track{height:10px;background:var(--neu-well,#dce6ef);border-radius:6px;overflow:hidden;margin:10px 0 12px;box-shadow:var(--neu-inset);}
-        .agent-progress-fill{height:100%;background:var(--blue,#2875b7);border-radius:6px;}
-        .agent-progress-title{font-size:22px;font-weight:700;color:var(--text,#193952);}
-        .agent-progress-detail{color:var(--muted,#53687c);margin-bottom:10px;}
-        .agent-action-spinner{display:inline-block;width:18px;height:18px;border:2px solid #c2d9ed;border-top-color:#2875b7;border-radius:50%;animation:agent-progress-spin 1s linear infinite;margin-right:8px;vertical-align:-2px;}
-        @keyframes agent-progress-spin{to{transform:rotate(360deg)}}
-        @media(prefers-reduced-motion:reduce){.agent-action-spinner{animation:none}}
-        </style>''',unsafe_allow_html=True)
         minutes,seconds=divmod(p.elapsed_seconds,60)
         st.markdown(f'<div class="agent-progress-title">整体进度 {p.progress_percent}% · {escape(p.step_label)}</div>'
             f'<div class="agent-progress-track" role="progressbar" aria-label="整体业务进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{p.progress_percent}">'
