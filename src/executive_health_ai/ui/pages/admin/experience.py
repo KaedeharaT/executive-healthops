@@ -64,6 +64,8 @@ def workspace(app):
         mode=st.radio('自动化工作',['运行记录','管理工具'],horizontal=True)
         if mode=='运行记录':monitor()
         else:
+            from executive_health_ai.ui.pages.admin.tool_registry import render
+            render()
             app._render_admin_automation()
     elif section == "规则与知识":
         mode = st.radio("配置内容", ["规则", "专业知识"], horizontal=True, key='admin-knowledge-mode')

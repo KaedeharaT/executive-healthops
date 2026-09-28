@@ -38,9 +38,18 @@ class AgentTool:
     handler: Callable[[Session, AgentGoal, dict[str, Any]], dict[str, Any]]
     input_schema: str = "goal context"
     output_schema: str = "bounded summary"
+    enabled: bool = True
+
+    @property
+    def responsibility(self):
+        if self.mode == "read": return "READ_ONLY"
+        return {AUTO:"AUTO_WRITE", MANAGER_APPROVAL:"MANAGER_CONFIRM", DOCTOR_APPROVAL:"DOCTOR_REQUIRED"}[self.permission]
 
 
-class AgentToolRegistry:
+from executive_health_ai.services.agent_business_tools import AgentBusinessTools
+
+
+class AgentToolRegistry(AgentBusinessTools):
     """Explicit allow-list.  There is deliberately no diagnosis or risk-write tool."""
 
     def __init__(self) -> None:
@@ -50,6 +59,8 @@ class AgentToolRegistry:
         register_tools(self)
         from executive_health_ai.agent.profile_intake import register_tools as register_profile_tools
         register_profile_tools(self)
+        from executive_health_ai.services.care_tools import register
+        register(self)
 
     def register(self, tool: AgentTool) -> None:
         if tool.name in self._tools:
@@ -66,6 +77,8 @@ class AgentToolRegistry:
         from executive_health_ai.services.member_archive import require_active
         require_active(session,goal.member_id)
         tool = self.get(name)
+        if not tool.enabled:
+            raise ValueError("此能力尚未配置。")
         from executive_health_ai.agent.profile_intake import is_profile_goal
         profile_tools = {"parse_profile_document", "match_profile_document", "approve_profile_document", "request_profile_review"}
         if name in profile_tools and not is_profile_goal(goal):
@@ -88,7 +101,8 @@ class AgentToolRegistry:
             raise PermissionError("Health manager approval is required.")
         if tool.permission == DOCTOR_APPROVAL:
             raise PermissionError("Clinical actions must be completed in DoctorReview.")
-        return tool.handler(session, goal, context or {})
+        from executive_health_ai.services.tool_execution import execute
+        return execute(session, tool, goal, context or {})
 
     @property
     def tools(self) -> tuple[AgentTool, ...]:
@@ -189,54 +203,3 @@ class AgentToolRegistry:
 
     def _verify_success(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:
         return {"complete": bool(context.get("outcome_recorded", True)), "criteria": goal.success_criteria}
-
-    def _evaluate_risk(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:
-        observations = list(session.scalars(select(Observation).where(Observation.patient_id == goal.member_id).order_by(Observation.observed_at.desc()).limit(25)))
-        created = 0
-        for observation in observations:
-            created += RiskEvaluationService().evaluate_observation_safely(session, observation.id).created_event_count
-        return {"evaluated": len(observations), "created_events": created, "engine": "deterministic"}
-
-    def _create_followup(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:
-        source = f"agent_goal:{goal.id}:followup"
-        task = session.scalar(select(Task).where(Task.patient_id == goal.member_id, Task.source == source, Task.status.not_in(("COMPLETED", "CANCELLED"))))
-        if task is None:
-            task = Task(patient_id=goal.member_id, title="体检后复核跟进", instruction="核对已确认事项、执行结果与下一步安排。", status="PENDING", priority="MEDIUM", assignee=goal.owner or "健康管理师", responsible_role="health_manager", due_at=utc_now() + timedelta(days=7), source=source)
-            session.add(task); session.flush()
-        return {"task_id": str(task.id), "due_at": task.due_at.isoformat() if task.due_at else None}
-
-    def _schedule_followup(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:
-        goal.next_check_at = context.get("scheduled_for") or utc_now() + timedelta(days=7)
-        return {"scheduled_for": goal.next_check_at.isoformat()}
-
-    def _assign_work(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:
-        actor = str(context.get("actor") or goal.owner or "健康管理师")
-        goal.owner = actor
-        risks = list(session.scalars(select(RiskEvent).where(RiskEvent.patient_id == goal.member_id, RiskEvent.status == "NEW")))
-        for risk in risks:
-            if risk.risk_level == "YELLOW":
-                RiskOperationsService().acknowledge(session, risk.id, actor, "体检后管理流程已接手")
-        return {"owner": actor, "items": len(risks)}
-
-    def _request_doctor(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:
-        existing = session.scalar(select(DoctorReview).where(DoctorReview.patient_id == goal.member_id, DoctorReview.status == "PENDING").order_by(DoctorReview.created_at.desc()))
-        if existing:
-            return {"doctor_review_id": str(existing.id), "created": False}
-        risk = session.scalar(select(RiskEvent).where(RiskEvent.patient_id == goal.member_id, RiskEvent.risk_level == "YELLOW", RiskEvent.status.not_in(("CLOSED", "DISMISSED_DATA_ISSUE"))).order_by(RiskEvent.created_at.desc()))
-        if risk is None:
-            return {"needed": False}
-        review = RiskOperationsService().escalate_to_doctor(session, risk.id, str(context.get("actor") or goal.owner or "健康管理师"), "请结合已确认体检事实完成人工医学复核。")
-        return {"doctor_review_id": str(review.id), "created": True}
-
-    def _update_plan(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:
-        plan = session.scalar(select(ManagementPlan).where(ManagementPlan.patient_id == goal.member_id).order_by(ManagementPlan.created_at.desc()))
-        if plan:
-            plan.status = str(context.get("status") or plan.status)
-        return {"updated": plan is not None}
-
-    def _service_request(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:
-        return {"created": False, "reason": "Service choice remains a health-manager decision."}
-
-    def _progress(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:
-        session.add(AuditLog(patient_id=goal.member_id, actor=str(context.get("actor") or "agent_supervisor"), actor_role="system", action="agent_goal_progress", entity_type="AgentGoal", entity_id=str(goal.id), detail_json={"summary": str(context.get("summary") or "Progress recorded")[:500]}))
-        return {"recorded": True}
