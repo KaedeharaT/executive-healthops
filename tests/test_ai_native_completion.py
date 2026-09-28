@@ -95,3 +95,25 @@ def test_knowledge_unavailable_and_no_clinical_auto_tools(care_db):
 def test_read_tools_use_existing_sources(care_db,name):
     s,p,g,_=care_db
     assert isinstance(AgentToolRegistry().execute(s,name,g),dict)
+
+
+@pytest.mark.parametrize('kind',['DAILY_CARE','FOLLOWUP_RESULT','STAGE_REVIEW'])
+def test_bounded_planner_preserves_required_gates(care_db,kind):
+    from executive_health_ai.agent.planner import HealthOpsPlanner, CARE_TEMPLATES, StepTemplate
+    s,p,g,_=care_db;g.goal_type=kind
+    planner=HealthOpsPlanner();plan=planner.create_plan(s,g,reason='业务事件')
+    assert len(planner.steps(s,plan.id))<=12
+    assert any(step.requires_approval for step in planner.steps(s,plan.id))
+    with pytest.raises(ValueError):planner.validate(kind,(StepTemplate('绕过确认','start_next_phase'),))
+    with pytest.raises(ValueError):planner.validate(kind,CARE_TEMPLATES[kind][:-1])
+
+
+def test_completion_needs_actual_business_result(care_db):
+    from executive_health_ai.services.care_runtime import finish
+    s,p,g,_=care_db
+    with pytest.raises(ValueError,match='业务结果'):finish(s,g)
+    g.context_json={'no_action_reason':'核对后暂无到期或开放事项'}
+    finish(s,g);s.commit()
+    assert g.status=='COMPLETED'
+    agent=s.scalar(select(MemberAgent).where(MemberAgent.member_id==p.patient_id))
+    assert agent is not None and agent.status=='IDLE'

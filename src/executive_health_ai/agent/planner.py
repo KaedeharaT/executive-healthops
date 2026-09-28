@@ -37,12 +37,34 @@ POST_CHECKUP_TEMPLATE = (
     StepTemplate("VERIFY_SUCCESS", "verify_post_checkup_success"),
 )
 
+# Finite operational policies. They reuse AgentPlan/PlanStep and the supervisor.
+# Human decisions cannot be removed by a semantic draft or a later replan.
+CARE_TEMPLATES = {
+    'DAILY_CARE': (
+        StepTemplate('核对当前阶段', 'get_current_phase'),
+        StepTemplate('核对到期事项', 'get_open_management_items'),
+        StepTemplate('核对医生意见', 'get_doctor_review'),
+        StepTemplate('等待处理结果', approval_role='HEALTH_MANAGER'),
+        StepTemplate('核对业务结果')),
+    'FOLLOWUP_RESULT': (
+        StepTemplate('接收处理结果'), StepTemplate('整理处理结果'),
+        StepTemplate('确认后续安排', approval_role='HEALTH_MANAGER'),
+        StepTemplate('回写管理记录', 'write_management_log'),
+        StepTemplate('建立后续事项'), StepTemplate('核对业务结果')),
+    'STAGE_REVIEW': (
+        StepTemplate('汇总阶段记录', 'get_recent_management_logs'),
+        StepTemplate('准备阶段复盘', 'prepare_stage_review'),
+        StepTemplate('确认阶段结果', approval_role='HEALTH_MANAGER'),
+        StepTemplate('进入下一阶段', 'start_next_phase', approval_role='HEALTH_MANAGER'),
+        StepTemplate('核对业务结果')),
+}
+
 
 class HealthOpsPlanner:
     """Create immutable versions of a medically bounded plan skeleton."""
 
     def create_plan(self, session: Session, goal: AgentGoal, *, reason: str, start_at: int = 1) -> AgentPlan:
-        if goal.goal_type not in {"POST_CHECKUP_MANAGEMENT", "PROFILE_INTAKE"}:
+        if goal.goal_type not in {"POST_CHECKUP_MANAGEMENT", "PROFILE_INTAKE", *CARE_TEMPLATES}:
             raise ValueError("Unsupported goal type.")
         version = int(session.scalar(select(func.max(AgentPlan.version)).where(AgentPlan.goal_id == goal.id)) or 0) + 1
         plan = AgentPlan(goal_id=goal.id, version=version, status="ACTIVE", reason=reason)
@@ -54,6 +76,8 @@ class HealthOpsPlanner:
         if goal.goal_type == "PROFILE_INTAKE":
             from executive_health_ai.agent.profile_intake import STAGES as PROFILE_STAGES
             templates = tuple(StepTemplate(stage, approval_role="HEALTH_MANAGER" if stage == "REVIEW" else None) for stage in PROFILE_STAGES)
+        if goal.goal_type in CARE_TEMPLATES:
+            templates = self.validate(goal.goal_type, CARE_TEMPLATES[goal.goal_type])
         for order, template in enumerate(templates, 1):
             status = "SKIPPED" if order < start_at else "PENDING"
             session.add(AgentPlanStep(
@@ -65,6 +89,26 @@ class HealthOpsPlanner:
         session.flush()
         goal.current_plan_id = plan.id
         return plan
+
+    @staticmethod
+    def validate(goal_type, proposed, registry=None):
+        """A draft can reference only the allowed tools and immutable gates."""
+        from executive_health_ai.agent.tools import AgentToolRegistry
+        registry = registry or AgentToolRegistry()
+        expected = CARE_TEMPLATES.get(goal_type)
+        if not expected or not proposed or len(proposed) > 12:
+            raise ValueError('不支持此管理计划。')
+        if tuple(proposed) != expected:
+            raise ValueError('计划不能改变既定业务顺序或人工责任关卡。')
+        for step in proposed:
+            if not step.tool_name: continue
+            tool = registry.get(step.tool_name)
+            if not tool.enabled: raise ValueError('计划引用了未启用的能力。')
+            if tool.responsibility == 'DOCTOR_REQUIRED':
+                raise PermissionError('医学判断必须由医生提交。')
+            if tool.responsibility == 'MANAGER_CONFIRM' and step.approval_role != 'HEALTH_MANAGER':
+                raise PermissionError('写入计划缺少健管确认。')
+        return tuple(proposed)
 
     @staticmethod
     def steps(session: Session, plan_id: UUID) -> list[AgentPlanStep]:
