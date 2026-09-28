@@ -513,6 +513,8 @@ class ProfileIngestionService:
             data=row.structured_data_json
             if row.status=='CONFIRMED' and data.get('target_type')=='Observation':
                 assert session.get(Observation,UUID(data['target_id'])).patient_id==goal.member_id
+        from executive_health_ai.services.intake_handoff import report_ready
+        report_ready(session,goal)
         return counts
 
     def request_review(self, session, goal, question, actor):

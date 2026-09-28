@@ -192,7 +192,11 @@ def test_new_document_same_measurement_is_not_written_twice(env):
         goal,_=ProfileIngestionService().upload(s,p.id,title,('体检日期：2026-09-27\n体重：85.7 kg'+extra).encode(),'report',actor='王健管',role='HEALTH_MANAGER')
         run(env,goal);approve(env,goal)
     assert s.scalar(select(func.count(Observation.id)))==1
-    assert s.scalar(select(func.count(AgentGoal.id)))==2
+    assert s.scalar(select(func.count(AgentGoal.id)).where(AgentGoal.goal_type=='PROFILE_INTAKE'))==2
+    # The first confirmed report now hands off to the existing post-checkup
+    # policy. Duplicate measurements still produce neither a second fact nor
+    # another post-checkup goal.
+    assert s.scalar(select(func.count(AgentGoal.id)).where(AgentGoal.goal_type=='POST_CHECKUP_MANAGEMENT'))==1
 
 
 def test_real_doctor_command_resumes_without_extra_workflow(env):

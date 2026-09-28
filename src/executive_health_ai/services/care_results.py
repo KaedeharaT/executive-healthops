@@ -1,8 +1,9 @@
 """Business result input and confirmed writeback through existing service tools."""
 from datetime import date, datetime, time, timezone
 from uuid import UUID
+from zoneinfo import ZoneInfo
 from sqlalchemy import select
-from executive_health_ai.models import AgentGoal, Task, HealthProgram, DoctorReview
+from executive_health_ai.models import AgentGoal, Task, HealthProgram, DoctorReview, Patient
 from executive_health_ai.models.base import utc_now
 from executive_health_ai.services.management_workflow import owned, required
 from executive_health_ai.services import care_runtime as runtime
@@ -10,6 +11,8 @@ from executive_health_ai.services import care_runtime as runtime
 
 def submit(session,*,member_id,program_id,task_id,text,actor,outcome,request_key):
     from executive_health_ai.services.health_events import ingest_health_event
+    from executive_health_ai.models.archive_guard import locked_members
+    locked_members(session.connection(),{member_id})
     item=owned(session,Task,task_id,member_id)
     p=owned(session,HealthProgram,program_id,member_id)
     if item.program_id not in {None,p.id} or item.risk_event_id or item.responsible_role=='doctor':
@@ -17,6 +20,13 @@ def submit(session,*,member_id,program_id,task_id,text,actor,outcome,request_key
     if outcome not in {'已完成','部分完成','未完成'}:raise ValueError('请选择处理结果状态。')
     text=required(text,'本次处理结果')
     if len(text)>6000:raise ValueError('本次处理结果请控制在6000字以内。')
+    pending=next((g for g in session.scalars(select(AgentGoal).where(AgentGoal.member_id==member_id,
+        AgentGoal.goal_type=='FOLLOWUP_RESULT',AgentGoal.status.not_in(('COMPLETED','CANCELLED'))))
+        if g.context_json.get('task_id')==str(task_id)),None)
+    if pending:
+        if pending.context_json.get('text')!=text or pending.context_json.get('outcome')!=outcome:
+            raise ValueError('此事项已有待核对结果，请先处理当前结果。')
+        return pending
     event,_=ingest_health_event(session,member_id=member_id,event_type='FOLLOWUP_RESULT_RECORDED',
         event_category='NEW_INFORMATION',source_type='MANUAL',source_id=request_key,
         payload_ref={'program_id':str(p.id),'task_id':str(item.id),'text':text,'actor':actor,'outcome':outcome})
@@ -31,9 +41,11 @@ def from_event(session,event,supervisor):
     if item.program_id not in {None,program.id} or item.responsible_role=='doctor' or item.risk_event_id:
         raise ValueError('不能通过结果整理代替医学判断。')
     if item.status in {'COMPLETED','CANCELLED'}:raise ValueError('原事项已结束，请查看已有结果。')
+    member_zone=session.get(Patient,event.member_id).timezone
     goal=runtime.start(session,supervisor,member_id=event.member_id,kind='FOLLOWUP_RESULT',source_id=event.id,
         title='整理本次处理结果并准备后续安排',owner=p['actor'],
-        context={**p,'event_id':str(event.id),'recorded_date':event.occurred_at.date().isoformat(),
+        context={**p,'event_id':str(event.id),'recorded_date':event.occurred_at.astimezone(ZoneInfo(member_zone)).date().isoformat(),
+            'time_zone':member_zone,
             'trigger_reason':'收到本次工作处理结果','trigger_source':'健管记录'})
     runtime.step_done(session,goal,'接收处理结果')
     goal.current_stage='整理处理结果';goal.next_action='正在整理原文中的事实和后续安排'
@@ -72,7 +84,8 @@ def confirm(session,goal,supervisor,*,actor,role,follow_at=None):
     actions=proposals(session,goal)
     if ctx['outcome']!='已完成' and not follow_at:
         raise ValueError('未完成事项需要明确下一次跟进日期。')
-    goal.status='RUNNING';goal.current_stage='回写管理记录'
+    runtime.resume(session,goal,event_type='MANAGER_RESULT_CONFIRMED',source_id=goal.id)
+    goal.current_stage='回写管理记录'
     runtime.step_done(session,goal,'确认后续安排')
     source='health_event:'+ctx['event_id']
     result=supervisor.registry.execute(session,'apply_management_result',goal,{
@@ -84,7 +97,8 @@ def confirm(session,goal,supervisor,*,actor,role,follow_at=None):
     goal.current_stage='建立后续事项'
     written=[]
     for index,action in enumerate(actions):
-        due=datetime.combine(date.fromisoformat(action['date']),time(9),timezone.utc)
+        due=datetime.combine(date.fromisoformat(action['date']),time(9),
+            ZoneInfo(ctx.get('time_zone') or session.get(Patient,goal.member_id).timezone)).astimezone(timezone.utc)
         base={'program_id':str(p.id),'source_reference':source,'idempotency_key':'action-'+str(index)}
         if action['kind']=='RECHECK' and action.get('doctor_review_id'):
             output=supervisor.registry.execute(session,'create_recheck',goal,{**base,'data':{
@@ -112,3 +126,17 @@ def confirm(session,goal,supervisor,*,actor,role,follow_at=None):
     from executive_health_ai.services.care_memory import remember_result
     remember_result(session,goal)
     return goal
+
+
+def manual_fallback(session,goal,*,actor,role):
+    from executive_health_ai.services.profile_ingestion import manager
+    from executive_health_ai.services.care_result_extraction import rules
+    manager(role,actor)
+    if goal.status!='FAILED':raise ValueError('当前流程不需要转人工处理。')
+    parsed=rules(goal.context_json['text'],date.fromisoformat(goal.context_json['recorded_date']))
+    goal.context_json={**goal.context_json,'parsed':{**parsed,'ai_used':False,
+        'warning':'已转人工核对，保留原始记录与确定性识别结果。'}}
+    runtime.step_done(session,goal,'整理处理结果',{'manual_fallback':True})
+    goal.current_stage='确认后续安排'
+    runtime.wait(session,goal,'WAITING_MANAGER',next_action='请核对原文及后续安排，确认后保存',
+        expected_event='MANAGER_RESULT_CONFIRMED',expected_source=goal.id)

@@ -107,6 +107,8 @@ def project(goal,steps=(),traces=(),*,now=None):
         ai_start=stamp(call.started_at);ai_end=stamp(call.completed_at)
     timeout=bool(events.get('AI_REQUEST_TIMEOUT') and (not ai_start or stamp(events['AI_REQUEST_TIMEOUT'])>=ai_start)) or data.get('failure_reason')=='TIMEOUT'
     activity=('等待健管确认' if goal.status=='WAITING_MANAGER' else '等待医生判断' if goal.status=='WAITING_DOCTOR'
+              else '等待会员补充' if goal.status=='WAITING_MEMBER' else '等待计划时间，到期自动继续' if goal.status=='WAITING_TIME'
+              else '等待补充资料' if goal.status=='WAITING_INPUT'
               else '处理未完成，需要人工处理' if goal.status in FAILED else '本次流程已完成' if ended
               else '自动处理已暂停' if not running else '本地AI正在整理自由文本健康资料' if ai_running else '正在'+labels[index])
     return AgentProgressProjection(labels,tuple(done),index+1,len(labels),count,round(count/len(labels)*100),activity,

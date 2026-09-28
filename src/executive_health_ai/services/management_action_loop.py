@@ -164,6 +164,7 @@ class ManagementActionLoop:
         for goal_record in session.scalars(select(AgentGoal).where(AgentGoal.member_id==member_id,
                 AgentGoal.goal_type=='STAGE_REVIEW',AgentGoal.source_id==str(phase_id))):
             if goal_record.status!='COMPLETED':
+                care_runtime.resume(session,goal_record,event_type='STAGE_REVIEW_CONFIRMED',source_id=phase_id)
                 goal_record.context_json={**goal_record.context_json,'review_id':str(state['review'].id),
                     'next_phase_id':str(result.id)}
                 care_runtime.finish(session,goal_record)

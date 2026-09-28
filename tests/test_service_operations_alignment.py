@@ -117,7 +117,10 @@ def test_service_and_log_do_not_create_risk_or_doctor_decisions(env):
     s,p,_=env;r=request(env);follow=finish(env,r);complete(env,follow)
     assert list(s.scalars(select(RiskEvent)))==[]
     assert list(s.scalars(select(DoctorReview)))==[]
-    assert list(s.scalars(select(AgentGoal)))==[]
+    # Finishing the phase may prepare an operational review; it must never
+    # fabricate a medical goal, risk or physician decision.
+    goals=list(s.scalars(select(AgentGoal)))
+    assert all(g.goal_type=='STAGE_REVIEW' and g.status=='WAITING_MANAGER' for g in goals)
 
 
 def test_followup_chain_remains_visible_until_last_followup_done(env):

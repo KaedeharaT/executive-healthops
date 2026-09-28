@@ -30,6 +30,8 @@ def execute(session, tool, goal, context):
     agent = ensure_member_agent(session, goal.member_id)
     encoded = json.dumps(context, sort_keys=True, ensure_ascii=False, default=str)
     fingerprint = hashlib.sha256(encoded.encode()).hexdigest()
+    if not key and tool.mode=='write' and tool.idempotent:
+        key='plan:'+str(goal.current_plan_id)+':'+fingerprint
     if key:
         prior = session.scalar(select(AgentRunTrace).where(
             AgentRunTrace.goal_id == goal.id, AgentRunTrace.tool_name == tool.name,

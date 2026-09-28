@@ -1,0 +1,111 @@
+{
+  "member_agent": "cb41ff53-7533-4e40-ba53-d34ef12d9f63",
+  "member_agent_count": 1,
+  "goals": [
+    {
+      "id": "6c629bc3-4a34-4d69-8b36-539cfc71bd1e",
+      "type": "PROFILE_INTAKE",
+      "status": "COMPLETED",
+      "outputs": []
+    },
+    {
+      "id": "b3daca60-32cb-4ef7-ac31-5f37c552d0f1",
+      "type": "DAILY_CARE",
+      "status": "COMPLETED",
+      "outputs": []
+    },
+    {
+      "id": "60a35899-e206-4cef-9b64-1d43e6206dba",
+      "type": "FOLLOWUP_RESULT",
+      "status": "COMPLETED",
+      "outputs": [
+        {
+          "task_id": "f9a4c152-c93d-4c35-a5ba-f8011b774111",
+          "due_at": "2026-10-15 09:00:00+00:00"
+        },
+        {
+          "task_id": "e4b15926-2209-45f9-b6dc-214293a70d56",
+          "due_at": "2026-10-15 09:00:00+00:00"
+        }
+      ]
+    },
+    {
+      "id": "ff29731d-91e0-4478-9b4f-c53b5ca13668",
+      "type": "PROFILE_INTAKE",
+      "status": "COMPLETED",
+      "outputs": []
+    },
+    {
+      "id": "a9117e5e-407c-4c27-830f-da7b6282f518",
+      "type": "PROFILE_INTAKE",
+      "status": "COMPLETED",
+      "outputs": []
+    },
+    {
+      "id": "03bc1a9b-0c2c-4cb0-b6d9-2b66635db323",
+      "type": "PROFILE_INTAKE",
+      "status": "COMPLETED",
+      "outputs": []
+    },
+    {
+      "id": "b3c9caa9-69aa-49da-baa0-0e64e77e0efd",
+      "type": "POST_CHECKUP_MANAGEMENT",
+      "status": "COMPLETED",
+      "outputs": []
+    },
+    {
+      "id": "b4be9a34-3541-4f61-abbb-a04af09c96f2",
+      "type": "DAILY_CARE",
+      "status": "COMPLETED",
+      "outputs": []
+    },
+    {
+      "id": "299958f0-f753-4856-b58f-042b9f5a2a4b",
+      "type": "DAILY_CARE",
+      "status": "COMPLETED",
+      "outputs": []
+    },
+    {
+      "id": "f7d0b700-34ae-41b0-9eea-7a519cc55004",
+      "type": "STAGE_REVIEW",
+      "status": "COMPLETED",
+      "outputs": []
+    },
+    {
+      "id": "e7f950c5-6b6c-4075-aae2-d433889d6dcf",
+      "type": "DAILY_CARE",
+      "status": "COMPLETED",
+      "outputs": []
+    },
+    {
+      "id": "28660e86-0cf8-4c18-b98c-5d41ca17cef9",
+      "type": "DAILY_CARE",
+      "status": "COMPLETED",
+      "outputs": []
+    },
+    {
+      "id": "55c598e7-8733-4afd-8fa5-1b700f3a8b44",
+      "type": "FOLLOWUP_RESULT",
+      "status": "COMPLETED",
+      "outputs": [
+        {
+          "task_id": "a178fdda-59da-45ae-aea5-127b1634ca05",
+          "due_at": "2026-10-15 09:00:00+00:00"
+        },
+        {
+          "recheck_id": "11b99c35-8c2f-4ba3-93d6-ecbb71a7f646"
+        }
+      ]
+    }
+  ],
+  "confirmed_doctor_reviews": 1,
+  "management_logs": 5,
+  "rechecks": 2,
+  "stage_reviews": 1,
+  "intake": [
+    [
+      "CONFIRMED",
+      "CONFIRMED"
+    ]
+  ]
+}

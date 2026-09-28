@@ -159,5 +159,6 @@ def reconcile(session,supervisor):
         row=session.get(model,UUID(identity)) if model and identity else None
         if row and row.status in CLOSED:
             work_completed(session,goal.member_id,row.id)
-            goal.status='RUNNING'
-            advance(session,goal,supervisor)
+            if goal.status=='WAITING_MANAGER':
+                runtime.resume(session,goal,event_type='MANAGEMENT_ITEM_COMPLETED',source_id=row.id)
+                advance(session,goal,supervisor)

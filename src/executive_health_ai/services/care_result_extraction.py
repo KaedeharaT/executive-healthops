@@ -36,8 +36,16 @@ def validate(payload,text,today):
         token=str(raw.get('date_text',''))
         if not title or not evidence or title not in evidence or evidence not in text or token not in evidence or token not in dates:continue
         if any(negative in evidence for negative in ('不需要','取消','不要','暂不','不打算','未决定')):continue
-        if raw.get('kind') not in {'RECHECK','FOLLOWUP'}:continue
-        actions.append({'kind':raw['kind'],'title':title,'date':dates[token],
+        kind=raw.get('kind')
+        if kind not in {'RECHECK','FOLLOWUP'}:continue
+        # The purpose must also exist in the original sentence. A model must
+        # not re-label a single recheck intention as an additional follow-up.
+        word={'RECHECK':'复查','FOLLOWUP':'随访'}[kind]
+        if word not in evidence:continue
+        if kind=='RECHECK':title=re.sub(r'^复查\s*','',title).strip()
+        if not title:continue
+        if any(a['kind']==kind and a['title']==title and a['date']==dates[token] for a in actions):continue
+        actions.append({'kind':kind,'title':title,'date':dates[token],
             'source_excerpt':evidence,'status':'待确认'})
     return {'facts':facts,'actions':actions}
 

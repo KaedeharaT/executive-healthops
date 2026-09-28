@@ -154,6 +154,16 @@ def test_due_scheduler_original_task_is_only_human_work(care_db):
     s.commit()
     assert goal.status=='COMPLETED'
 
+    recheck=ManagementWorkflowService().create_recheck(s,p.patient_id,p.id,title='血脂复查',reason='沿用合成医生安排',
+        planned_at=utc_now(),owner=p.owner,evidence='合成医生书面复查建议')
+    scheduler.run_due(s,now=utc_now());s.commit()
+    waiting=s.scalar(select(AgentGoal).where(AgentGoal.goal_type=='DAILY_CARE',AgentGoal.status=='WAITING_MANAGER'))
+    assert waiting.context_json['related_work']=={'kind':'recheck','id':str(recheck.id)}
+    total=s.scalar(select(func.count(AgentGoal.id)))
+    scheduler.run_due(s,now=utc_now());s.commit()
+    assert s.scalar(select(func.count(AgentGoal.id)))==total
+    assert s.scalar(select(func.count(Task.id)))==1  # No duplicate human task.
+
 
 def test_result_extraction_requires_verbatim_evidence():
     from executive_health_ai.services.care_result_extraction import validate
@@ -171,6 +181,22 @@ def test_cancelled_recheck_and_missing_dates_not_invented():
     assert not rules('会员考虑复查血脂',date.today())['actions']
 
 
+def test_recheck_intention_cannot_be_duplicated_as_a_followup():
+    from executive_health_ai.services.care_result_extraction import extract
+    from types import SimpleNamespace
+    text='准备10月15日去复查血脂'
+    class Client:
+        settings=SimpleNamespace(enabled=True)
+        def generate_structured(self,**kwargs):
+            return {'facts':[],'actions':[
+                {'kind':'FOLLOWUP','title':'复查血脂','date_text':'10月15日','evidence':text},
+                {'kind':'RECHECK','title':'复查血脂','date_text':'10月15日','evidence':text},
+                {'kind':'RECHECK','title':'血脂','date_text':'10月15日','evidence':text}]}
+    parsed=extract(text,today=date(2026,9,29),source_id='synthetic-result',client=Client())
+    assert len(parsed['actions'])==1
+    assert parsed['actions'][0]['kind']=='RECHECK' and parsed['actions'][0]['title']=='血脂'
+
+
 def test_nlp_worker_releases_transaction_and_confirmation_is_idempotent(care_db,monkeypatch):
     from executive_health_ai.services import care_results
     from executive_health_ai.agent.care_result_execution import execute
@@ -184,6 +210,8 @@ def test_nlp_worker_releases_transaction_and_confirmation_is_idempotent(care_db,
     text='会员最近不喝酒，睡眠每天6个小时，准备10月15日复查血脂。'
     result=care_results.submit(s,member_id=p.patient_id,program_id=p.id,task_id=UUID(item['task_id']),
         text=text,actor=p.owner,outcome='已完成',request_key='result-once');s.commit()
+    from zoneinfo import ZoneInfo
+    assert result.context_json['recorded_date']==utc_now().astimezone(ZoneInfo('Asia/Tokyo')).date().isoformat()
     def extract(note,**kwargs):
         assert not s.in_transaction()
         with Session(engine) as concurrent:
@@ -198,7 +226,10 @@ def test_nlp_worker_releases_transaction_and_confirmation_is_idempotent(care_db,
     care_results.confirm(s,result,supervisor,actor=p.owner,role='HEALTH_MANAGER');s.commit()
     assert s.scalar(select(func.count(ManagementLog.id)))==1
     assert result.status=='COMPLETED' and result.context_json['outputs']
+    assert s.scalar(select(func.count(AgentRunTrace.id)).where(AgentRunTrace.goal_id==result.id,AgentRunTrace.action=='resume'))==1
     assert s.scalar(select(func.count(HealthEvent.id)).where(HealthEvent.event_type=='TIME_DUE'))==1
+    due_event=s.scalar(select(HealthEvent).where(HealthEvent.event_type=='TIME_DUE'))
+    assert due_event.occurred_at.astimezone(ZoneInfo('Asia/Tokyo')).hour==9
     assert s.get(Task,UUID(item['task_id'])).status=='COMPLETED'
 
 
@@ -233,7 +264,10 @@ def test_stage_summary_wait_and_next_phase_same_goal(care_db):
     phase=workflow.add_phase(s,p.patient_id,p.id,title='本阶段',goal='沟通与跟进',content='电话随访',
         start=date.today(),end=date.today()+timedelta(days=30),owner=p.owner)
     phase.status='ACTIVE';p.current_phase=phase.phase_code
-    item=AgentToolRegistry().execute(s,'create_followup',g,followup(p));s.commit()
+    context=followup(p)
+    from datetime import datetime,time,timezone
+    context['due_at']=datetime.combine(phase.start_date,time(9),timezone.utc).isoformat()
+    item=AgentToolRegistry().execute(s,'create_followup',g,context);s.commit()
     from uuid import UUID
     loop=ManagementActionLoop()
     loop.process_task(s,p.patient_id,p.id,UUID(item['task_id']),actor=p.owner,result='已记录会员反馈',outcome='已完成',
@@ -245,6 +279,7 @@ def test_stage_summary_wait_and_next_phase_same_goal(care_db):
     next_row=loop.enter_next_phase(s,p.patient_id,p.id,phase.id,actor=p.owner,title='下一阶段',goal='继续跟进',
         content='沿用确认计划',start=phase.end_date+timedelta(days=1),end=phase.end_date+timedelta(days=30),action='下阶段随访')
     s.commit();assert goal.status=='COMPLETED' and goal.context_json['next_phase_id']==str(next_row.id)
+    assert s.scalar(select(func.count(AgentRunTrace.id)).where(AgentRunTrace.goal_id==goal.id,AgentRunTrace.action=='resume'))==1
 
 
 def test_crashed_semantic_claim_recovers_and_stale_result_cannot_write(care_db,monkeypatch):
@@ -276,3 +311,41 @@ def test_longitudinal_context_has_time_and_original_log(care_db):
     g.context_json={'log_id':str(row.id)};remember_result(s,g);remember_result(s,g);s.commit()
     memory=longitudinal(s,p.patient_id)
     assert len(memory)==1 and memory[0]['source']['source_id']==str(row.id) and memory[0]['recorded_at']
+
+
+@pytest.mark.parametrize('source',['MOBILE','DEVICE'])
+def test_adapter_contract_preserves_raw_store_only(care_db,source):
+    from executive_health_ai.services.measurement_ingestion import MeasurementEnvelope,ingest_measurement
+    s,p,g,_=care_db
+    event,_=ingest_measurement(s,MeasurementEnvelope(member_id=p.patient_id,source_type=source,source_id='vendor:1',
+        metric='weight',value=80,unit='kg',observed_at=utc_now()))
+    assert event.route_action=='STORE_ONLY'
+
+
+def test_same_item_duplicate_submission_returns_same_goal(care_db):
+    from executive_health_ai.services.care_results import submit
+    from uuid import UUID
+    s,p,g,_=care_db;result=AgentToolRegistry().execute(s,'create_followup',g,followup(p))
+    args=dict(member_id=p.patient_id,program_id=p.id,task_id=UUID(result['task_id']),text='会员说睡眠六小时',actor=p.owner,outcome='已完成')
+    first=submit(s,**args,request_key='first')
+    second=submit(s,**args,request_key='second')
+    assert first.id==second.id
+
+
+def test_intake_report_handoff_retains_confirmation_and_same_goal(care_db):
+    from executive_health_ai.models import Document,ReportExtractionRun,ReportExtractionCandidate,HealthEvent,Observation
+    from executive_health_ai.services.intake_handoff import report_ready
+    s,p,g,_=care_db
+    doc=Document(patient_id=p.patient_id,document_type='auto',title='合成体检报告.txt',storage_reference='synthetic.txt',source='MANUAL')
+    s.add(doc);s.flush()
+    run=ReportExtractionRun(patient_id=p.patient_id,document_id=doc.id,status='COMPLETED',parser_version='test',
+        canonical_registry_version='test',file_hash='a'*64,file_type='txt')
+    s.add(run);s.flush()
+    candidate=ReportExtractionCandidate(patient_id=p.patient_id,document_id=doc.id,extraction_run_id=run.id,
+        candidate_type='OBSERVATION',canonical_code='weight',normalized_value='78',unit='kg',
+        extraction_method='RULE',evidence_text='体重 78kg',status='PENDING_REVIEW')
+    s.add(candidate);g.source_id=str(doc.id);g.goal_type='PROFILE_INTAKE';g.status='COMPLETED';s.flush()
+    first,_=report_ready(s,g);second,created=report_ready(s,g);s.commit()
+    assert first.id==second.id and not created
+    assert s.scalar(select(func.count(AgentGoal.id)).where(AgentGoal.goal_type=='POST_CHECKUP_MANAGEMENT'))==1
+    assert candidate.status=='PENDING_REVIEW' and s.scalar(select(func.count(Observation.id)))==0

@@ -1,0 +1,17 @@
+{
+  "before": {
+    "goal": "b3c9caa9-69aa-49da-baa0-0e64e77e0efd",
+    "agent": "cb41ff53-7533-4e40-ba53-d34ef12d9f63",
+    "status": "WAITING_MANAGER",
+    "stage": "WAITING_ACTION_APPROVAL",
+    "count": 1
+  },
+  "after": {
+    "goal": "b3c9caa9-69aa-49da-baa0-0e64e77e0efd",
+    "agent": "cb41ff53-7533-4e40-ba53-d34ef12d9f63",
+    "status": "WAITING_MANAGER",
+    "stage": "WAITING_ACTION_APPROVAL",
+    "count": 1
+  },
+  "chromium": "151.0.7922.34"
+}

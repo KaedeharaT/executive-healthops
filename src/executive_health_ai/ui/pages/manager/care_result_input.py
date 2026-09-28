@@ -23,6 +23,11 @@ def render(patient,view,item,request_key):
             return
         if goal.status!='WAITING_MANAGER':
             st.warning('本次整理尚未完成，原始记录已保留。请核对当前处理状态。')
+            if goal.status=='FAILED' and st.button('转人工核对',type='primary'):
+                with SessionLocal() as session:
+                    care_results.manual_fallback(session,session.get(AgentGoal,goal.id),actor=view.owner,role='HEALTH_MANAGER')
+                    session.commit()
+                st.rerun()
             return
         st.subheader('本次处理结果')
         st.write(goal.context_json['text'])

@@ -47,6 +47,9 @@ def execute(supervisor,session,goal):
         session.commit();return goal
     except BaseException:
         session.rollback()
-        session.execute(update(AgentGoal).where(*owner).values(status='RUNNING',next_check_at=None))
+        attempts=int(context.get('execution_failures',0))+1
+        session.execute(update(AgentGoal).where(*owner).values(status='FAILED' if attempts>=3 else 'RUNNING',
+            next_check_at=None,context_json={**context,'execution_failures':attempts},
+            next_action='本次整理未完成，原文已保留，请由管理员核对异常后恢复' if attempts>=3 else '正在恢复本次结果整理'))
         session.commit()
         raise

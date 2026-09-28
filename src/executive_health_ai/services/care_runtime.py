@@ -91,6 +91,7 @@ def finish(session, goal):
             and following.program_id==review.program_id and following.status=='ACTIVE')
     if not valid: raise ValueError('真实业务结果尚未满足完成条件。')
     goal.status='COMPLETED';goal.completed_at=utc_now();goal.next_check_at=None
+    goal.context_json={**goal.context_json,'wait':{}}
     goal.success_criteria={'business_result':True}
     goal.next_action='本次管理已完成，继续等待新的资料、结果或计划时间'
     for step in session.scalars(select(AgentPlanStep).where(AgentPlanStep.plan_id==goal.current_plan_id)):

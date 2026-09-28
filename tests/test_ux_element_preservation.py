@@ -78,7 +78,7 @@ def test_manager_selection_changes_inspector_and_keeps_processing_entry():
     select_table_row(app, 1).run(timeout=30)
     assert not app.exception
     assert any('V2选择事项1' in str(x.value) for x in list(app.header)+list(app.markdown))
-    assert any(b.label == '完成本次处理' for b in app.button)
+    assert any(b.label == '整理本次结果' for b in app.button)
     button(app,'← 返回今日工作')
     next(x for x in app.text_input if x.label == "查找待办").set_value("__no_matching_member__")
     app.run(timeout=30)

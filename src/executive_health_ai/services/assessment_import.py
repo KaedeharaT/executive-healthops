@@ -215,3 +215,6 @@ class AssessmentImportService:
             goal.success_criteria={'intake_submitted':True,'sources_reviewed':True,'parsed':not failed}
             goal.context_json={**goal.context_json,'intake_submitted':True,'manager_confirmed':True}
             trace(session,goal,goal.next_action)
+            if not failed:
+                from executive_health_ai.services.intake_handoff import report_ready
+                report_ready(session,goal)

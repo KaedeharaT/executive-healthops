@@ -1,0 +1,20 @@
+{
+  "member_agent": "cb41ff53-7533-4e40-ba53-d34ef12d9f63",
+  "before": {
+    "RUNNING": "689f3013-52a5-42ec-b3ee-20ccd5160428",
+    "WAITING_MANAGER": "79270cf8-117f-4a4c-94dc-5792e94b5e87",
+    "WAITING_DOCTOR": "76c39f47-4ec3-487c-bb6c-0ad5ed43d32e",
+    "WAITING_TIME": "d48281ea-6dd4-4d0d-979b-0cfc873fda1c",
+    "WAITING_MEMBER": "06035fb3-f11b-4db8-82a6-860eb5e17b7f",
+    "WAITING_INPUT": "fe31279a-84d8-4757-8c9a-3f96d2f71e80"
+  },
+  "after": {
+    "RUNNING": "COMPLETED",
+    "WAITING_MANAGER": "WAITING_MANAGER",
+    "WAITING_DOCTOR": "WAITING_DOCTOR",
+    "WAITING_TIME": "WAITING_TIME",
+    "WAITING_MEMBER": "WAITING_MEMBER",
+    "WAITING_INPUT": "WAITING_INPUT"
+  },
+  "same_member_agent": true
+}
