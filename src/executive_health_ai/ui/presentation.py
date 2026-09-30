@@ -31,7 +31,7 @@ def selected_record(rows, selection):
     return rows[index] if rows and isinstance(index, int) and 0 <= index < len(rows) else (rows[0] if rows else None)
 
 
-def data_table(rows, records, *, key, label='选择记录', selectable=True, empty='暂无记录。', search=False, export=False, auto_select=True, activate_on_cell=True):
+def data_table(rows, records, *, key, label='选择记录', selectable=True, empty='暂无记录。', search=False, export=False, auto_select=True, activate_on_cell=True, cell_actions=None):
     """Native sortable grid with built-in keyboard selection and stable source identity.
 
     Streamlit returns original input indices even after client-side sorting. A data
@@ -53,7 +53,7 @@ def data_table(rows, records, *, key, label='选择记录', selectable=True, emp
     stable_objects = all(identities) and len(set(identities)) == len(rows)
     signature = sha256((repr(identities) if stable_objects else repr(records)).encode()).hexdigest()[:12]
     grid_key = f'{key}-{signature}-{st.session_state.get(key+"-epoch", 0)}'
-    st.caption(f'{len(rows)} 条 · 点击行查看详情；点击列名排序' if selectable else f'{len(rows)} 条 · 点击列名排序')
+    st.caption(f'{len(rows)} 条 · 点击行查看详情；操作列独立处理' if cell_actions else f'{len(rows)} 条 · 点击行查看详情；点击列名排序' if selectable else f'{len(rows)} 条 · 点击列名排序')
     columns = {}
     for name in frame:
         columns[name] = st.column_config.TextColumn(name, width=180 if name in {'事项','问题','检查项目'} else 140 if name in {'下一步','结果'} else 110)
@@ -70,10 +70,20 @@ def data_table(rows, records, *, key, label='选择记录', selectable=True, emp
     styled = frame.style.format(na_rep='—')
     if status_columns:
         styled = styled.map(lambda _: 'background-color: #edf4fa; color: #234d70; font-weight: 600', subset=status_columns)
+    if cell_actions:
+        for name in cell_actions:
+            columns[name]=st.column_config.TextColumn(name,width=65,help='点击删除；不会打开会员详情')
+        styled=styled.map(lambda value:'color: #a54444; font-weight: 500' if value=='删除' else '',subset=list(cell_actions))
     if not selectable:
         st.dataframe(styled, **options)
         return None
     event = st.dataframe(styled, on_select='rerun', selection_mode='single-cell' if activate_on_cell else 'single-row', **options)
+    # Action cells are consumed before the caller can navigate the selected row.
+    cells=event.get('selection',{}).get('cells',[])
+    if cell_actions and cells and cells[0][1] in cell_actions:
+        index,column=cells[0]
+        if isinstance(index,int) and 0<=index<len(rows):cell_actions[column](rows[index])
+        return None
     selected = selected_record(rows, event)
     if not auto_select and not (event.get('selection', {}).get('rows', []) or event.get('selection', {}).get('cells', [])):
         selected = None

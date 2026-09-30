@@ -146,29 +146,28 @@ def test_member360_routes_archived_member_to_readonly_detail(care, monkeypatch):
     assert app.st.session_state['focused_member_id']==str(member.id)
 
 
-def test_archive_only_in_member360_header_with_one_directory_filter():
+def test_delete_action_only_in_list_and_does_not_navigate():
     from tests.ui_selection import select_table_row
     app=AppTest.from_file(Path(__file__).resolve().parents[1]/'streamlit_app.py').run(timeout=45)
     next(r for r in app.radio if r.label=='工作区').set_value('成员').run(timeout=45)
-    for _ in range(2):
-        assert not app.exception
-        assert len([x for x in app.text_input if x.label=='搜索成员'])==1
-        assert len([x for x in app.selectbox if x.label=='状态'])==1
-        assert len([x for x in app.selectbox if x.label=='负责人'])==1
-        app.run(timeout=45)
-    app.session_state['workflow-flash']='已保存，测试页面首次进入时带业务反馈。'
-    app.run(timeout=45)
-    assert len([x for x in app.text_input if x.label=='搜索成员'])==1
-    app.run(timeout=45)
-    assert len([x for x in app.text_input if x.label=='搜索成员'])==1
-    assert not any(b.label in {'归档会员','删除成员'} for b in app.button)
-    assert next(x for x in app.selectbox if x.label=='状态').options==['在管','已归档']
-    select_table_row(app,prefix='member-directory-').run(timeout=45)
-    assert len([b for b in app.button if b.label=='归档会员'])==1
-    next(b for b in app.button if b.label=='归档会员').click().run(timeout=45)
-    confirmation=next(b for b in app.button if b.label in {'确认归档','停止当前流程并归档'})
-    assert confirmation.disabled
     assert not app.exception
+    assert next(x for x in app.selectbox if x.label=='状态').options==['在管','已归档','全部']
+    table=next(t for t in app.dataframe if '会员' in t.value.columns)
+    assert list(table.value.columns)[-1]=='操作'
+    assert set(table.value['操作'])=={'删除'}
+    assert len([t for t in app.dataframe if '操作' in t.value.columns])==1
+    select_table_row(app,prefix='member-directory-',column='操作').run(timeout=45)
+    assert not app.exception
+    assert not app.session_state.filtered_state.get('focused_member_id')
+    confirm=next((b for b in app.button if b.label=='确认删除'),None)
+    if confirm:assert confirm.disabled
+    else:assert any('自动化流程正在运行' in w.value for w in app.warning)
+    next(b for b in app.button if b.label=='取消').click().run(timeout=45)
+    assert not app.session_state.filtered_state.get('member-archive-dialog')
+    select_table_row(app,prefix='member-directory-').run(timeout=45)
+    assert not app.exception
+    assert not any(b.label in {'归档会员','删除会员','删除','···'} for b in app.button)
+    assert any(b.label=='← 返回会员' for b in app.button)
 
 
 @pytest.mark.parametrize('waiting',['WAITING_MANAGER','WAITING_DOCTOR','WAITING_TIME'])

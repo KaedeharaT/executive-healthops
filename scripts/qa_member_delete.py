@@ -10,10 +10,10 @@ import sys
 from pathlib import Path
 from uuid import UUID
 ROOT=Path(__file__).resolve().parents[1]
-case=os.environ.get('HEALTHOPS_ARCHIVE_QA_CASE','member-archive-restore')
+case=os.environ.get('HEALTHOPS_ARCHIVE_QA_CASE','member-list-removal')
 assert re.fullmatch(r'[a-zA-Z0-9_-]+',case)
 DATA=ROOT/'.runtime'/case
-OUT=ROOT/'docs/images/member-archive-restore'
+OUT=ROOT/'docs/images/member-list-removal'
 DATA.mkdir(parents=True,exist_ok=True)
 OUT.mkdir(parents=True,exist_ok=True)
 os.environ['DATABASE_URL']='sqlite:///'+(DATA/'browser.db').as_posix()
@@ -67,6 +67,10 @@ def verify_history():
     with SessionLocal() as s:
         for suffix in ('Waiting','Running'):
             record=records[suffix];member=s.get(Patient,UUID(record['id']))
+            if suffix=='Running':
+                assert not member.archived_at
+                assert s.get(MemberAgent,UUID(record['identity'])).status=='RUNNING'
+                continue
             assert member.archived_at
             identity=s.get(MemberAgent,UUID(record['identity']))
             assert identity.member_id==member.id and identity.status=='IDLE' and identity.wake_count==record['wakes']
@@ -101,41 +105,41 @@ def browser_check():
         if entry.count():button('进入 HealthOps 运营后台')
         radio('会员')
         assert not page.get_by_role('button',name='归档会员',exact=True).count()
-        for suffix in ('Waiting','Running'):
+        for suffix in ('Running','Waiting'):
             name='Demo Archive '+suffix
             search(name)
-            with SessionLocal() as s:
-                already_archived=s.scalar(select(Patient.archived_at).where(Patient.display_name==name)) is not None
-            if already_archived:
-                assert '未找到匹配会员' in page.locator('body').inner_text()
-                shot('03-active-list-hidden.png' if suffix=='Waiting' else '07-running-archived.png')
-                continue
-            row()
-            expect(page.get_by_role('button',name='···',exact=True)).to_have_count(1)
-            shot('01-member360-header.png' if suffix=='Waiting' else '05-running-member.png')
-            button('···');expect(page.get_by_role('button',name='归档会员',exact=True)).to_have_count(1)
-            button('归档会员');expect(page.get_by_role('dialog',name='归档会员',exact=True)).to_be_visible()
-            expect(page.locator('[data-testid="stPopoverBody"]')).to_have_count(0)
-            confirm='确认归档' if suffix=='Waiting' else '停止当前流程并归档'
-            expect(page.get_by_role('button',name=confirm,exact=True)).to_be_disabled()
+            grid=page.locator('[data-testid="stDataFrame"]').last
+            shot('00-member-list.png')
+            if '--inspect' in sys.argv:
+                print('Grid:',grid.bounding_box())
+                browser.close();return
+            grid.click(position={'x':grid.bounding_box()['width']-35,'y':55});settle()
+            expect(page.get_by_role('dialog',name='删除会员',exact=True)).to_be_visible()
+            expect(page.get_by_label('搜索成员',exact=True)).to_be_visible()
+            expect(page.get_by_role('button',name='← 返回会员',exact=True)).to_have_count(0)
             if suffix=='Running':
-                expect(page.get_by_role('button',name='确认归档',exact=True)).to_have_count(0)
-                assert '该会员当前仍有自动化流程正在运行' in page.get_by_role('dialog',name='归档会员',exact=True).inner_text()
+                assert '该会员当前仍有自动化流程正在运行' in page.get_by_role('dialog',name='删除会员',exact=True).inner_text()
+                expect(page.get_by_role('button',name='确认删除',exact=True)).to_have_count(0)
+                expect(page.get_by_role('button',name='停止当前流程并归档',exact=True)).to_have_count(0)
+                shot('01-running-blocked.png')
+                button('取消');continue
+            confirm='确认删除'
+            expect(page.get_by_role('button',name=confirm,exact=True)).to_be_disabled()
             label='请输入会员姓名“'+name+'”确认'
             for wrong in ('wrong',name+' '):
                 f=page.get_by_label(label,exact=True);f.fill(wrong);f.press('Enter');settle()
                 expect(page.get_by_role('button',name=confirm,exact=True)).to_be_disabled()
-            shot('02-name-confirmation.png' if suffix=='Waiting' else '06-running-protected.png')
-            button('取消');expect(page.get_by_role('dialog',name='归档会员',exact=True)).to_have_count(0)
-            button('···');button('归档会员')
+            shot('02-name-confirmation.png')
+            button('取消');expect(page.get_by_role('dialog',name='删除会员',exact=True)).to_have_count(0)
+            grid.click(position={'x':grid.bounding_box()['width']-35,'y':55});settle()
             f=page.get_by_label(label,exact=True);f.fill(name);f.press('Enter');settle()
-            expect(page.get_by_role('button',name=confirm,exact=True)).to_be_enabled()
-            button(confirm);expect(page.get_by_role('dialog',name='归档会员',exact=True)).to_have_count(0)
-            search(name)
+            button(confirm)
+            expect(page.get_by_role('dialog',name='删除会员',exact=True)).to_have_count(0)
+            expect(page.get_by_label('搜索成员',exact=True)).to_be_visible()
             assert '未找到匹配会员' in page.locator('body').inner_text()
-            shot('03-active-list-hidden.png' if suffix=='Waiting' else '07-running-archived.png')
+            shot('03-active-list-hidden.png')
         selector=page.get_by_label('状态',exact=True);selector.click();page.get_by_role('option',name='已归档',exact=True).click();settle()
-        search('Demo Archive Waiting');row()
+        search('Demo Archive Waiting');shot('04-archived-filter.png');row()
         assert '已归档' in page.locator('body').inner_text()
         assert not page.get_by_role('button',name='···',exact=True).count()
         for tab in ('概览','健康档案','管理','医疗','历程'):
@@ -144,9 +148,19 @@ def browser_check():
             if tab=='健康档案':
                 expect(page.get_by_role('heading',name='原始资料',exact=True)).to_be_visible()
                 assert page.locator('[data-testid="stDataFrame"]').count()>=2
-                shot('04-archived-health-records.png')
+                shot('05-archived-health-records.png')
+        button('← 返回会员')
+        selector=page.get_by_label('状态',exact=True);selector.click();page.get_by_role('option',name='全部',exact=True).click();settle()
+        search('Demo Archive');shot('06-all-filter.png')
+        selector.click();page.get_by_role('option',name='在管',exact=True).click();settle()
+        search('Demo Archive Running');row()
+        for tab in ('概览','健康档案','管理','医疗','历程'):
+            radio(tab)
+            assert not page.get_by_role('button',name='···',exact=True).count()
+            assert not page.get_by_role('button',name='归档会员',exact=True).count()
+        shot('07-no-member360-delete.png')
         verify_history()
-        result={'browser':'Chromium '+browser.version,'viewport':'1440x900','entry_count':1,'exact_name':True,'running_protected':True,'history_preserved':True,'archived_tabs':'5 passed','errors':errors}
+        result={'browser':'Chromium '+browser.version,'viewport':'1440x900','entry_count':1,'entry_location':'MEMBER LIST','row_navigation_conflict':False,'exact_name':True,'running_protected':True,'history_preserved':True,'archived_tabs':'5 passed','errors':errors}
         (OUT/'verification.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
         print(json.dumps(result,ensure_ascii=False))
         browser.close()

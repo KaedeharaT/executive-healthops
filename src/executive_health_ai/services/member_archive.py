@@ -54,7 +54,7 @@ class MemberArchiveService:
         if member.archived_at:
             return member
         if self.is_running(session,member_id) and not stop_running:
-            raise ValueError('该会员当前仍有自动化流程正在运行。请取消，或明确选择停止当前流程并归档。')
+            raise ValueError('该会员当前仍有自动化流程正在运行，请先完成或停止当前流程。')
         session.info['archiving_member']=member_id
         try:
             now=utc_now();impact=self.preview(session,member_id);changes=[]

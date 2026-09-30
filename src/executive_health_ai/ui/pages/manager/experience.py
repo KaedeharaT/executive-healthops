@@ -182,15 +182,10 @@ def member_detail(app, patient):
     updated = [r.observed_at for r in rows]+[r.occurred_at for r in management_view.logs]
     if management_view.intake: updated.append(management_view.intake.updated_at)
     cycle=view.cycle+(f' · {program.start_date:%m/%d}—{program.end_date:%Y/%m/%d}' if program and program.end_date else '')
-    identity,menu=st.columns([12,1],vertical_alignment='top')
-    with identity:
-        c.member_header(ux.business_text(patient.display_name), cycle=cycle, owner=ux.business_text(view.owner),
-            phase=view.phase_title or management_view.onboarding, concern=concern or '待填写', focus=professional,
-            next_action=next_text,
-            updated=ux.when(max(updated)) if updated else '暂无记录')
-    with menu:
-        from executive_health_ai.ui.pages.manager.member_delete import actions
-        actions(app,patient)
+    c.member_header(ux.business_text(patient.display_name), cycle=cycle, owner=ux.business_text(view.owner),
+        phase=view.phase_title or management_view.onboarding, concern=concern or '待填写', focus=professional,
+        next_action=next_text,
+        updated=ux.when(max(updated)) if updated else '暂无记录')
     with st.container(key='soft-member-navigation'):
         section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
     if section == "概览":

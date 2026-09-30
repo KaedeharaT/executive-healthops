@@ -3,7 +3,7 @@ import json
 from streamlit.proto.WidgetStates_pb2 import WidgetStates
 
 
-def select_table_row(app, index=0, *, prefix=None):
+def select_table_row(app, index=0, *, prefix=None, column="会员"):
     # AppTest's Dataframe is an Element, not a Widget: it does not send table
     # selections with subsequent form submissions. Supply the same event state
     # that the real browser transports, without adding controls to the product.
@@ -24,7 +24,7 @@ def select_table_row(app, index=0, *, prefix=None):
     grid = next(item for item in app.dataframe if item.proto.id and
                 (prefix is None or item.proto.id.split('-', 2)[2].startswith(prefix)))
     key = grid.proto.id.split('-', 2)[2]
-    selection = {'cells': [[index, '会员']]} if key.startswith('member-directory-') else {'rows': [index]}
+    selection = {'cells': [[index, column]]} if key.startswith('member-directory-') else {'rows': [index]}
     app.session_state[key] = {'selection': selection}
     return app
 

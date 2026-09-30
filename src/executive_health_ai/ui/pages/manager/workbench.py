@@ -174,7 +174,7 @@ def directory(app, members):
     with SessionLocal() as session:
         rows = member_directory(session, members, include_archived=True)
     query, state, owner = c.filter_bar(key='member-list', search_label='搜索成员',
-        statuses=['在管','已归档'], all_statuses=False,
+        statuses=['在管','已归档','全部'], all_statuses=False,
         owners=sorted({r['program'].owner if r['program'] else '待分配' for r in rows}))
     scope = (query, state, owner)
     if st.session_state.get('member-directory-scope') != scope:
@@ -182,7 +182,7 @@ def directory(app, members):
         st.session_state['member-directory-epoch'] = st.session_state.get('member-directory-epoch', 0)+1
     workflow.enroll(app)
     rows = [r for r in rows if (not query or query in (app._member_display(r['member'])+r['focus']).casefold())
-            and state==('已归档' if r['member'].archived_at else '在管')
+            and (state=='全部' or state==('已归档' if r['member'].archived_at else '在管'))
             and (owner=='全部' or owner==(r['program'].owner if r['program'] else '待分配'))]
     records=[]
     now=datetime.now(ux.LOCAL).date()
@@ -194,10 +194,13 @@ def directory(app, members):
             '当前阶段':phase.title if phase else app.display_program_phase(p.current_phase) if p else '待建档',
             '责任健管':p.owner if p else '待分配','当前服务':r['service'],
             '下一行动':'查看历史资料（只读）' if person.archived_at else t.title if t else '待确认安排',
-            '状态':'已归档' if person.archived_at else status_label(p.status) if p else '待建档'})
-    chosen = data_table(rows, records, key='member-directory',label='选择会员',empty='未找到匹配会员。',auto_select=False,activate_on_cell=True)
+            '状态':'已归档' if person.archived_at else status_label(p.status) if p else '待建档',
+            '操作':'—' if person.archived_at else '删除'})
+    from executive_health_ai.ui.pages.manager.member_delete import request_delete, pending_confirmation
+    chosen = data_table(rows, records, cell_actions={'操作':lambda row:request_delete(row['member'])}, key='member-directory',label='选择会员',empty='未找到匹配会员。',auto_select=False,activate_on_cell=True)
     if chosen:
         open_directory_member(app,chosen['member']);st.rerun()
+    pending_confirmation()
 
 
 def archive(app, patient, view):

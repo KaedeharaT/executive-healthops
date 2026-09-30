@@ -10,13 +10,17 @@ def _dismiss_archive():
     st.session_state.pop('member-archive-dialog',None)
 
 
-def _open_archive(identity):
-    st.session_state['member-archive-dialog']=identity
-    st.session_state['member-actions-'+identity]=False
+def request_delete(member):
+    # Consume selection even for an archived row; never fall through to navigation.
+    st.session_state['member-directory-epoch']=st.session_state.get('member-directory-epoch',0)+1
+    if member.archived_at:
+        return
+    identity=str(member.id)
+    st.session_state['member-archive-dialog']=(identity,member_label(member))
     st.session_state.pop('member-delete-name-'+identity,None)
 
 
-@st.dialog('归档会员',width='large',on_dismiss=_dismiss_archive)
+@st.dialog('删除会员',width='large',on_dismiss=_dismiss_archive)
 def confirm_delete(member_id,expected_name):
     identity=UUID(str(member_id))
     with SessionLocal() as session:
@@ -30,10 +34,13 @@ def confirm_delete(member_id,expected_name):
         service=MemberArchiveService()
         counts=service.preview(session,identity)
         running=service.is_running(session,identity)
-    st.subheader('归档会员：'+expected_name)
-    st.write('归档后，该会员将不再出现在正常会员列表和日常工作中，历史健康档案、服务记录和审计记录仍会保留。')
+    st.subheader('删除会员：'+expected_name)
+    st.write('删除后，该会员将不再出现在在管会员列表中。历史健康档案和服务记录仍会保留。')
     if running:
-        st.warning('该会员当前仍有自动化流程正在运行。只有明确停止当前流程后才能归档。')
+        st.warning('该会员当前仍有自动化流程正在运行，请先完成或停止当前流程。')
+        if st.button('取消',key='running-delete-cancel'):
+            _dismiss_archive();st.rerun()
+        return
     if any(counts.values()):
         st.warning('本次将安全停止关联的自动流程和运营事项。待医生判断、会诊和外部预约需负责人交接，不代表医学问题已解决或外部服务已撤销。')
         st.dataframe([{'关联事项':k,'未结束数量':v} for k,v in counts.items()],hide_index=True,width='stretch')
@@ -45,30 +52,25 @@ def confirm_delete(member_id,expected_name):
         _dismiss_archive()
         st.rerun()
     with confirm,st.container(key='member-delete-confirm-danger'):
-        if st.button('停止当前流程并归档' if running else '确认归档',disabled=not valid,width='stretch'):
+        if st.button('确认删除',disabled=not valid,width='stretch'):
             try:
                 with SessionLocal() as session:
                     MemberArchiveService().archive(session,identity,expected_name=expected_name,confirmation_name=name,
-                        actor='健康管理师',role='HEALTH_MANAGER',confirmed=True,stop_running=running)
+                        actor='健康管理师',role='HEALTH_MANAGER',confirmed=True)
                     session.commit()
                 _dismiss_archive()
                 st.session_state.pop('focused_member_id',None)
                 st.session_state['member-directory-epoch']=st.session_state.get('member-directory-epoch',0)+1
-                st.session_state['workflow-flash']='会员已归档，历史资料和审计记录已保留。'
+                st.session_state['workflow-flash']='会员已删除（安全归档），历史资料和审计记录已保留。'
                 st.rerun()
             except (ValueError,PermissionError) as error:
                 st.error(str(error))
 
 
-def actions(app,member):
-    if member.archived_at:
-        return
-    identity=str(member.id)
-    with st.popover('···',help='会员操作',key='member-actions-'+identity,on_change='rerun'):
-        st.button('归档会员',key='member-archive-'+identity,help='保留历史资料；需输入会员姓名确认。',
-            on_click=_open_archive,args=(identity,))
-    if st.session_state.get('member-archive-dialog')==identity:
-        confirm_delete(identity,member_label(member))
+def pending_confirmation():
+    pending=st.session_state.get('member-archive-dialog')
+    if pending:
+        confirm_delete(*pending)
 
 
 def archived_detail(app,member):
