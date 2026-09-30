@@ -5,10 +5,10 @@ from executive_health_ai.models.management_workflow import ManagementLog, Intake
 from executive_health_ai.services.product_projection import current_program
 
 
-def member_directory(session, members):
+def member_directory(session, members, *, include_archived=False):
     from executive_health_ai.services.member_archive import active_ids
     active=set(session.scalars(active_ids()))
-    members=[m for m in members if m.id in active]
+    members=[m for m in members if include_archived or m.id in active]
     ids = [m.id for m in members]
     if not ids:
         return []

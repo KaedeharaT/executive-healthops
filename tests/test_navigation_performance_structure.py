@@ -25,7 +25,7 @@ def _radio(app: AppTest, label: str):
 def test_members_workspace_uses_batch_summary_not_full_member_context() -> None:
     from tests.ui_source import source as renderer_source
     source = renderer_source("render_members_workspace", "KNOWLEDGE_CATEGORIES")
-    assert "member_directory(session, members)" in source
+    assert "member_directory(session, members, include_archived=True)" in source
     projection = (APP.parent / "src/executive_health_ai/services/information_presentation.py").read_text(encoding="utf8")
     assert ".in_(ids)" in projection and "ManagementLog" in projection
     assert "_context(member.id)" not in source
@@ -53,10 +53,11 @@ def test_more_root_routes_before_loading_its_selected_module() -> None:
 
 def test_main_routes_before_loading_members() -> None:
     source = _function_source("main", "if __name__")
-    assert source.index('if page == "今日"') < source.index('members = _navigation_stage("member list", _members)')
-    assert source.index('if page == "医疗协同"') < source.index('members = _navigation_stage("member list", _members)')
-    assert source.index('if page == "服务运营"') < source.index('members = _navigation_stage("member list", _members)')
-    assert source.index('if page == "更多"') < source.index('members = _navigation_stage("member list", _members)')
+    assert source.index('if page == "今日"') < source.index('members = _navigation_stage("member list",')
+    assert source.index('if page == "医疗协同"') < source.index('members = _navigation_stage("member list",')
+    assert source.index('if page == "服务运营"') < source.index('members = _navigation_stage("member list",')
+    assert source.index('if page == "更多"') < source.index('members = _navigation_stage("member list",')
+    assert "_members(include_archived=page=='成员')" in source
     assert "_context(" not in source
     assert "RiskEvaluationService" not in source and "ReportParsingService" not in source
 

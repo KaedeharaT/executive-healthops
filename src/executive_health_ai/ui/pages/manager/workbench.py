@@ -172,9 +172,9 @@ def directory(app, members):
     with st.container(key='member-directory-feedback'):
         workflow.flash()
     with SessionLocal() as session:
-        rows = member_directory(session, members)
+        rows = member_directory(session, members, include_archived=True)
     query, state, owner = c.filter_bar(key='member-list', search_label='搜索成员',
-        statuses=sorted({status_label(r['program'].status) if r['program'] else '待建档' for r in rows}),
+        statuses=['在管','已归档'], all_statuses=False,
         owners=sorted({r['program'].owner if r['program'] else '待分配' for r in rows}))
     scope = (query, state, owner)
     if st.session_state.get('member-directory-scope') != scope:
@@ -182,15 +182,8 @@ def directory(app, members):
         st.session_state['member-directory-epoch'] = st.session_state.get('member-directory-epoch', 0)+1
     workflow.enroll(app)
     rows = [r for r in rows if (not query or query in (app._member_display(r['member'])+r['focus']).casefold())
-            and (state=='全部' or state==(status_label(r['program'].status) if r['program'] else '待建档'))
+            and state==('已归档' if r['member'].archived_at else '在管')
             and (owner=='全部' or owner==(r['program'].owner if r['program'] else '待分配'))]
-    with st.popover('会员管理'):
-        st.caption('删除采用安全归档，需另外选择会员并输入姓名确认。')
-        managed=st.selectbox('管理会员档案',[r['member'] for r in rows],index=None,
-            format_func=app._member_display,key='directory-managed-member',placeholder='选择需要管理的会员')
-        if managed:
-            from executive_health_ai.ui.pages.manager.member_delete import actions
-            actions(app,managed)
     records=[]
     now=datetime.now(ux.LOCAL).date()
     for r in rows:
@@ -200,7 +193,8 @@ def directory(app, members):
         records.append({'会员':app._member_display(person), '年龄 / 性别':age+' / '+{'male':'男','female':'女','MALE':'男','FEMALE':'女'}.get(person.sex,'未记录'),
             '当前阶段':phase.title if phase else app.display_program_phase(p.current_phase) if p else '待建档',
             '责任健管':p.owner if p else '待分配','当前服务':r['service'],
-            '下一行动':t.title if t else '待确认安排','状态':status_label(p.status) if p else '待建档'})
+            '下一行动':'查看历史资料（只读）' if person.archived_at else t.title if t else '待确认安排',
+            '状态':'已归档' if person.archived_at else status_label(p.status) if p else '待建档'})
     chosen = data_table(rows, records, key='member-directory',label='选择会员',empty='未找到匹配会员。',auto_select=False,activate_on_cell=True)
     if chosen:
         open_directory_member(app,chosen['member']);st.rerun()

@@ -4267,13 +4267,15 @@ def render_member_medical_workspace(patient: Patient, ctx: dict[str, list[object
 
 
 def render_member_detail(patient):
-    from executive_health_ai.services.member_archive import require_active
     with SessionLocal() as session:
-        try:require_active(session,patient.id)
-        except ValueError:
+        current=session.get(Patient,patient.id)
+        if not current:
             st.session_state.pop('focused_member_id',None)
-            st.info('成员已归档，历史资料由管理员查阅。')
             render_members_workspace(_members())
+            return
+        if current.archived_at:
+            from executive_health_ai.ui.pages.manager.member_delete import archived_detail
+            archived_detail(_ui_adapter(),current)
             return
     manager_pages.member_detail(_ui_adapter(), patient)
 
@@ -6292,7 +6294,7 @@ def main() -> None:
         if NAVIGATION_PROFILE_ENABLED: LOGGER.warning("[PERF] total %.1f ms", (perf_counter() - started) * 1000)
         return
     # Member records are unnecessary for the default workbench and are loaded only when needed.
-    members = _navigation_stage("member list", _members)
+    members = _navigation_stage("member list", lambda: _members(include_archived=page=='成员'))
     if not members and page != '成员':
         st.title("企业高管健康运营中心")
         st.warning("尚未初始化演示数据。请先完成数据库迁移和演示数据初始化。")

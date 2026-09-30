@@ -2,7 +2,7 @@
 from sqlalchemy import select
 from executive_health_ai.models import (Patient, AuditLog, AgentGoal, AgentPlan, AgentPlanStep,
     AgentApprovalRequest, AgentRunTrace, AgentEvent, Task, ServiceRequest, HealthProgram,
-    ProgramPhase, HealthJourney, FollowUp, ManagementPlan, CarePlan, CareTask, DoctorReview)
+    ProgramPhase, HealthJourney, FollowUp, ManagementPlan, CarePlan, CareTask, DoctorReview, MemberAgent, HealthEvent)
 from executive_health_ai.models.management_workflow import RecheckPlan, ConsultationCase
 from executive_health_ai.models.base import utc_now
 from executive_health_ai.models.archive_guard import locked_members
@@ -30,25 +30,31 @@ def is_archived(session, member_id):
 
 
 class MemberArchiveService:
+    def is_running(self,session,member_id):
+        return bool(session.scalar(select(MemberAgent.id).where(MemberAgent.member_id==member_id,MemberAgent.status=='RUNNING'))
+            or session.scalar(select(AgentGoal.id).where(AgentGoal.member_id==member_id,AgentGoal.status.in_({'RUNNING','PROCESSING','WRITING','ACTIVE'}))))
+
     def preview(self,session,member_id):
         return {label:len(list(session.scalars(select(model).where(column==member_id,model.status.not_in(CLOSED)))))
-            for label,model,column in [('活动 Agent',AgentGoal,AgentGoal.member_id),('未完成事项',Task,Task.patient_id),
+            for label,model,column in [('自动化流程',AgentGoal,AgentGoal.member_id),('未完成事项',Task,Task.patient_id),
                 ('未完成复查',RecheckPlan,RecheckPlan.patient_id),('进行中服务',ServiceRequest,ServiceRequest.patient_id),
                 ('等待医生',DoctorReview,DoctorReview.patient_id),('未完成会诊',ConsultationCase,ConsultationCase.patient_id)]}
 
-    def archive(self,session,member_id,*,expected_name,confirmation_name,actor,role,confirmed=False):
+    def archive(self,session,member_id,*,expected_name,confirmation_name,actor,role,confirmed=False,stop_running=False):
         if role not in {'HEALTH_MANAGER','ADMIN'} or not actor.strip():
             raise PermissionError('仅健康管理师或管理员可以归档成员。')
-        if not confirmed or not confirmation_name.strip() or confirmation_name.strip()!=expected_name:
-            raise ValueError('请输入完整成员姓名并点击确认删除。')
+        if not confirmed or not confirmation_name.strip() or confirmation_name!=expected_name:
+            raise ValueError('请输入完全一致的会员姓名并确认归档。')
         states=locked_members(session.connection(),{member_id})
         if member_id not in states:
             raise ValueError('成员不存在。')
         member=session.get(Patient,member_id,populate_existing=True)
         if member_label(member)!=expected_name:
-            raise ValueError('成员姓名已变化，请取消后重新核对要删除的成员。')
+            raise ValueError('会员姓名已变化，请取消后重新核对要归档的会员。')
         if member.archived_at:
             return member
+        if self.is_running(session,member_id) and not stop_running:
+            raise ValueError('该会员当前仍有自动化流程正在运行。请取消，或明确选择停止当前流程并归档。')
         session.info['archiving_member']=member_id
         try:
             now=utc_now();impact=self.preview(session,member_id);changes=[]
@@ -79,6 +85,13 @@ class MemberArchiveService:
             for event in session.scalars(select(AgentEvent).where(AgentEvent.member_id==member_id,AgentEvent.status=='PENDING')):
                 stop(event,'CANCELLED');event.processed_at=now
                 event.metadata_json={**(event.metadata_json or {}),'stop_reason':'MEMBER_ARCHIVED'}
+            for event in session.scalars(select(HealthEvent).where(HealthEvent.member_id==member_id,
+                    HealthEvent.event_category.is_not(None),HealthEvent.status=='PENDING')):
+                stop(event,'IGNORED');event.route_action='IGNORE'
+            identity=session.scalar(select(MemberAgent).where(MemberAgent.member_id==member_id))
+            if identity:
+                stop(identity,'IDLE')
+                identity.current_goal_id=None;identity.waiting_for=None;identity.next_wake_at=None
             for model in (Task,FollowUp,RecheckPlan,ServiceRequest,CareTask):
                 for row in session.scalars(select(model).where(model.patient_id==member_id)):
                     # Recheck COMPLETED means the examination was performed but

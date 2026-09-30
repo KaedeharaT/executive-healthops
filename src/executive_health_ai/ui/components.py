@@ -95,11 +95,11 @@ def business_table(*args, **kwargs):
     return data_table(*args, **kwargs)
 
 
-def filter_bar(*, key, statuses=(), owners=(), search_label='搜索记录'):
+def filter_bar(*, key, statuses=(), owners=(), search_label='搜索记录', all_statuses=True):
     with st.container(key='soft-filter-'+key):
         columns = st.columns([2, 1, 1])
         query = columns[0].text_input(search_label, key=key+'-query', placeholder='会员、事项或关键词')
-        status = columns[1].selectbox('状态', ['全部']+list(statuses), key=key+'-state')
+        status = columns[1].selectbox('状态', (['全部'] if all_statuses else [])+list(statuses), key=key+'-state')
         owner = columns[2].selectbox('负责人', ['全部']+list(owners), key=key+'-owner')
     return query.strip().casefold(), status, owner
 

@@ -18,7 +18,8 @@ def archive(s, g, **kwargs):
 
 
 @pytest.mark.parametrize('options', [dict(confirmed=False), dict(confirmation_name='wrong'),
-    dict(confirmation_name=''), dict(role='MEMBER'), dict(expected_name='Someone else')])
+    dict(confirmation_name=''), dict(confirmation_name=' Synthetic V1 Member'),
+    dict(confirmation_name='Synthetic V1 Member '), dict(role='MEMBER'), dict(expected_name='Someone else')])
 def test_requires_exact_identity_and_confirmation(care, options):
     s,g,_=care
     with pytest.raises((ValueError, PermissionError)):
@@ -101,8 +102,11 @@ def test_running_profile_agent_cannot_continue_after_archive(env):
     s,member,sup=env
     goal=upload(env);s.commit()
     assert goal.status=='RUNNING'
-    MemberArchiveService().archive(s,member.id,expected_name=member.display_name,
-        confirmation_name=member.display_name,actor='QA',role='ADMIN',confirmed=True)
+    options=dict(expected_name=member.display_name,confirmation_name=member.display_name,actor='QA',role='ADMIN',confirmed=True)
+    with pytest.raises(ValueError,match='正在运行'):
+        MemberArchiveService().archive(s,member.id,**options)
+    assert member.archived_at is None
+    MemberArchiveService().archive(s,member.id,**options,stop_running=True)
     s.commit()
     assert sup.execute_next_step(s,goal.id).status=='CANCELLED'
     assert goal.completed_at is None
@@ -122,7 +126,7 @@ def test_archived_excluded_from_annual_today_and_medical_work(care):
     assert not pending_doctor_work(s,g.member_id)
 
 
-def test_member360_rejects_archived_member_before_detail_render(care, monkeypatch):
+def test_member360_routes_archived_member_to_readonly_detail(care, monkeypatch):
     import streamlit_app as app
     from unittest.mock import Mock
     s,g,_=care
@@ -133,14 +137,16 @@ def test_member360_rejects_archived_member_before_detail_render(care, monkeypatc
     monkeypatch.setattr(app.st,'session_state',{'focused_member_id':str(member.id)})
     monkeypatch.setattr(app.st,'info',Mock())
     monkeypatch.setattr(app,'_members',lambda:[])
-    listing=Mock();monkeypatch.setattr(app,'render_members_workspace',listing)
+    from executive_health_ai.ui.pages.manager import member_delete
+    readonly=Mock();monkeypatch.setattr(member_delete,'archived_detail',readonly)
     app.render_member_detail(member)
     detail.assert_not_called()
-    listing.assert_called_once_with([])
-    assert 'focused_member_id' not in app.st.session_state
+    readonly.assert_called_once()
+    assert readonly.call_args.args[1].id==member.id
+    assert app.st.session_state['focused_member_id']==str(member.id)
 
 
-def test_member_page_has_one_filter_and_explicit_secondary_delete():
+def test_archive_only_in_member360_header_with_one_directory_filter():
     from tests.ui_selection import select_table_row
     app=AppTest.from_file(Path(__file__).resolve().parents[1]/'streamlit_app.py').run(timeout=45)
     next(r for r in app.radio if r.label=='工作区').set_value('成员').run(timeout=45)
@@ -155,11 +161,88 @@ def test_member_page_has_one_filter_and_explicit_secondary_delete():
     assert len([x for x in app.text_input if x.label=='搜索成员'])==1
     app.run(timeout=45)
     assert len([x for x in app.text_input if x.label=='搜索成员'])==1
-    next(s for s in app.selectbox if s.label=='管理会员档案').select_index(0).run(timeout=45)
-    assert any(b.label=='删除成员' for b in app.button)
-    assert not any(b.label=='查看会员 / 进入Member360' for b in app.button)
-    next(b for b in app.button if b.label=='删除成员').click().run(timeout=45)
-    assert next(b for b in app.button if b.label=='确认删除').disabled
-    # Native dialog fragment reruns (wrong name, cancel, confirm) are exercised
-    # by qa_member_delete.py in Chromium; AppTest only supports whole-app reruns.
+    assert not any(b.label in {'归档会员','删除成员'} for b in app.button)
+    assert next(x for x in app.selectbox if x.label=='状态').options==['在管','已归档']
+    select_table_row(app,prefix='member-directory-').run(timeout=45)
+    assert len([b for b in app.button if b.label=='归档会员'])==1
+    next(b for b in app.button if b.label=='归档会员').click().run(timeout=45)
+    confirmation=next(b for b in app.button if b.label in {'确认归档','停止当前流程并归档'})
+    assert confirmation.disabled
     assert not app.exception
+
+
+@pytest.mark.parametrize('waiting',['WAITING_MANAGER','WAITING_DOCTOR','WAITING_TIME'])
+def test_archive_preserves_identity_and_trace_and_suppresses_due_work(care,waiting):
+    from datetime import timedelta
+    from executive_health_ai.models import MemberAgent, HealthEvent, AgentGoal
+    from executive_health_ai.models.base import utc_now
+    from executive_health_ai.services.health_events import ingest_health_event
+    from executive_health_ai.services.operational_worklist import OperationalWorklistService
+    s,g,_=care
+    g.status=waiting;s.commit()
+    identity=s.scalar(select(MemberAgent).where(MemberAgent.member_id==g.member_id))
+    identity_id=identity.id;wakes=identity.wake_count
+    trace_ids=set(s.scalars(select(AgentRunTrace.id).where(AgentRunTrace.goal_id==g.id)))
+    event,_=ingest_health_event(s,member_id=g.member_id,event_type='TIME_DUE',event_category='TIME_DUE',
+        source_type='SYSTEM',source_id='future-followup',occurred_at=utc_now()+timedelta(days=2))
+    s.commit()
+    archive(s,g);s.commit()
+    s.refresh(identity)
+    assert identity.id==identity_id and identity.status=='IDLE' and identity.next_wake_at is None
+    assert event.status=='IGNORED'
+    assert trace_ids<=set(s.scalars(select(AgentRunTrace.id).where(AgentRunTrace.goal_id==g.id)))
+    count=s.scalar(select(func.count(AgentGoal.id)))
+    late,_=ingest_health_event(s,member_id=g.member_id,event_type='TIME_DUE',event_category='TIME_DUE',
+        source_type='SYSTEM',source_id='late-followup')
+    s.commit();s.refresh(identity)
+    assert late.status=='IGNORED' and identity.wake_count==wakes
+    assert s.scalar(select(func.count(AgentGoal.id)))==count
+    assert all(i.member_id!=g.member_id for i in OperationalWorklistService().list_items(s,utc_now()))
+    member=s.get(Patient,g.member_id)
+    assert member_directory(s,[member],include_archived=True)[0]['member'].id==member.id
+
+
+def test_running_identity_blocks_archive_even_without_running_goal(care):
+    from executive_health_ai.models import MemberAgent
+    s,g,_=care
+    identity=s.scalar(select(MemberAgent).where(MemberAgent.member_id==g.member_id))
+    identity.status='RUNNING';s.commit()
+    with pytest.raises(ValueError,match='正在运行'):archive(s,g)
+    archive(s,g,stop_running=True);s.commit()
+    assert identity.status=='IDLE'
+
+
+def test_archived_member_all_five_tabs_are_readonly(care,tmp_path,monkeypatch):
+    """Render actual historical rows, not a mocked detail renderer."""
+    import sqlite3
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from executive_health_ai.ui.pages.manager import member_delete
+    from executive_health_ai.ui.pages.member import experience
+    s,g,sup=care
+    send_doctor(s,g,sup);s.commit()
+    archive(s,g);s.commit()
+    snapshot=tmp_path/'archived-ui.db'
+    with sqlite3.connect(snapshot) as destination:
+        s.connection().connection.driver_connection.backup(destination)
+    engine=create_engine('sqlite:///'+snapshot.as_posix())
+    sessions=sessionmaker(engine,expire_on_commit=False)
+    monkeypatch.setattr(member_delete,'SessionLocal',sessions)
+    monkeypatch.setattr(experience,'SessionLocal',sessions)
+    app=AppTest.from_string('''
+from executive_health_ai.ui.pages.manager import member_delete
+from executive_health_ai.models import Patient
+from sqlalchemy import select
+from streamlit_app import _ui_adapter
+with member_delete.SessionLocal() as session:
+    patient=session.scalar(select(Patient).where(Patient.archived_at.is_not(None)))
+    member_delete.archived_detail(_ui_adapter(),patient)
+''').run(timeout=45)
+    for section in ('概览','健康','管理','医疗','历程'):
+        next(r for r in app.radio if r.label=='成员页面').set_value(section).run(timeout=45)
+        assert not app.exception
+        assert [b.label for b in app.button]==['← 返回会员']
+        assert any('已归档' in i.value for i in app.info)
+        if section=='医疗':
+            assert any('意见' in table.value.columns for table in app.dataframe)
+    engine.dispose()
