@@ -50,8 +50,14 @@ if ($LASTEXITCODE -ne 0) { throw "Failed to install Playwright Chromium." }
 
 $started = $false
 try {
-Write-Host "Rebuilding and starting the isolated Portfolio Demo..."
-& (Join-Path $PSScriptRoot "start_portfolio_demo.ps1") -Rebuild -NoBrowser -Instance portfolio-capture
+Write-Host "Starting the existing Portfolio Demo for capture..."
+$demoDatabase = Join-Path $projectRoot "data\portfolio_demo.db"
+if (-not (Test-Path -LiteralPath $demoDatabase)) { throw "Prepare the Demo database explicitly before capture." }
+$env:DATABASE_URL = "sqlite:///" + ($demoDatabase -replace "\\", "/")
+$env:PORTFOLIO_DEMO = "true"
+$env:AGENT_SUPERVISOR_ENABLED = "true"
+# This automation owns its background group until capture exits.
+& $python (Join-Path $PSScriptRoot "service_processes.py") start --profile portfolio --instance portfolio-capture --launcher-pid $PID
 if ($LASTEXITCODE -ne 0) { throw "Portfolio Demo startup failed." }
 $started = $true
 

@@ -140,6 +140,44 @@ def test_stale_pid_record_never_terminates_reused_process(group):
     manager.write_state(manager.state_path(instance), dict(pid=os.getpid(), created=1, services=[]))
     assert command("stop").returncode == 0
     assert manager.process_identity(os.getpid()) is not None
+    assert not manager.state_path(instance).exists()
+
+
+def test_old_launcher_token_cannot_stop_replacement(group):
+    instance, _, port, _, command = group
+    result = command("start")
+    assert result.returncode == 0, result.stderr
+    manager.stop(instance, "old-launcher-token")
+    assert manager.url_ready(f"http://127.0.0.1:{port}")
+
+
+def test_live_external_pid_in_registry_is_not_terminated(group):
+    instance, _, _, _, command = group
+    manager.write_state(manager.state_path(instance), dict(
+        pid=os.getpid(), created=manager.process_identity(os.getpid()), services=[]))
+    result = command("stop")
+    assert result.returncode != 0 and "not this project's supervisor" in result.stderr
+    assert manager.process_identity(os.getpid()) is not None
+    manager.state_path(instance).unlink()
+
+
+@pytest.mark.parametrize("arguments,owned", [
+    (["-m", "uvicorn", "executive_health_ai.api:app", "--app-dir", str(ROOT / "src")], True),
+    (["-m", "uvicorn", "other.api:app", "--app-dir", str(ROOT / "src")], False),
+    (["-m", "uvicorn", "executive_health_ai.api:app", "--app-dir", str(ROOT) + "_other/src"], False),
+    (["-m", "streamlit", "run", str(ROOT / "streamlit_app.py")], True),
+    (["-u", str(ROOT / "scripts/run_agent_worker.py")], True),
+    (["-c", "import time; time.sleep(60)", str(ROOT / "scripts/run_agent_worker.py")], False),
+])
+def test_ownership_requires_exact_entry_point(arguments, owned):
+    process = {"command": subprocess.list2cmdline([str(ROOT / ".venv/Scripts/python.exe"), *arguments])}
+    assert manager.project_service(process) is owned
+
+
+def test_supervisor_path_as_external_argument_is_not_ownership():
+    process = {"command": subprocess.list2cmdline([sys.executable, "-c", "import time; time.sleep(60)",
+               str(MANAGER), "_supervise", "--instance", "platform"])}
+    assert not manager.project_supervisor(process, "platform")
 
 
 def test_instance_name_cannot_escape_runtime_directory():

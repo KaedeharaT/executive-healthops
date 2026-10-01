@@ -140,8 +140,10 @@ def test_schema_guard_rejects_old_database_before_insert(tmp_path):
     engine.dispose()
 
 
-def test_portfolio_launcher_upgrades_before_starting_services():
+def test_portfolio_launcher_preserves_database_and_requires_explicit_maintenance():
     source = (ROOT / "scripts" / "start_portfolio_demo.ps1").read_text(encoding="utf-8")
-    assert "--ensure-current" in source
-    assert source.index("$manager preflight") < source.index("--ensure-current")
-    assert source.index("-m alembic upgrade head") < source.index("$manager start @serviceArgs")
+    assert "--ensure-current" not in source
+    assert "-m alembic" not in source
+    assert "record_care_responsibility.py" not in source
+    assert "Launcher does not rebuild databases" in source
+    assert "invoke_healthops_launcher.ps1" in source

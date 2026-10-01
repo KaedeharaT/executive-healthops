@@ -249,17 +249,19 @@ Browser QA is separate from the pytest CI job. Optional Playwright tooling is no
 
 ## Quick Start
 
-Use **Windows, Python 3.11+ and PowerShell 7 (pwsh)**. Run from the repository root:
+Use **Windows, Python 3.11+ and Windows PowerShell 5.1 or PowerShell 7 (pwsh)**. Run from the repository root:
 
 ```powershell
 git clone https://github.com/KaedeharaT/executive-healthops.git
 cd executive-healthops
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-pwsh -File .\scripts\start_portfolio_demo.ps1 -Rebuild
+# First-time setup only: creates a missing Demo database; refuses to overwrite it.
+.\.venv\Scripts\python.exe .\scripts\build_portfolio_demo.py
+pwsh -File .\scripts\start_portfolio_demo.ps1
 ```
 
-The launcher builds **data/portfolio_demo.db**, applies migrations, records workflow responsibility and starts three background processes:
+The launcher reuses **data/portfolio_demo.db** without rebuilding, seeding or migrating it. It starts three services, waits for readiness, then opens the browser:
 
 | Process | Local entry |
 |---|---|
@@ -267,9 +269,9 @@ The launcher builds **data/portfolio_demo.db**, applies migrations, records work
 | FastAPI / API reference | <http://127.0.0.1:8000/docs> |
 | Agent worker | scripts/run_agent_worker.py, using the same isolated database |
 
-**-Rebuild** resets the disposable synthetic demo. Omit it to check and reuse a compatible demo; outdated fixtures may be rebuilt. Add **-NoBrowser** to suppress opening a browser. Ports 8501 and 8000 must be free; occupied ports are rejected before database preparation. Services run without visible terminal windows. Stop the complete demo process tree with `pwsh -File .\scripts\stop_platform.ps1 -Instance portfolio`.
+For everyday use, double-click **start_healthops.bat**. Keep the Launcher open; **Ctrl+C or closing its window stops all owned services**. Service processes have no extra visible terminal windows. **stop_healthops.bat** also safely stops the platform. Add **-NoBrowser** to suppress opening a browser. Startup automatically reclaims positively identified project leftovers, including the other public launcher profile. External port owners are preserved and reported with PID, process name and command line. Database preparation and upgrades are separate maintenance tasks; `-Rebuild` is rejected by the launcher.
 
-The normal platform launcher is `pwsh -File .\scripts\start_platform.ps1` (stop with `pwsh -File .\scripts\stop_platform.ps1`). Logs are under `.runtime/logs/<instance>/`; PID records are under `.runtime/processes/<instance>.json`. Closing the browser does not stop background services. Use the stop script; `-All` stops all recorded service groups. See [background services and QA](docs/background-services/README.md) for lifecycle and Before/After capture commands.
+The normal platform launcher is `pwsh -File .\scripts\start_platform.ps1` (stop with `pwsh -File .\scripts\stop_platform.ps1`). Logs remain under `.runtime/logs/<instance>/`; the existing PID registry remains `.runtime/processes/<instance>.json`. Closing a browser tab has no effect on service lifetime. See [background services and QA](docs/background-services/README.md) for lifecycle, isolation and verification commands.
 
 Enter the operations workbench, inspect Today, then select a member to open Member360. In Health Record, open the assessment or import a synthetic document. Use the role switch to inspect the doctor queue or member-facing result. Seeded workflows demonstrate manager and doctor waits. Deterministic extraction and workflow paths can run without a live model; free-form semantic extraction needs a configured LLM or falls back to manual handling. See [.env.example](.env.example) for configuration.
 

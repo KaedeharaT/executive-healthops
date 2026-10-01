@@ -1,69 +1,68 @@
-# Windows 后台服务与 QA
+# Windows HealthOps 启停与 QA
 
-Streamlit、FastAPI、Agent worker 使用同一后台进程管理器，不创建可见服务终端。PowerShell 入口在当前终端运行；默认只打开一个浏览器页面，`-NoBrowser` 可关闭这一行为。业务代码、数据库结构和 Agent 状态机未修改。
-
-## 启动与停止
+双击根目录 `start_healthops.bat` 启动现有 Demo；BAT 优先调用 pwsh，未安装时使用 Windows PowerShell。Launcher 保持运行，服务进程隐藏。8000、8501 就绪且 worker 存活后才打开浏览器。
 
 ```powershell
-# 普通平台（端口 8000 / 8501）；自动重启同一实例中已登记的服务
+.\scripts\start_portfolio_demo.ps1
+# 或使用 .env 中的普通平台配置
 .\scripts\start_platform.ps1
+
+# 在另一个终端停止；也可以双击 stop_healthops.bat
 .\scripts\stop_platform.ps1
+```
 
-# 独立演示数据库；不指定 -Rebuild 时保留原有演示数据检查流程
-.\scripts\start_portfolio_demo.ps1 -NoBrowser
-.\scripts\stop_platform.ps1 -Instance portfolio
+Ctrl+C、关闭 Launcher 窗口、Launcher 异常退出都会触发整组服务清理。关闭网页不会停止平台。停止成功前会等待所管理进程退出及端口释放；如果外部进程占用了端口，则报告失败和进程详情，不输出成功。
 
-# 查看 PID、实际子进程、运行状态和日志路径
+普通启动只管理进程，不执行 migration、seed、责任记录写入或 Demo 重建。数据库缺失时要求显式准备；Launcher 拒绝 `-Rebuild`。截图入口同样复用现有 Demo。首次创建及后续 schema 升级是独立维护操作。
+
+## 所有权与残留清理
+
+- 沿用 `.runtime/processes/<instance>.json`，保存 Launcher、controller、supervisor 的 PID/创建时间、服务根 PID、真实 Python 后代、listener PID、端口与日志路径。没有第二套 PID 文件。
+- 普通平台与 Demo 共用端口和 worker 生命周期。每次启动先检查外部占用，再回收这两个 profile 及确认为本项目的旧 Streamlit、FastAPI、worker。重启不会累积 worker。
+- 所有权匹配解析后的 Python 入口及精确项目路径；不使用路径子串、进程名或单独端口号作为杀进程依据。终止时在同一个 Windows process handle 上重查创建时间，防止 PID 复用。
+- 正常退出有 PowerShell 和 Python `finally`；隐藏 supervisor 另行监视 Launcher/controller 的 PID 与创建时间，因此控制台关闭不依赖 PowerShell `finally` 一定执行。supervisor 自身崩溃时，由 [Windows Job Object 的 KILL_ON_JOB_CLOSE](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects) 释放后代。
+- token 保护旧 Launcher 的延迟清理，避免它杀掉新启动的替代实例。跨实例 controller 锁串行执行清理与启动。
+- 成功清理后移除 JSON 登记；崩溃后遗留的过期登记在下次启动回收。`.lock` 是同步文件，保留它不会代表服务仍在运行。
+- 已在运行的外部 Ollama 不归 Launcher 所有；只有由 supervisor 启动的 Ollama 才进入其 Job Object。
+
+日志位于 `.runtime/logs/<instance>/supervisor.log` 和各服务的 `*.stdout.log` / `*.stderr.log`。日志追加，不记录环境变量或密钥。
+
+```powershell
 .venv\Scripts\python.exe scripts/service_processes.py status --instance portfolio
-
-# 停止所有登记的服务组（不触碰未登记的外部程序）
+# 指定 QA 组只停止该组；-All 还停止所有已登记 QA 组
+.\scripts\stop_platform.ps1 -Instance visual-qa
 .\scripts\stop_platform.ps1 -All
 ```
 
-普通平台和演示平台默认使用相同端口，不要同时启动。需要独立实例时可指定 `-Instance`、`-ApiPort`、`-UiPort`。演示入口仍使用原有 `data/portfolio_demo.db`，改变端口不会隔离数据库。QA 多版本使用下面的独立数据库清单。
+`-Instance` 用于登记和日志标识。普通平台 profile 重启会回收本项目已有服务；需要多个隔离版本并存时使用 QA manifest，而不是并发启动生产 profile 的多个 worker。
 
-关闭浏览器或启动终端不会停止这些后台服务；请使用停止命令。启动器不会根据端口号强杀不明进程。旧版未登记进程需要先停止，之后均可通过新停止命令管理。
+## 隔离验证
 
-## 日志与清理保证
+`-DatabasePath` 允许 Demo Launcher 使用明确指定的现有副本；默认仍是 `data/portfolio_demo.db`。
 
-- `.runtime/logs/<instance>/supervisor.log`：后台管理器日志。
-- `.runtime/logs/<instance>/<service>.stdout.log` / `stderr.log`：每个服务独立输出，重启追加。
-- `.runtime/processes/<instance>.json`：管理器及服务 PID、创建时间、实际子进程、端口、日志路径；不保存环境变量或密钥。
-- Windows Job Object 在管理器退出时清理整个服务树，包括 venv 启动器派生的实际 Python、worker 和其它后代。管理器崩溃也不会留下它拥有的服务。
-- 启动必须通过 HTTP 就绪检查；必需服务启动失败或随后退出，会关闭同组服务。重复启动受到实例锁保护，PID 创建时间校验防止误杀复用的 PID。
-- Ollama 已在运行时仅复用，不登记、不停止；如果由本次普通平台启动，则纳入该实例生命周期。
+```powershell
+# 要求 8000/8501 空闲；自动备份到 .runtime/launcher-validation/demo.db 后测试
+.venv\Scripts\python.exe scripts/verify_launcher_lifecycle.py
+
+.venv\Scripts\python.exe -m pytest tests/test_service_processes.py -q
+```
+
+验收脚本使用真实隐藏控制台，在 pwsh / Windows PowerShell 下测试干净启动、真实 CTRL_C_EVENT、WM_CLOSE 关闭窗口、三轮 start-stop、真实旧 FastAPI 残留回收、过期 PID、外部进程保护。每轮检查端口和 worker 后代全部释放，并比较正式 Demo 文件的 SHA-256。输出保存在 `.runtime/launcher-validation/`。
 
 ## Before / After 与 Chromium
 
-既有 `scripts/neumorphism_v2_setup.py` 准备源码快照和数据库，输出 `.runtime/neumorphism-v2/manifest.json`。清单包含每个版本的 `source`、`database`、`port`；启动时不重建这些数据库。
+QA snapshot 流程不变：`scripts/neumorphism_v2_setup.py` 生成源码和数据库副本及 `.runtime/neumorphism-v2/manifest.json`。
 
 ```powershell
-# 仅启动清单中的旧版 / 新版，保留运行供交互验收
 .\scripts\start_visual_qa.ps1
 .\scripts\stop_platform.ps1 -Instance visual-qa
 
-# 启动 -> 真实无头 Chromium 验收 -> 自动停止所有版本（失败也清理）
 .\scripts\start_visual_qa.ps1 `
   -CaptureScript scripts/qa_background_services.py `
-  -CaptureArguments @('--url','http://127.0.0.1:18501',
-                      '--url','http://127.0.0.1:18502',
-                      '--url','http://127.0.0.1:18503')
+  -CaptureArguments @('--url','http://127.0.0.1:18501', '--url','http://127.0.0.1:18502')
 
-# 原作品集截图入口：结束后自动停止 portfolio-capture 实例
-# 保留原有 -Rebuild 行为，会重建匿名演示数据库
+# 使用现有 Demo，完成截图后停止自己创建的服务组
 .\scripts\capture_portfolio.ps1 -SkipInstall
 ```
 
-可用 `-Manifest <文件>` 指定另一组端口和隔离数据库。现有 QA 脚本仍使用无头 Chromium；Playwright Windows 驱动本身也设置隐藏窗口。QA 无需再打开独立 PowerShell/CMD 窗口分别启动服务。
-
-## 本机验证记录
-
-- 演示默认端口 8000/8501：真实 Chromium 进入“今日工作”，API `/health` 返回 `ok`。
-- 普通平台隔离数据库、19000/19501：两次完整启动、浏览器访问、停止；worker 无错误输出，`--once` 完成退出码 0。
-- 18501/18502/18503：三个版本全部通过真实 Chromium 检查，QA 脚本退出后端口均释放。
-- 故意让截图脚本以退出码 13 失败：PowerShell `finally` 仍停止三个版本，实例状态 `stopped`。
-- 在 QA 与两轮普通平台启停期间，每 50ms 枚举可见控制台窗口，新增数量 0。
-- 生命周期测试覆盖：隐藏窗口、日志、重启、重复启动、外部占用端口保护、PID 复用保护、启动失败和管理器崩溃的整树清理。
-- 隔离全量测试：710 passed / 0 failed（13 项既有依赖弃用警告），包含 7 项新增 Windows 进程生命周期测试。
-
-本机 JSON、截图、逐项日志位于 `.runtime/background-qa/`。完整回归结果见 [final-tests.txt](final-tests.txt)。
+底层 `service_processes.py start --profile qa` 保留自动化需要的后台模式；生产交互入口使用前台 `launch`。截图自动化的后台服务绑定其 PowerShell PID，退出时也会清理。
