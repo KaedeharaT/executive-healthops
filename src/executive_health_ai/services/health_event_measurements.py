@@ -24,7 +24,8 @@ def store_measurement(session,event):
     if not existing:
         session.add(Observation(patient_id=event.member_id,observed_at=at,metric_code=code.canonical_code,
             value_numeric=value,unit=unit,source=event.source_type,quality_flag=quality,quality_notes=notes,
-            raw_record_id=raw.id,source_record_id=event.source_id))
+            raw_record_id=raw.id,source_record_id=event.source_id, source_type=event.source_type,
+            evidence_ref=str(raw.id), provenance_json={'normalizer':'observation-v1', 'ai_parsed':False}))
         session.flush()
 
 

@@ -989,6 +989,8 @@ class ReportParsingService:
         if candidate.status not in {"PENDING_REVIEW", "CORRECTED"}:
             raise ValueError("只有待确认或已修正的资料可以确认入档。")
         observation: Observation | None = None
+        from executive_health_ai.services.data_provenance import candidate_revision, report_raw
+        candidate_revision(session, candidate)
         if candidate.candidate_type == "OBSERVATION":
             if not candidate.canonical_code or not candidate.normalized_value or not candidate.unit:
                 raise ValueError("尚未匹配标准指标，不能直接写入健康档案。")
@@ -1003,6 +1005,13 @@ class ReportParsingService:
             run = session.get(ReportExtractionRun, candidate.extraction_run_id)
             observed_at = datetime.combine(run.detected_report_date, time(12), tzinfo=timezone.utc) if run and run.detected_report_date else datetime.now(timezone.utc)
             observation = Observation(patient_id=candidate.patient_id, observed_at=observed_at, metric_code=candidate.canonical_code, value_numeric=value, unit=candidate.unit, source="confirmed_health_check_report", quality_flag=quality, source_record_id=str(candidate.id), quality_notes=f"报告页 {candidate.source_page}; {note or '人工确认'}")
+            observation.raw_record_id = report_raw(session, candidate, observed_at).id
+            observation.source_type = 'REPORT'
+            observation.confirmation_status = 'CONFIRMED'
+            observation.confirmed_by, observation.confirmed_at = actor, utc_now()
+            observation.evidence_ref = str(candidate.document_id)
+            observation.provenance_json = {'parser':candidate.extraction_method,
+                'candidate_id':str(candidate.id), 'extraction_run_id':str(candidate.extraction_run_id)}
             session.add(observation)
             session.flush()
             # Candidate data has become a persisted, human-confirmed
@@ -1015,12 +1024,15 @@ class ReportParsingService:
         return observation
 
     def correct_candidate(self, session: Session, candidate: ReportExtractionCandidate, actor: str, *, canonical: str | None, value: str | None, unit: str | None, reason: str) -> None:
+        from executive_health_ai.services.data_provenance import candidate_revision
+        candidate_revision(session, candidate)
         before = {"canonical_code": candidate.canonical_code, "normalized_value": candidate.normalized_value, "unit": candidate.unit}
         if canonical: candidate.canonical_code = canonical
         if value: candidate.normalized_value = value
         if unit: candidate.unit = unit
         candidate.status, candidate.reviewed_by, candidate.reviewed_at = "CORRECTED", actor, utc_now()
         after = {"canonical_code": candidate.canonical_code, "normalized_value": candidate.normalized_value, "unit": candidate.unit}
+        candidate_revision(session, candidate, actor, reason)
         session.add(AuditLog(patient_id=candidate.patient_id, actor=actor, actor_role="health_manager", action="corrected_report_candidate", entity_type="ReportExtractionCandidate", entity_id=str(candidate.id), detail_json={"before": before, "after": after, "reason": reason}))
         # Persist only a compact, de-identified correction sample. The raw
         # report and full prompt stay in their existing evidence boundary.

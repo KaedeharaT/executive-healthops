@@ -118,7 +118,7 @@ def management_work_items(session,now):
             '责任健管接手：收集资料并处理初评待确认项。' if draft else '初始问卷已提交，需人工核对资料与重点。',
             '上传资料 / 处理初评例外' if draft else '完成健管确认',row.submitted_at or row.created_at,
             owner=program.owner if program else '待分配',route_target='member_management'))
-    for row in session.scalars(select(RecheckPlan).where(RecheckPlan.status!='CLOSED',RecheckPlan.planned_at<=now+timedelta(days=1))):
+    for row in session.scalars(select(RecheckPlan).where(RecheckPlan.status.not_in(('CLOSED','CANCELLED')),RecheckPlan.planned_at<=now+timedelta(days=1))):
         state={'WAITING_REPORT':'待结果','WAITING_REVIEW':'待结果','PENDING_CONFIRMATION':'待处理','TO_BOOK':'等待检查','BOOKED':'等待检查','TO_EXECUTE':'待复查','COMPLETED':'待结果'}[row.status]
         items.append(OperationalWorkItem(row.patient_id,'recheck',row.id,2,state,row.title,row.reason,'推进预约、检查、报告与复核',row.planned_at,document_id=row.document_id,owner=row.owner,route_target='member_management'))
     for row in session.scalars(select(ConsultationCase).where(ConsultationCase.status!='COMPLETED')):

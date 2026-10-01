@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import shutil
 from datetime import datetime, timedelta, timezone
 
 from alembic import command
@@ -65,12 +66,20 @@ def test_old_revision_upgrades_without_data_loss_and_legacy_training_table_remai
     engine.dispose()
 
 
-def test_portfolio_builder_rebuild_creates_training_tables():
-    subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "build_portfolio_demo.py"), "--rebuild"],
-        cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180,
+def test_portfolio_builder_rebuild_creates_training_tables(tmp_path):
+    # The builder deliberately restricts its target to ROOT/data. Exercise the
+    # real entry point in a disposable project, never the developer's Demo DB.
+    project = tmp_path / 'portfolio-project'
+    project.mkdir()
+    for name in ('scripts', 'alembic', 'docs'):
+        shutil.copytree(ROOT / name, project / name, ignore=shutil.ignore_patterns('__pycache__'))
+    shutil.copy2(ROOT / 'alembic.ini', project / 'alembic.ini')
+    result = subprocess.run(
+        [sys.executable, str(project / "scripts" / "build_portfolio_demo.py"), "--rebuild"],
+        cwd=project, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180,
     )
-    database = ROOT / "data" / "portfolio_demo.db"
+    assert result.returncode == 0, result.stdout + result.stderr
+    database = project / "data" / "portfolio_demo.db"
     engine = create_engine(f"sqlite:///{database.as_posix()}")
     assert inspect(engine).has_table("training_sessions")
     with Session(engine) as session:

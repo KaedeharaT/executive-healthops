@@ -95,6 +95,17 @@ def advance(supervisor,session,goal,*,claimed=False):
             text=f"已匹配 {sum(bool(r.canonical_code) for r in rows)} 项标准健康指标；其余资料按档案字段整理";following='MATCHING'
         elif stage=='MATCHING':
             result=supervisor.registry.execute(session,'match_profile_document',goal)
+            from executive_health_ai.services.daily_summary import current_goal
+            from executive_health_ai.services.goal_metrics import completeness
+            objective=current_goal(session,goal.member_id)
+            if objective:
+                ready=completeness(session,goal.member_id,objective.goal_type,configured=objective.requirements_json)
+                required={r['metric_code'] for r in objective.requirements_json}
+                goal.context_json={**goal.context_json,'goal_data':{'management_goal_id':str(objective.id),
+                    'title':objective.title,'readiness':ready,
+                    'document_metric_candidates':[{'metric':r.canonical_code,'candidate_id':str(r.id)}
+                        for r in candidates(session,goal) if r.canonical_code in required],
+                    'candidate_policy':'候选不计入正式完整度，可靠依据经原治理流程入档后再计算'}}
             text=f"已核对现有档案，发现 {result['conflicts']} 项冲突";following='REVIEW'
         else: raise ValueError('流程需要健管确认后继续。')
         step.started_at=step.started_at or utc_now()

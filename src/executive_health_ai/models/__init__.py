@@ -51,3 +51,6 @@ __all__ = [
 ]
 from executive_health_ai.models.management_workflow import IntakeAssessment, ManagementLog, RecheckPlan, ConsultationCase, FamilyRelation, StageReview
 from executive_health_ai.models import archive_guard  # noqa: F401 -- stale-session write protection
+from executive_health_ai.models.goal_data import ManagementGoal, ReportCandidateRevision, DailyHealthSummary, DailySummaryRevision, SummaryWorkItem, CommunicationRecord
+from executive_health_ai.models import goal_data_hooks as _goal_data_hooks
+__all__ += ['ManagementGoal','ReportCandidateRevision','DailyHealthSummary','DailySummaryRevision','SummaryWorkItem','CommunicationRecord']

@@ -129,10 +129,18 @@ def write_state(path, state):
 
 
 def read_state(path):
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return {}
+    deadline = time.monotonic() + 2
+    while True:
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return {}
+        except PermissionError:
+            # Atomic replacement can briefly deny readers too on Windows.
+            # A locked registry is not evidence that the service has stopped.
+            if os.name != 'nt' or time.monotonic() >= deadline:
+                raise
+            time.sleep(.02)
 
 
 def windows_snapshot():

@@ -140,7 +140,9 @@ def test_no_open_item_ui_keeps_every_quick_action(env,monkeypatch):
     from sqlalchemy.orm import sessionmaker
     from streamlit.testing.v1 import AppTest
     from executive_health_ai.ui.pages.manager import action_loop
-    s,p,phase=env;s.commit()
+    s,p,phase=env
+    from tests.goal_loop_support import approved_program
+    approved_program(s,p);s.commit()
     monkeypatch.setattr(action_loop,'SessionLocal',sessionmaker(s.bind,expire_on_commit=False))
     app=AppTest.from_function(workspace_page,args=(str(p.patient_id),)).run()
     next(b for b in app.button if b.label=='处理下一步').click();app.run()

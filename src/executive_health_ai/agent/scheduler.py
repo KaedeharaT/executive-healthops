@@ -18,6 +18,8 @@ class AgentSchedulerService:
 
     def run_due(self, session: Session, *, now: datetime, durable_profile: bool = False) -> int:
         supervisor = self.supervisor
+        from executive_health_ai.services.daily_summary import run_daily_batch
+        run_daily_batch(session,now=now)
         from executive_health_ai.services.daily_care import schedule_due, advance, reconcile
         reconcile(session,supervisor)
         schedule_due(session,now)

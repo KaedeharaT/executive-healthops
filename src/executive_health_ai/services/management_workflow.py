@@ -196,6 +196,8 @@ class ManagementWorkflowService:
                 problem.status='CLOSED'
         if row.review_status == 'CONFIRMED':
             row.review = {**row.review, 'confirmed_at': utc_now().isoformat()}
+            from executive_health_ai.services.management_goals import prepare_for_intake
+            prepare_for_intake(session,row)
         audit(session,member_id,actor,'intake_manager_reviewed',row)
         return row
 

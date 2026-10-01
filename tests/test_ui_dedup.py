@@ -101,18 +101,21 @@ def test_completed_assessment_has_one_readonly_entry_and_keeps_amend():
     assert [b.label for b in app.button]==['查看评估','补充/修正']
 
 
-def stage_and_following():
+def stage_and_following(member_id):
     import streamlit as st
     from types import SimpleNamespace
     from executive_health_ai.ui.pages.manager.action_loop import quick_actions,stage_prompt
-    p=SimpleNamespace(id='synthetic')
+    from uuid import UUID
+    p=SimpleNamespace(id=UUID(member_id))
     st.button('继续安排复查',type='primary')
     quick_actions(p,exclude={'安排复查'})
     stage_prompt(p,dict(review=True),primary=False)
 
 
 def test_single_primary_cta_and_no_duplicate_following_action():
-    app=AppTest.from_function(stage_and_following).run()
+    from tests.goal_loop_support import approved_demo
+    member_id=approved_demo()
+    app=AppTest.from_function(stage_and_following,args=(str(member_id),)).run()
     assert not app.exception
     assert len([b for b in app.button if b.proto.type=='primary'])==1
     assert '安排复查' not in [b.label for b in app.button]

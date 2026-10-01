@@ -80,6 +80,8 @@ def test_doctor_completion_leaves_pending_queue_and_returns_manager_task():
 
 
 def test_manager_can_create_adjust_schedule_and_record_outcome_through_normal_ui():
+    from tests.goal_loop_support import approved_demo,approved_program
+    approved_demo()
     app = AppTest.from_file(APP).run(timeout=30)
     _radio(app, "工作区").set_value("成员"); app.run(timeout=30)
     open_member(app); app.run(timeout=30)
@@ -97,7 +99,9 @@ def test_manager_can_create_adjust_schedule_and_record_outcome_through_normal_ui
         program = session.scalar(select(HealthProgram).where(HealthProgram.title == "UX操作路径验收计划"))
         assert program is not None
         program_id = program.id
+        approved_program(session,program);session.commit()
     # Refresh and select the newly persisted plan, rather than assuming an optimistic UI state.
+    app.run(timeout=30)
     _radio(app, "计划操作").set_value("建立 / 调整计划"); app.run(timeout=30)
     selector = next(i for i in app.selectbox if i.label == "当前管理计划")
     # AppTest selectbox accepts the stored ORM object and maps it through format_func.

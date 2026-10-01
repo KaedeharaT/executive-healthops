@@ -1345,6 +1345,23 @@ class HealthTimelineService:
         for case in session.scalars(select(ConsultationCase).where(ConsultationCase.patient_id == member_id, ConsultationCase.status.in_(("WAITING_ACTIONS","COMPLETED")))):
             if (start and case.scheduled_at < start) or (end and case.scheduled_at > end): continue
             events.append(TimelineEvent(case.scheduled_at, "doctor_review", "正式会诊判断", case.conclusion, "BLUE", "consultation", {"owner":case.owner,"doctor":case.concluded_by}, str(case.id), f"CONSULTATION:{case.id}", (str(case.id),)))
+        from executive_health_ai.models.goal_data import CommunicationRecord
+        loop_events=select(HealthEvent).where(HealthEvent.member_id==member_id,
+            HealthEvent.event_type.in_(('MANAGEMENT_GOAL_CONFIRMED','MANAGEMENT_PLAN_CONFIRMED','MEANINGFUL_CHANGE')))
+        if start:loop_events=loop_events.where(HealthEvent.occurred_at>=start)
+        if end:loop_events=loop_events.where(HealthEvent.occurred_at<=end)
+        for item in session.scalars(loop_events.order_by(HealthEvent.occurred_at.desc()).limit(limit)):
+            payload=item.payload_ref or {}
+            events.append(TimelineEvent(item.occurred_at,'intervention',item.description,
+                payload.get('change',{}).get('reason') or item.description,'BLUE','health_event',
+                {'source':item.source,'next_action':'查看本会员管理记录','goal_id':str(item.goal_id) if item.goal_id else None},
+                str(item.id),f'GOAL_LOOP:{item.id}'))
+        notes=select(CommunicationRecord).where(CommunicationRecord.patient_id==member_id,CommunicationRecord.confirmed_status=='CONFIRMED')
+        if start:notes=notes.where(CommunicationRecord.occurred_at>=start)
+        if end:notes=notes.where(CommunicationRecord.occurred_at<=end)
+        for note in session.scalars(notes.order_by(CommunicationRecord.occurred_at.desc()).limit(limit)):
+            events.append(TimelineEvent(note.occurred_at,'intervention','医生讨论' if note.source=='DOCTOR' else '健管沟通',
+                note.raw_note,'BLUE','communication',{'source':note.source,'actions':note.related_actions},str(note.id),f'COMMUNICATION:{note.id}'))
         grouped: dict[str, TimelineEvent] = {}
         for event in sorted(events, key=lambda item: item.occurred_at, reverse=True):
             grouped.setdefault(event.group_key or f"{event.event_type}:{event.related_entity}", event)

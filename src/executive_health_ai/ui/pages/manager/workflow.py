@@ -249,6 +249,8 @@ def family(patient,view):
 def management(app,patient):
     with st.container(key='management-workspace-feedback'):flash()
     view=view_for(patient.id)
+    from executive_health_ai.ui.pages.manager.goal_loop import gate
+    if gate(app,patient,view):return
     from executive_health_ai.ui.pages.manager import action_loop
     mode=st.session_state.get(f'workflow-mode-{patient.id}')
     if (mode in {None,'当前行动','管理事项','事项历史'} and not st.session_state.get(f'workflow-detail-{patient.id}')) or st.session_state.get(f'action-focus-{patient.id}'):
@@ -334,44 +336,9 @@ def log_detail(row):
 
 
 def logs(patient,view):
-    st.markdown('**新增管理记录**')
-    request_key=st.session_state.setdefault(f'log-key-{patient.id}',str(uuid4()))
-    pending_key=f'log-pending-{patient.id}'
-    if pending:=st.session_state.get(pending_key):
-        st.info('已准备后续待办，请确认负责人和跟进时间。')
-        c.summary_strip([('下一步',pending['next_action']),('负责人',pending['owner']),('跟进日期',ux.when(pending['follow_up_at']))])
-        if st.button('确认保存并建立待办',type='primary'):
-            save_log(patient,view,request_key,pending,True)
-        if st.button('修改记录'):
-            st.session_state.pop(pending_key,None);st.rerun()
-        return
-    with st.form(f'log-form-{patient.id}'):
-        a,b=st.columns(2);category=a.selectbox('记录类型',LOG_CATEGORIES);occurred=b.date_input('发生日期')
-        occurred_time=st.time_input('发生时间',value=datetime.now(ux.LOCAL).time().replace(second=0,microsecond=0))
-        issue=st.text_input('发生了什么');action=st.text_area('我做了什么',height=70);result=st.text_input('本次结果');next_action=st.text_input('下一步')
-        a,b=st.columns(2);follow=a.date_input('下次跟进日期',value=None);owner=b.text_input('执行负责人',value=view.owner)
-        with st.expander('机构、服务与依据（选填）'):
-            channel=st.selectbox('沟通渠道',['电话','微信','面谈','其他']);provider=st.text_input('机构 / 医院');department=st.text_input('科室');expert=st.text_input('专家');evidence=st.text_area('依据说明')
-            service_type=st.text_input('服务类型')
-            linked_task=st.selectbox('相关任务',[None]+list(view.tasks),format_func=lambda r:r.title if r else '无')
-            linked_doc=st.selectbox('相关报告',[None]+list(view.documents),format_func=lambda r:r.title if r else '无')
-            linked_review=st.selectbox('相关医生复核',[None]+list(view.doctor_reviews),format_func=lambda r:r.question_for_doctor[:40] if r else '无')
-            linked_service=st.selectbox('相关服务',[None]+list(view.services),format_func=lambda r:r.reason[:40] if r else '无')
-            linked_risk=st.selectbox('相关风险',[None]+list(view.risks),format_func=lambda r:ux.business_text(r.summary[:40]) if r else '无')
-        submit=st.form_submit_button('保存',type='primary')
-    if submit:
-        payload=dict(occurred_at=datetime.combine(occurred,occurred_time,ux.LOCAL),category=category,channel=channel,
-            member_issue=issue,manager_action=action,result=result,next_action=next_action,
-            follow_up_at=datetime.combine(follow,time(17),ux.LOCAL) if follow else None,owner=owner,
-            provider=provider,department=department,expert=expert,evidence=evidence,service_type=service_type,
-            related_task_id=linked_task.id if linked_task else None,related_document_id=linked_doc.id if linked_doc else None,
-            related_doctor_review_id=linked_review.id if linked_review else None,related_service_id=linked_service.id if linked_service else None,
-            related_risk_id=linked_risk.id if linked_risk else None)
-        if next_action.strip() or follow:
-            payload['next_action']=next_action.strip() or '跟进本次管理记录：'+issue
-            payload['follow_up_at']=payload['follow_up_at'] or datetime.combine(date.today(),time(17),ux.LOCAL)
-            st.session_state[pending_key]=payload;st.rerun()
-        save_log(patient,view,request_key,payload,False)
+    from executive_health_ai.ui.pages.manager.goal_loop import communication
+    communication(patient,view)
+    log_rows(view.logs[:10],key=f'communication-history-{patient.id}')
 
 
 def save_log(patient,view,request_key,payload,followup):

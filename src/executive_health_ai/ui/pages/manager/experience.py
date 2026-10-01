@@ -181,6 +181,12 @@ def member_detail(app, patient):
     onboarding=onboarding_next(management_view)
     next_text=(next_work.title+' · '+next_work.owner+' · '+ux.when(next_work.due)) if next_work else ('确认并进入下一阶段' if action_state['review'] else '开始阶段复盘' if action_state['review_ready'] else '新增管理记录或创建随访')+' · '+view.owner
     if onboarding and not next_work:next_text=onboarding[0]+' · '+view.owner
+    from executive_health_ai.services.management_goals import prerequisites
+    with SessionLocal() as session:
+        ready=prerequisites(session,session.get(HealthProgram,management_view.program.id) if management_view.program else None)
+        if not ready['formal']:
+            next_text=('完成初评资料' if not ready['intake'] else '确认当前管理目标' if not ready['goal'] or not ready['goal'].confirmed_at
+                else '确认年度健康基线' if not ready['baseline'] else '确认当前管理计划')+' · '+view.owner
     if autonomy['level'] == 'RED':
         next_text = autonomy['next_action'] + ' · ' + autonomy['owner']
     updated = [r.observed_at for r in rows]+[r.occurred_at for r in management_view.logs]
@@ -203,9 +209,12 @@ def member_detail(app, patient):
             st.caption('会员关注：'+ux.business_text(concern or '待填写'))
             from executive_health_ai.ui.pages.health_visualization import render_previews
             st.subheader('最近健康变化')
+            from executive_health_ai.ui.pages.manager.goal_loop import summary,goal_status
+            summary(patient.id)
             render_previews(patient.id,key=f'manager-overview-trend-{patient.id}',maximum=2,series=view.health.series,
                 open_trend=lambda:app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='健康',archive_view='健康数据'))
             st.subheader('当前管理重点')
+            goal_status(patient.id,program.id if program else None,compact=True)
             st.write(ux.business_text(management_view.current_phase.goal if management_view.current_phase else program.main_goal if program else '先完善资料，建立初始评估。'))
             from executive_health_ai.ui.pages.manager.service_progress import member_progress
             member_progress(management_view,compact=True)

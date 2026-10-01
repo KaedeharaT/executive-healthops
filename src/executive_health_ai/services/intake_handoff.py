@@ -34,6 +34,8 @@ def assessment_confirmed(session,row,actor):
     from executive_health_ai.services.health_events import ingest_health_event
     from executive_health_ai.services.assessment_import import digest
     revision=confirmation_revision(row)
+    from executive_health_ai.services.management_goals import prepare_for_intake
+    prepare_for_intake(session,row)
     return ingest_health_event(session,member_id=row.patient_id,event_type='INTAKE_ASSESSMENT_CONFIRMED',
         event_category='NEW_INFORMATION',source_type='SYSTEM',source_id=str(row.id)+':'+digest(revision),
         payload_ref={'actor':actor,'assessment_id':str(row.id),'confirmation_revision':revision})

@@ -12,7 +12,7 @@ from executive_health_ai.models.base import utc_now
 from executive_health_ai.services.member_agents import ensure_member_agent, wake, synchronize
 from executive_health_ai.services.health_event_router import EventRouter
 
-SOURCES={'MANUAL','MOBILE','DEVICE','SYSTEM'}
+SOURCES={'MANUAL','REPORT','QUESTIONNAIRE','MOBILE','DEVICE','SYSTEM'}
 CATEGORIES={'NEW_INFORMATION','MEANINGFUL_CHANGE','TIME_DUE'}
 MIGRATED={'HEALTH_DOCUMENT_UPLOADED':'HEALTH_DOCUMENT_UPLOADED','REPORT_UPLOADED':'CHECKUP_REPORT_UPLOADED',
           'DOCTOR_REVIEW_COMPLETED':'DOCTOR_REVIEW_COMPLETED','REVIEW_DUE':'TIME_DUE'}
@@ -20,6 +20,8 @@ LABELS={'HEALTH_DOCUMENT_UPLOADED':'收到新的健康资料','CHECKUP_REPORT_UP
         'DOCTOR_REVIEW_COMPLETED':'收到医生已确认的意见','TIME_DUE':'计划跟进时间已到',
         'MEANINGFUL_CHANGE':'检测到健康状态发生值得关注的变化'}
 SOURCE_LABELS={'MANUAL':'人工上传 / 录入','MOBILE':'手机提交','DEVICE':'健康设备','SYSTEM':'系统业务结果'}
+SOURCE_LABELS.update(REPORT='上传资料',QUESTIONNAIRE='问卷')
+LABELS.update(MANAGEMENT_GOAL_CONFIRMED='健康管理目标已确认', MANAGEMENT_PLAN_CONFIRMED='管理计划已确认')
 LABELS.update(INTAKE_ASSESSMENT_CONFIRMED='初始健康评估资料已确认',FOLLOWUP_RESULT_RECORDED='收到本次工作处理结果',MANAGEMENT_ITEM_COMPLETED='收到已完成的管理事项',
     STAGE_REVIEW_CONFIRMED='收到已确认的阶段结果')
 
@@ -47,7 +49,7 @@ def _ingest_health_event(session,*,member_id,event_type,event_category,source_ty
     if not source_id or len(source_id)>256 or not event_type or len(event_type)>64:raise ValueError('事件来源标识无效。')
     if event_type.endswith('_RAW_MEASUREMENT') and event_category!='NEW_INFORMATION':raise ValueError('原始测量不能声明为健康变化。')
     if event_type in {'HEALTH_DOCUMENT_UPLOADED','CHECKUP_REPORT_UPLOADED','DOCTOR_REVIEW_COMPLETED','INTAKE_ASSESSMENT_CONFIRMED'} and event_category!='NEW_INFORMATION':raise ValueError('事件分类不匹配。')
-    if event_type in {'DOCTOR_REVIEW_COMPLETED','MEANINGFUL_CHANGE','TIME_DUE','INTAKE_ASSESSMENT_CONFIRMED'} and source_type!='SYSTEM':raise ValueError('此事件必须由系统业务或规则产生。')
+    if event_type in {'DOCTOR_REVIEW_COMPLETED','MEANINGFUL_CHANGE','TIME_DUE','INTAKE_ASSESSMENT_CONFIRMED','MANAGEMENT_GOAL_CONFIRMED','MANAGEMENT_PLAN_CONFIRMED'} and source_type!='SYSTEM':raise ValueError('此事件必须由系统业务或规则产生。')
     if event_type in {'MEANINGFUL_CHANGE','TIME_DUE'} and event_category!=event_type:raise ValueError('事件分类不匹配。')
     at=occurred_at or utc_now()
     if at.tzinfo is None or at.utcoffset() is None:raise ValueError('事件发生时间必须包含时区。')
@@ -121,7 +123,10 @@ def dispatch_event(session,event,*,supervisor=None):
     goal=None
     payload=event.payload_ref or {}
     routed_goal = session.get(AgentGoal, decision.goal_id) if decision.goal_id else None
-    if event.event_type == 'DOCTOR_REVIEW_COMPLETED' and routed_goal and routed_goal.goal_type == 'DAILY_CARE':
+    if event.event_type in {'MANAGEMENT_GOAL_CONFIRMED','MANAGEMENT_PLAN_CONFIRMED'}:
+        from executive_health_ai.services.management_goals import on_confirmation
+        goal=on_confirmation(session,event,supervisor)
+    elif event.event_type == 'DOCTOR_REVIEW_COMPLETED' and routed_goal and routed_goal.goal_type == 'DAILY_CARE':
         from executive_health_ai.services.risk_autonomy import doctor_return
         goal = doctor_return(session, event, routed_goal, supervisor)
     elif event.event_type in {'HEALTH_DOCUMENT_UPLOADED','CHECKUP_REPORT_UPLOADED','DOCTOR_REVIEW_COMPLETED'}:

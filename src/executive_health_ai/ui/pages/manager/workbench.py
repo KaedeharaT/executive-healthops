@@ -101,6 +101,10 @@ def work_detail(app, item, member):
     if not member:
         st.warning('会员资料暂不可用，请联系管理员。'); return
     view = workflow.view_for(member.id)
+    if item.source_type=='management_setup':
+        from executive_health_ai.ui.pages.manager.goal_loop import gate
+        gate(app,member,view)
+        return
     with SessionLocal() as session:
         task = session.get(Task,item.source_id) if item.source_type=='task' else None
         request = session.get(ServiceRequest,item.source_id) if item.source_type=='service_request' else None
@@ -212,6 +216,8 @@ def directory(app, members):
 
 
 def archive(app, patient, view):
+    from executive_health_ai.ui.pages.manager.goal_loop import provenance
+    provenance(patient.id)
     from executive_health_ai.ui.pages.manager import workflow
     from executive_health_ai.ui.pages.manager import intake_entry
     section_key=f'archive-content-{patient.id}'

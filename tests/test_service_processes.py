@@ -100,6 +100,24 @@ def test_start_failure_releases_grandchild_port(group):
     wait_until(lambda: manager.port_free(port) and manager.port_free(child_port))
 
 
+def test_registry_read_retries_windows_replacement_lock(tmp_path, monkeypatch):
+    path = tmp_path / 'registry.json'
+    path.write_text('{"pid": 123, "token": "owned"}', encoding='utf-8')
+    read = Path.read_text
+    attempts = []
+
+    def briefly_locked(self, *args, **kwargs):
+        if self == path:
+            attempts.append(1)
+            if len(attempts) == 1:
+                raise PermissionError('Windows replacement in progress')
+        return read(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'read_text', briefly_locked)
+    assert manager.read_state(path) == {'pid': 123, 'token': 'owned'}
+    assert len(attempts) == 2
+
+
 def test_supervisor_crash_releases_every_child(group):
     _, _, port, child_port, command = group
     result = command("start")

@@ -12,6 +12,10 @@ def normalize_unit(code: ObservationCode, value: object, unit: str | None) -> tu
         raise ValueError("value is not numeric") from error
     source_unit = (unit or code.default_unit).strip().lower()
     target = code.default_unit
+    if code.canonical_code == 'weight' and source_unit == 'g':
+        return (amount / Decimal('1000')).quantize(Decimal('0.001')), target
+    if code.canonical_code == 'sleep_duration' and source_unit in {'h', 'hours'}:
+        return amount * Decimal('60'), target
     if code.canonical_code == "glucose" and source_unit == "mmol/l":
         return (amount * Decimal("18.0182")).quantize(Decimal("0.001")), target
     if code.canonical_code == "weight" and source_unit in {"lb", "lbs"}:

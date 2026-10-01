@@ -105,6 +105,9 @@ def _ingest_record(session: Session, job: IngestionJob, member: Patient | None, 
         session.add(RawIngestionRecord(**base, raw_data_id=raw.id, status="DUPLICATE", error_message=None, normalization_json=normalized))
         counters["duplicates"] += 1; return
     observation = Observation(patient_id=member.id, observed_at=record.observed_at, metric_code=code.canonical_code, value_numeric=value, unit=unit, source=job.source_system, quality_flag=quality, raw_record_id=raw.id, ingestion_job_id=job.id, source_record_id=record.source_record_id, quality_notes=notes)
+    observation.source_type='MOBILE' if 'healthkit' in job.source_system.lower() else 'DEVICE'
+    observation.evidence_ref=str(raw.id)
+    observation.provenance_json={'normalizer':'gateway-v1','ai_parsed':False,'normalized':normalized}
     session.add(observation)
     session.add(RawIngestionRecord(**base, raw_data_id=raw.id, status="VALID" if quality == "valid" else "SUSPECT", error_message=notes, normalization_json=normalized))
     # Risk evaluation consumes the persisted canonical fact, never adapter
@@ -160,6 +163,16 @@ def manually_correct_record(session: Session, record: RawIngestionRecord, value:
     if code is None: raise ValueError("Record has no correctable canonical code.")
     amount, unit = normalize_unit(code, value, str(normalized.get("unit") or code.default_unit))
     observation = Observation(patient_id=record.patient_id, observed_at=record.observed_at or utc_now(), metric_code=code.canonical_code, value_numeric=amount, unit=unit, source=f"manual_correction:{record.source_system}", quality_flag="manually_corrected", raw_record_id=record.raw_data_id, ingestion_job_id=record.job_id, source_record_id=f"{record.source_record_id}:corrected", quality_notes=reason)
+    previous=session.scalar(select(Observation).where(Observation.patient_id==record.patient_id,
+        Observation.raw_record_id==record.raw_data_id,Observation.metric_code==code.canonical_code,
+        Observation.excluded_from_analysis.is_(False)).order_by(Observation.version.desc()).limit(1)) if record.raw_data_id else None
+    observation.confirmation_status='CONFIRMED'
+    observation.confirmed_by,observation.confirmed_at=actor,utc_now()
+    observation.evidence_ref=str(record.id)
+    observation.provenance_json={'normalizer':'gateway-v1','correction_reason':reason}
+    if previous:
+        previous.excluded_from_analysis=True
+        observation.supersedes_id=previous.id;observation.version=previous.version+1
     session.add(observation)
     record.status, record.error_message = "MANUALLY_CORRECTED", reason
     session.add(AuditLog(patient_id=record.patient_id, actor=actor, actor_role="health_manager", action="manually_corrected_ingestion_record", entity_type="RawIngestionRecord", entity_id=str(record.id), detail_json={"reason": reason, "new_value": value}))

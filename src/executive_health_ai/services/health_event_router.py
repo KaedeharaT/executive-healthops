@@ -14,6 +14,8 @@ class RouteDecision:
 
 class EventRouter:
     def decide(self,session: Session,event: HealthEvent) -> RouteDecision:
+        if event.event_type in {'MANAGEMENT_GOAL_CONFIRMED','MANAGEMENT_PLAN_CONFIRMED'}:
+            return RouteDecision('RESUME_CURRENT_GOAL')
         if event.event_type in {'DEVICE_RAW_MEASUREMENT','MOBILE_RAW_MEASUREMENT'}:return RouteDecision('STORE_ONLY')
         if event.event_type in {'HEALTH_DOCUMENT_UPLOADED','CHECKUP_REPORT_UPLOADED'}:
             kind='PROFILE_INTAKE' if event.event_type=='HEALTH_DOCUMENT_UPLOADED' else 'POST_CHECKUP_MANAGEMENT'

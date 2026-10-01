@@ -164,6 +164,10 @@ class ProductProjectionService:
         preparing={g.context_json.get('task_id') for g in session.scalars(select(AgentGoal).where(
             AgentGoal.goal_type=='FOLLOWUP_RESULT',AgentGoal.status.in_(('RUNNING','PROCESSING'))))}
         items=[i for i in items if str(i.source_id) not in preparing]
+        for goal in session.scalars(select(AgentGoal).where(AgentGoal.goal_type=='MANAGEMENT_SETUP',AgentGoal.status=='WAITING_MANAGER')):
+            items.append(OperationalWorkItem(goal.member_id,'management_setup',goal.id,2,'待处理',
+                goal.next_action or '确认健康管理目标', '已根据会员表达和现有数据准备草稿',
+                goal.next_action or '确认当前管理目标',None,owner=goal.owner,route_target='member_management'))
         pending = tuple(pending_doctor_work(session))
         represented_reviews = {i.source_id for i in items if i.source_type == "doctor_review"}
         represented_risks = {i.source_id for i in items if i.source_type == "risk_event"}

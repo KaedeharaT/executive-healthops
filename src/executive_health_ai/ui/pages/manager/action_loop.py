@@ -25,6 +25,12 @@ def open_next(app,patient):
     from executive_health_ai.ui.pages.manager.workflow import view_for
     from executive_health_ai.services.member_management_projection import onboarding_next
     view=view_for(patient.id)
+    from executive_health_ai.services.management_goals import prerequisites
+    with SessionLocal() as session:
+        ready=prerequisites(session,session.get(HealthProgram,view.program.id) if view.program else None)
+    if ready['intake'] and not ready['formal']:
+        app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='管理')
+        return
     with SessionLocal() as session:
         state=service.project(session,patient.id,view.program.id if view.program else None)
     onboarding=onboarding_next(view)
@@ -93,6 +99,8 @@ def render(app,patient,view,*,show_recent=True,primary_next=True):
         detail(app,patient,view,item);return True
     main,rail=st.columns([2.6,1],gap='large')
     with main,st.container(key='v7-main-management'):
+        from executive_health_ai.ui.pages.manager.goal_loop import goal_status
+        goal_status(patient.id,view.program.id if view.program else None)
         st.subheader('年度管理 · 当前阶段')
         workflow.phases(view)
         st.markdown('### '+(state['phase'].title if state['phase'] else '待安排阶段'))
@@ -140,6 +148,10 @@ def render(app,patient,view,*,show_recent=True,primary_next=True):
 
 
 def quick_actions(patient,*,exclude=()):
+    from executive_health_ai.services.management_goals import prerequisites
+    with SessionLocal() as session:
+        view=service.project(session,patient.id)['view']
+        if not prerequisites(session,session.get(HealthProgram,view.program.id) if view.program else None)['formal']:return
     with st.popover('新增安排'):
         labels=[label for label in ['新增管理记录','创建随访','安排复查','申请服务','提交医生判断'] if label not in exclude]
         label=st.selectbox('安排类型',labels,key='action-create-type')

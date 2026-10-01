@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Numeric, String, Uuid
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Numeric, String, Uuid, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from executive_health_ai.models.base import Base, UTCDateTime, utc_now
@@ -45,6 +45,14 @@ class Observation(Base):
     quality_notes: Mapped[str | None] = mapped_column(String(512), nullable=True)
     source_deleted: Mapped[bool] = mapped_column(default=False, nullable=False)
     excluded_from_analysis: Mapped[bool] = mapped_column(default=False, nullable=False)
+    source_type: Mapped[str | None] = mapped_column(String(32))
+    confirmation_status: Mapped[str] = mapped_column(String(32), default="GOVERNED", server_default="GOVERNED")
+    confirmed_by: Mapped[str | None] = mapped_column(String(128))
+    confirmed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    evidence_ref: Mapped[str | None] = mapped_column(String(256))
+    version: Mapped[int] = mapped_column(default=1, server_default="1")
+    supersedes_id: Mapped[UUID | None] = mapped_column(ForeignKey("observations.id"), index=True)
+    provenance_json: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utc_now)
 
     patient: Mapped["Patient"] = relationship(back_populates="observations")

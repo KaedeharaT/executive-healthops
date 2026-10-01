@@ -130,6 +130,11 @@ def _advance(session,goal,supervisor):
         result=supervisor.registry.execute(session,tool,goal,{'program_id':context['program_id']})
         runtime.step_done(session,goal,label,result)
     payload=context.get('event_payload',{})
+    if payload.get('change',{}).get('kind')=='GOAL_PROGRESS_CHANGE' and not context.get('risk_event_id'):
+        supervisor.registry.execute(session,'record_goal_progress',goal,{
+            'summary':'已达到已确认目标值，进度已更新；继续原批准计划。','idempotency_key':'target-reached'})
+        goal.context_json={**goal.context_json,'no_action_reason':'目标进展已记录，无需新增人工事项'}
+        return runtime.finish(session,goal)
     if context.get('risk_event_id') and context.get('meaningful_change'):
         from executive_health_ai.services.risk_autonomy import advance as govern
         return govern(session, goal, supervisor)

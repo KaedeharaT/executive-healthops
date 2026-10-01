@@ -58,7 +58,11 @@ def test_management_modes_render_with_short_default_sections(monkeypatch,mode):
     Base.metadata.create_all(engine);factory=sessionmaker(engine,expire_on_commit=False)
     with factory() as s:
         p=ManagementWorkflowService().enroll(s,name='Synthetic UI Member',start=date.today(),end=date.today()+timedelta(days=364),owner='Synthetic Manager',goal='Synthetic goal');s.commit();member=s.get(Patient,p.patient_id)
+        from tests.goal_loop_support import approved_program
+        approved_program(s,p);s.commit()
     monkeypatch.setattr(workflow,'SessionLocal',factory)
+    from executive_health_ai.ui.pages.manager import goal_loop
+    monkeypatch.setattr(goal_loop,'SessionLocal',factory)
     # Existing legacy plan surface is covered separately; this renderer test
     # verifies the new workflow dispatch without connecting to a real database.
     from executive_health_ai.ui.pages.manager import experience

@@ -61,6 +61,8 @@ def test_member_primary_paths_and_secondary_service_actions_remain_reachable():
 
 
 def test_manager_selection_changes_inspector_and_keeps_processing_entry():
+    from tests.goal_loop_support import approved_demo
+    approved_demo()
     from sqlalchemy import select
     from executive_health_ai.database import SessionLocal
     from executive_health_ai.models import Patient, Task
@@ -87,6 +89,8 @@ def test_manager_selection_changes_inspector_and_keeps_processing_entry():
 
 
 def test_360_quick_actions_open_original_management_forms():
+    from tests.goal_loop_support import approved_demo
+    approved_demo()
     app = AppTest.from_file(APP).run(timeout=30)
     radio(app, "工作区", "成员"); open_member(app).run(timeout=30)
     radio(app, '成员页面', '管理')

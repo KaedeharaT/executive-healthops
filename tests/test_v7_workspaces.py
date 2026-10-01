@@ -115,7 +115,9 @@ def test_management_current_action_and_no_legacy_button_forest(env,monkeypatch):
             patient=session.get(Patient,UUID(member_id))
             state=action_loop.service.project(session,patient.id)
         action_loop.render(SimpleNamespace(),patient,state['view'])
-    s,p,_=env;task(env);s.commit()
+    s,p,_=env;task(env)
+    from tests.goal_loop_support import approved_program
+    approved_program(s,p);s.commit()
     monkeypatch.setattr(action_loop,'SessionLocal',sessionmaker(s.bind,expire_on_commit=False))
     app=AppTest.from_function(workspace_page,args=(str(p.patient_id),)).run()
     assert not app.exception

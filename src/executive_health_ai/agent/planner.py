@@ -40,6 +40,10 @@ POST_CHECKUP_TEMPLATE = (
 # Finite operational policies. They reuse AgentPlan/PlanStep and the supervisor.
 # Human decisions cannot be removed by a semantic draft or a later replan.
 CARE_TEMPLATES = {
+    'MANAGEMENT_SETUP': (
+        StepTemplate('确认管理目标', approval_role='HEALTH_MANAGER', wait_event_type='MANAGEMENT_GOAL_CONFIRMED'),
+        StepTemplate('确认管理计划', approval_role='HEALTH_MANAGER', wait_event_type='MANAGEMENT_PLAN_CONFIRMED'),
+        StepTemplate('建立阶段和任务'), StepTemplate('核对业务结果')),
     'DAILY_CARE': (
         StepTemplate('核对当前阶段', 'get_current_phase'),
         StepTemplate('核对到期事项', 'get_open_management_items'),

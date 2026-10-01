@@ -10,7 +10,7 @@ from executive_health_ai.models.management_workflow import ManagementLog, StageR
 from executive_health_ai.models.base import utc_now
 from executive_health_ai.services.member_agents import ensure_member_agent
 
-KINDS = {'DAILY_CARE', 'FOLLOWUP_RESULT', 'STAGE_REVIEW'}
+KINDS = {'DAILY_CARE', 'FOLLOWUP_RESULT', 'STAGE_REVIEW', 'MANAGEMENT_SETUP'}
 WAITS = {'WAITING_MANAGER', 'WAITING_DOCTOR', 'WAITING_MEMBER', 'WAITING_TIME', 'WAITING_INPUT'}
 
 
@@ -80,6 +80,10 @@ def finish(session, goal):
     """A completed plan alone never proves a business outcome."""
     ctx=goal.context_json
     valid=False
+    if goal.goal_type=='MANAGEMENT_SETUP':
+        from executive_health_ai.models.goal_data import ManagementGoal
+        row=session.get(ManagementGoal,UUID(ctx['management_goal_id']))
+        valid=bool(row and row.patient_id==goal.member_id and row.plan_confirmed_at and ctx.get('actions_verified'))
     if goal.goal_type=='DAILY_CARE':
         refs=ctx.get('work_refs',[])
         valid=bool(ctx.get('no_action_reason')) if not refs else all(

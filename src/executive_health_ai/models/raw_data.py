@@ -45,5 +45,5 @@ def _prevent_raw_payload_changes(mapper: object, connection: object, target: Raw
     """Raw payloads are append-only; corrections belong in standardized layers."""
 
     state = inspect(target)
-    if state.attrs.payload_json.history.has_changes():
+    if any(state.attrs[key].history.has_changes() for key in ('payload_json','source','record_type','recorded_at','checksum','patient_id')):
         raise ValueError("RawData.payload_json is immutable; add a new raw record instead.")
