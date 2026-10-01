@@ -112,7 +112,7 @@ class AssessmentImportService:
                 try:safe &= date(1900,1,1)<=date.fromisoformat(value)<=date.today()
                 except ValueError:safe=False
             group.update(values=values,current=old,conflict=bool(conflict),safe=safe,
-                key=digest([section,identity,field]),duplicate_count=len(group['rows'])-len(values))
+                key=digest([section,identity if not group['ambiguous'] else sorted(str(r.document_id)+':'+r.structured_data_json.get('source_locator','') for r in group['rows']),field]),duplicate_count=len(group['rows'])-len(values))
             groups.append(group)
             if not safe or old:continue
             if section in TABLE_FIELDS:

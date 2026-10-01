@@ -20,6 +20,22 @@ class EventRouter:
             goal=session.scalar(select(AgentGoal).where(AgentGoal.member_id==event.member_id,
                 AgentGoal.goal_type==kind,AgentGoal.source_id==event.source_id))
             return RouteDecision('RESUME_CURRENT_GOAL',goal.id) if goal else RouteDecision('CREATE_GOAL')
+        if event.event_type=='INTAKE_ASSESSMENT_CONFIRMED':
+            from executive_health_ai.models.management_workflow import IntakeAssessment
+            from executive_health_ai.services.assessment_import import AssessmentImportService
+            payload=event.payload_ref or {}
+            row=session.get(IntakeAssessment,UUID(payload.get('assessment_id',event.source_id)))
+            if not row or row.patient_id!=event.member_id:return RouteDecision('IGNORE')
+            if row.status not in {'SUBMITTED','CONFIRMED'} or not (row.review or {}).get('exception_intake',{}).get('completed_at'):
+                raise ValueError('初评尚未完成总确认。')
+            from executive_health_ai.services.intake_handoff import confirmation_revision
+            from executive_health_ai.services.assessment_import import digest
+            if payload.get('confirmation_revision'):
+                revision=confirmation_revision(row)
+                if payload['confirmation_revision']!=revision:return RouteDecision('IGNORE')
+                if event.source_id!=str(row.id)+':'+digest(revision):raise ValueError('确认事件与初评版本不一致。')
+            goals=AssessmentImportService().goals(session,row)
+            return RouteDecision('RESUME_CURRENT_GOAL',goals[0].id) if goals else RouteDecision('STORE_ONLY')
         if event.event_type=='DOCTOR_REVIEW_COMPLETED':
             review=session.get(DoctorReview,UUID(event.source_id))
             if not review or review.patient_id!=event.member_id:

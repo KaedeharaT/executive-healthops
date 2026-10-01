@@ -142,7 +142,11 @@ class ManagementWorkflowService:
         row.status, row.submitted_at, row.review_status = 'SUBMITTED', utc_now(), 'READY_FOR_REVIEW'
         row.review = {**row.review, 'member_statement':row.member_concern, 'lifestyle':row.responses.get('生活方式',{}),
             'history':row.responses.get('个人病史',[]), 'missing':['报告及自述资料均需人工核对'], 'confirmation':['问卷不是诊断，核对病史与用药来源']}
-        imports.finish(session, row, actor)
+        if row.review.get('exception_intake',{}).get('completed_at'):
+            from executive_health_ai.services.intake_handoff import assessment_confirmed
+            assessment_confirmed(session,row,actor)
+        else:
+            imports.finish(session, row, actor)
         audit(session, member_id, actor, 'intake_submitted', row, 'member')
         return row
 

@@ -49,10 +49,11 @@ def test_llm_only_used_for_residual_text_and_source_binding(env,monkeypatch):
     assert set(('section','field','value','source_document','source_location','source_excerpt','source_date','confidence','status'))<=llm.structured_data_json.keys()
     assert llm.structured_data_json['source_excerpt']=='现在每周快走三次'
     s,p,row=env
-    item=next(q for q in service.project(s,row)['queue'] if q['kind']=='CONFIRM')
-    assert item['field']=='运动'
-    service.decide(s,row,item['key'],'CONFIRM','QA')
-    assert service.project(s,row)['answers']['生活方式']['运动']=='每周快走三次'
+    data=service.project(s,row)
+    assert not any(q['field']=='运动' for q in data['queue'])
+    field=next(f for f in data['fields'] if f['section']=='生活方式' and f['field']=='运动')
+    assert field['state']=='AUTO_FILLED' and field['sources']==[llm]
+    assert data['answers']['生活方式']['运动']=='每周快走三次'
 
 
 def test_llm_output_requires_literal_source_evidence(env,monkeypatch):
@@ -74,16 +75,16 @@ def test_missing_remains_missing_and_answers_map_to_correct_section(env):
     assert updated['answers'].get('个人病史') is None
 
 
-def test_conflict_queue_suggests_latest_dated_source_without_overwriting(env):
+def test_historical_change_resolves_latest_dated_source_without_overwriting(env):
     s,p,row=env
     files=[(name,json.dumps({'source_date':date,'responses':{'生活方式':{'烟草':value}}},ensure_ascii=False).encode())
            for name,date,value in [('old.json','2025-01-01','偶尔吸烟'),('new.json','2026-01-01','已戒烟')]]
     upload(env,files)
-    data=service.project(s,row);item=next(q for q in data['queue'] if q['kind']=='CONFLICT')
-    assert item['dated'] and item['value']=='已戒烟' and row.responses=={}
-    service.decide(s,row,item['key'],'CONFIRM','QA')
-    assert service.project(s,row)['answers']['生活方式']['烟草']=='已戒烟'
-    assert not any(q['kind']=='CONFLICT' for q in service.project(s,row)['queue'])
+    data=service.project(s,row)
+    assert row.responses=={}
+    assert data['answers']['生活方式']['烟草']=='已戒烟'
+    assert not any(q['kind']=='CONFLICT' for q in data['queue'])
+    assert next(f for f in data['fields'] if f['field']=='烟草')['historical_change']
 
 
 def test_no_need_to_traverse_11_steps_and_existing_submission_used(env):
@@ -216,13 +217,13 @@ def test_member360_exception_queue_answers_and_submits_without_wizard(tmp_path,m
         session.commit();row_id=row.id
     app=AppTest.from_function(archive_page,args=(str(member_id),)).run()
     assert not app.exception
-    button(app,'处理剩余 1 项').click().run()
+    button(app,'处理1项').click().run()
     next(w for w in app.text_input if w.label=='填写会员实际回答').set_value('改善睡眠')
     button(app,'保存答案并处理下一项').click().run()
     assert not app.exception
     assert not any(w.label=='填写步骤' for w in app.selectbox)
-    next(w for w in app.checkbox if w.label=='我已核对来源及整理结果，确认提交初评资料').check().run()
-    button(app,'确认并完成初始健康评估').click().run()
+    next(w for w in app.checkbox if w.label=='确认整理结果及已处理例外；可暂缺资料继续保持未知').check().run()
+    button(app,'确认完成初始健康评估').click().run()
     assert not app.exception
     with SessionLocal() as session:
         row=session.get(IntakeAssessment,row_id)

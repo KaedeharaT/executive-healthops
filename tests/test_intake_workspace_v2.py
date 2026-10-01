@@ -68,8 +68,11 @@ def test_agent_completion_summary_visible(env):
     data=process(env)
     app=AppTest.from_function(board,args=(data,)).run()
     assert not app.exception and data['ready'] and not data['finished']
-    assert app.subheader[0].value=='健康资料整理完成'
-    assert '待确认' in text(app) and '健康档案更新' in text(app)
+    assert app.subheader[0].value=='健康管理助手'
+    assert '必要例外' in text(app) and '健康档案更新' in text(app)
+    details=next(e for e in app.expander if e.label=='处理记录与来源')
+    assert not details.proto.expanded
+    assert 'AI与知识支持' in text(app)  # retained inside the collapsed disclosure
     assert data['stats']['prefilled']>0 and data['exceptions']['counts']['exceptions']>0
     assert all(f['goal'].status=='WAITING_MANAGER' for f in data['files'])
 

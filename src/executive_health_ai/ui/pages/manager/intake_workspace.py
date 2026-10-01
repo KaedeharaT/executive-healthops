@@ -55,23 +55,34 @@ def execution_mark(data,event=None):
 def draw(data,event=None,*,assessment_summary=True):
     from executive_health_ai.ui.agent_progress import AgentProgressPanel
     failed=any(f['goal'].status in {'FAILED','ESCALATED','CANCELLED'} for f in data['files'])
-    title='健康管理助手正在整理资料' if data['processing'] else '健康资料整理完成' if data['ready'] and not failed else '健康管理助手'
+    title='健康管理助手正在整理资料' if data['processing'] else '健康管理助手'
     st.subheader(title)
     if not data['files']:
         st.write('当前：暂无正在处理的健康资料')
         st.caption('上传资料后，自动整理有依据的信息，再处理少量例外。')
-        support(data)
         return
     p=data.get('progress')
+    exceptions=data.get('exceptions') or {}
+    counts=exceptions.get('counts',{})
+    if data.get('finished') and data.get('imported'):
+        from executive_health_ai.services.intake_exceptions import state
+        counts=state(data['imported']['intake']).get('completion',counts)
     next_text=(projection.PHASES[min(p.current_step,6)] if p and p.running else
-        '处理下方待确认、缺失或冲突资料' if not data['finished'] else '继续健管专业确认，建立年度健康基线')
-    AgentProgressPanel.render(p,flow_name='健康资料整理',next_action=next_text)
-    st.caption(f'资料来源 {len(data["files"])} 份 · 已发现 {data["count"]} 项健康信息')
-    if data['ready'] and assessment_summary:
-        s=data['stats']
-        c.summary_strip([('自动整理',s['prefilled']),('待确认',s['pending']),('缺失',s['missing']),('冲突',s['conflicts'])])
-    support(data,event)
-    with st.expander('处理记录与来源'):
+        '处理必要例外，然后一次确认完成初评' if not data['finished'] else '健管专业初评，准备年度健康基线')
+    if data['processing']:
+        AgentProgressPanel.render(p,flow_name='健康资料整理',next_action=next_text)
+    else:
+        if p and p.trigger_reason:st.caption('触发原因：'+p.trigger_reason+' · 来源：'+p.trigger_source)
+        st.write(f'✓ 已接收 {len(data["files"])} 份资料 · 已读取 {sum(f["run"].status=="COMPLETED" for f in data["files"])} 份')
+        if failed:st.warning('部分资料未能完整整理，请核对原文件或重试。')
+        st.write('✓ 已整理有来源依据的健康信息' if data['count'] else '尚无可用的整理结果')
+        st.write(f'✓ 已自动整理 {counts.get("auto_sources",counts.get("auto_filled",data["stats"]["prefilled"]))} 项')
+        remaining=counts.get('exceptions',0)
+        st.write(f'● 等待处理 {remaining} 项必要例外' if remaining else '✓ 必要资料已准备完成' if not data['finished'] else '✓ 本次资料整理完成')
+        st.caption('下一步：'+next_text)
+    with st.expander('处理记录与来源',expanded=False):
+        if not data['processing']:AgentProgressPanel.render(p,flow_name='健康资料整理',next_action=next_text)
+        support(data,event)
         st.caption('健康档案更新：'+str(data['updates'])+' 项；正式医疗事实继续遵守现有确认规则。')
         for at,name,text in data['events']:
             at=(at.replace(tzinfo=timezone.utc) if at.tzinfo is None else at).astimezone()
@@ -99,11 +110,7 @@ def workspace(app,patient,view, *, uploader=True, show_actions=True):
         if queue_open:
             exception_column,board_column=st.columns([2.6,1],gap='large')
             with board_column,st.container(key='v7-context-intake-progress'):
-                from executive_health_ai.ui.agent_progress import AgentProgressPanel
-                AgentProgressPanel.render(data.get('progress'),flow_name='健康管理助手 · 资料已整理，当前处理例外')
-                with st.expander('AI整理结果与处理记录'):
-                    support(data)
-                    for at,name,text in data['events']:st.caption(at.strftime('%H:%M')+' · 《'+name+'》'+text)
+                draw(data,assessment_summary=False)
         else:
             board_column,exception_column=st.columns([2.6,1],gap='large')
             with board_column:live()

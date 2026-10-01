@@ -13,39 +13,45 @@ def panel(patient, view):
         data=service.project(session,row)
         saved=service.state(row)
     with st.container(key='intake-exception-workspace',border=True):
-        st.subheader('初始健康评估准备度')
+        opened=st.session_state.get(f'exception-open-{row.id}',False)
         counts=saved.get('completion',data['counts']) if data['submitted'] else data['counts']
-        c.summary_strip([('已确认',counts['filled'] if data['submitted'] else counts['confirmed']),('自动预填',counts['auto_filled']),
-            ('待确认',counts['pending']),('缺失',counts['missing']),('冲突',counts['conflicts'])])
-        st.caption('仅表示资料填写情况，不是健康评分。未提供的资料保持未知，不自动填写“无”。')
+        if not opened or data['submitted']:
+            st.subheader('初始健康评估准备情况')
+            c.summary_strip([('自动整理',counts.get('auto_sources',counts['auto_filled'])),('需要确认',counts['pending']),
+                ('存在冲突',counts['conflicts']),('必须补充',counts['required_missing'])])
+            st.caption(f'可暂缺 {counts.get("optional_missing",counts["missing"])} 项 · 不阻塞提交；未提供不等于“无”。')
         if data['submitted']:
-            st.success('初始健康评估资料已提交')
+            st.success('初始健康评估已完成资料确认')
             if row.status=='SUBMITTED':
                 from executive_health_ai.ui.pages.manager import intake_entry
                 st.button('继续健管确认',type='primary',key=f'intake-professional-{row.id}',
                     on_click=intake_entry.open_intake,args=(patient,view))
-            st.write(f'资料来源：{counts["sources"]} 份 · 自动整理：{counts["auto_filled"]} 项 · 人工补充：{counts["manual_fields"]} 项')
-            st.caption('后续健管专业确认及医生核对继续按原流程办理。')
+            st.write(f'资料来源：{counts["sources"]} 份 · 自动整理：{counts.get("auto_sources",counts["auto_filled"])} 项 · 人工补充：{counts["manual_fields"]} 项')
+            st.caption('健康管理助手已接收确认结果并继续原流程。下一步：健管专业初评，准备年度健康基线；需要医学判断时交由医生。')
             return
-        st.subheader('需要你处理')
         if data['processing']:
             st.write('暂未轮到你。资料整理完成后，待确认、冲突和必需补充项会集中显示在这里。')
             return
         if data['medical']:st.info('存在需要医生判断的事项，请完成原有医生确认流程后提交。')
         queue=data['queue']
         if queue:
-            labels={'CONFIRM':'待确认','CONFLICT':'存在冲突','MISSING':'资料缺失','FILE':'原文件 / 测量核对'}
-            st.write(f'待确认 {counts["pending"]} 项 · 冲突 {counts["conflicts"]} 项 · 必需补充 {counts["required_missing"]} 项')
+            labels={'CONFIRM':'待确认','CONFLICT':'存在冲突','MISSING':'必须补充','FILE':'原文件 / 测量核对','DOCTOR':'需要医生判断'}
+            st.subheader(f'需要你处理 {len(queue)} 项')
             key=f'exception-open-{row.id}'
             if not st.session_state.get(key):
-                if st.button(f'处理剩余 {len(queue)} 项',type='primary',key=key+'-start'):
+                if st.button(f'处理{len(queue)}项',type='primary',key=key+'-start'):
                     st.session_state[key]=True;st.rerun()
                 return
             item=queue[0]
-            st.caption(f'当前第 1 项 / 剩余 {len(queue)} 项 · 处理后自动进入下一项')
+            done=counts['processed'];total=done+len(queue)
+            st.progress(done/total,text=f'已完成 {done} / {total} 项')
+            st.caption(f'当前 {done+1} / {total} · 保存后自动进入下一项')
             st.markdown('**'+item['section']+' · '+item['label']+'**')
             st.write(labels[item['kind']])
             prefix='exception-'+item['key']
+            if item['kind']=='DOCTOR':
+                st.info('此项需要医生判断，现有医生协同流程返回后自动继续。')
+                return
             if item['kind']=='FILE':
                 file=item['file']
                 for warning in file['warnings']:st.warning(warning)
@@ -75,6 +81,10 @@ def panel(patient, view):
                     answer=st.text_input('填写会员实际回答',placeholder='不知道时可明确填写“暂不清楚”')
                     if st.form_submit_button('保存答案并处理下一项',type='primary'):apply(row.id,item,'ANSWER',view.owner,value=answer)
             else:
+                identity=''
+                if item.get('ambiguous'):
+                    st.info('原文未明确关联到哪项记录，请核对归属后确认。')
+                    identity=st.text_input('所属记录名称',key=prefix+'-identity')
                 for source in item['sources']:
                     meta=source.structured_data_json
                     st.write('《'+meta.get('source_filename','上传资料')+'》：'+meta['value'])
@@ -83,13 +93,13 @@ def panel(patient, view):
                 if item['current']:st.write('已有回答：'+item['current'])
                 if item['dated']:st.info('按资料日期建议当前采用：'+item['value']+'。请核对是否反映会员当前情况。')
                 elif item['value']:st.write('拟采用：'+item['value'])
-                if st.button('采用并处理下一项' if item['kind']=='CONFLICT' else '确认并处理下一项',key=prefix+'-confirm',type='primary',disabled=not item['value'] or not item['evidence_ok']):
-                    apply(row.id,item,'CONFIRM',view.owner)
+                if st.button('采用并处理下一项' if item['kind']=='CONFLICT' else '确认并处理下一项',key=prefix+'-confirm',type='primary',disabled=not item['value'] or not item['evidence_ok'] or bool(item.get('ambiguous') and not identity.strip())):
+                    apply(row.id,item,'CONFIRM',view.owner,identity=identity)
                 with st.expander('修改 / 忽略 / 暂不确认'):
                     with st.form(prefix+'-edit'):
                         answer=st.text_input('修改为',value=item['value'])
                         note=st.text_input('修改或忽略原因')
-                        if st.form_submit_button('保存修改并处理下一项'):apply(row.id,item,'MODIFY',view.owner,value=answer,note=note)
+                        if st.form_submit_button('保存修改并处理下一项'):apply(row.id,item,'MODIFY',view.owner,value=answer,note=note,identity=identity)
                         if st.form_submit_button('忽略本条候选'):apply(row.id,item,'IGNORE',view.owner,note=note)
                     st.caption('暂不确认可直接离开，当前事项会继续保留。')
             waiting=[f for f in data['view']['files'] if f['goal'].status=='WAITING_MANAGER' and not f['goal'].context_json.get('review_id')]
@@ -107,16 +117,17 @@ def panel(patient, view):
                             st.rerun()
                         except (ValueError,PermissionError) as error:st.error(str(error))
         else:
-            st.success('初始健康评估已准备完成')
-            st.write(f'资料来源：{counts["sources"]} 份 · 自动整理：{counts["auto_filled"]} 项 · 人工补充：{counts["manual_fields"]} 项')
+            st.success('所有必要资料已处理')
+            st.write(f'人工确认 {counts.get("human_confirmed",0)} 项 · 冲突处理 {counts.get("conflicts_resolved",0)} 项 · 人工补充 {counts["manual_fields"]} 项')
+            st.write(f'资料来源：{counts["sources"]} 份 · 自动整理：{counts.get("auto_sources",counts["auto_filled"])} 项 · 人工补充：{counts["manual_fields"]} 项')
             unknown=True
             if data['missing']:
                 with st.expander(f'仍未知的可选资料 {len(data["missing"])} 项'):
                     st.write('、'.join(m['section']+' / '+m['label'] for m in data['missing']))
                     st.caption('可在下方原有资料卡片中补充；未知不等于否认或没有。')
-                unknown=st.checkbox('这些可选资料尚未提供，继续保留未知',key=f'unknown-{row.id}')
-            checked=st.checkbox('我已核对来源及整理结果，确认提交初评资料',key=f'confirm-exceptions-{row.id}')
-            if st.button('确认并完成初始健康评估',type='primary',disabled=not checked or not unknown or data['medical']):
+                st.caption('总确认时，这些可选资料继续保留未知。')
+            checked=st.checkbox('确认整理结果及已处理例外；可暂缺资料继续保持未知',key=f'confirm-exceptions-{row.id}')
+            if st.button('确认完成初始健康评估',type='primary',disabled=not checked or not unknown or data['medical']):
                 try:
                     with SessionLocal() as session:
                         service.complete(session,session.get(IntakeAssessment,row.id),view.owner,retain_unknown=unknown)

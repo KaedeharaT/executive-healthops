@@ -20,7 +20,7 @@ LABELS={'HEALTH_DOCUMENT_UPLOADED':'收到新的健康资料','CHECKUP_REPORT_UP
         'DOCTOR_REVIEW_COMPLETED':'收到医生已确认的意见','TIME_DUE':'计划跟进时间已到',
         'MEANINGFUL_CHANGE':'检测到健康状态发生值得关注的变化'}
 SOURCE_LABELS={'MANUAL':'人工上传 / 录入','MOBILE':'手机提交','DEVICE':'健康设备','SYSTEM':'系统业务结果'}
-LABELS.update(FOLLOWUP_RESULT_RECORDED='收到本次工作处理结果',MANAGEMENT_ITEM_COMPLETED='收到已完成的管理事项',
+LABELS.update(INTAKE_ASSESSMENT_CONFIRMED='初始健康评估资料已确认',FOLLOWUP_RESULT_RECORDED='收到本次工作处理结果',MANAGEMENT_ITEM_COMPLETED='收到已完成的管理事项',
     STAGE_REVIEW_CONFIRMED='收到已确认的阶段结果')
 
 
@@ -44,8 +44,8 @@ def _ingest_health_event(session,*,member_id,event_type,event_category,source_ty
     if source_type not in SOURCES or event_category not in CATEGORIES:raise ValueError('事件来源或分类无效。')
     if not source_id or len(source_id)>256 or not event_type or len(event_type)>64:raise ValueError('事件来源标识无效。')
     if event_type.endswith('_RAW_MEASUREMENT') and event_category!='NEW_INFORMATION':raise ValueError('原始测量不能声明为健康变化。')
-    if event_type in {'HEALTH_DOCUMENT_UPLOADED','CHECKUP_REPORT_UPLOADED','DOCTOR_REVIEW_COMPLETED'} and event_category!='NEW_INFORMATION':raise ValueError('事件分类不匹配。')
-    if event_type in {'DOCTOR_REVIEW_COMPLETED','MEANINGFUL_CHANGE','TIME_DUE'} and source_type!='SYSTEM':raise ValueError('此事件必须由系统业务或规则产生。')
+    if event_type in {'HEALTH_DOCUMENT_UPLOADED','CHECKUP_REPORT_UPLOADED','DOCTOR_REVIEW_COMPLETED','INTAKE_ASSESSMENT_CONFIRMED'} and event_category!='NEW_INFORMATION':raise ValueError('事件分类不匹配。')
+    if event_type in {'DOCTOR_REVIEW_COMPLETED','MEANINGFUL_CHANGE','TIME_DUE','INTAKE_ASSESSMENT_CONFIRMED'} and source_type!='SYSTEM':raise ValueError('此事件必须由系统业务或规则产生。')
     if event_type in {'MEANINGFUL_CHANGE','TIME_DUE'} and event_category!=event_type:raise ValueError('事件分类不匹配。')
     at=occurred_at or utc_now()
     if at.tzinfo is None or at.utcoffset() is None:raise ValueError('事件发生时间必须包含时区。')
@@ -131,6 +131,9 @@ def dispatch_event(session,event,*,supervisor=None):
         legacy.metadata_json={**legacy.metadata_json,'health_event_id':str(event.id),'member_agent_id':str(agent.id),
             'routed_goal_id':str(decision.goal_id) if decision.goal_id else None,'defer_external_io':True}
         goal=supervisor._receive_business_event(session,legacy)
+    elif event.event_type=='INTAKE_ASSESSMENT_CONFIRMED':
+        from executive_health_ai.services.intake_handoff import resume_confirmed_assessment
+        goal=resume_confirmed_assessment(session,event)
     elif event.event_type=='TIME_DUE' and payload.get('agent_event_id'):
         legacy=session.get(AgentEvent,UUID(payload['agent_event_id']))
         if not legacy or legacy.member_id!=event.member_id:raise ValueError('到期事件来源无效。')

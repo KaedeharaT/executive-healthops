@@ -16,9 +16,6 @@ CATALOG = {'基础资料': ['display_name', 'birth_date', 'sex'], **TABLE_FIELDS
            **PROFILE_FIELDS, '会员重点关注': ['concern']}
 LABELS = {'display_name': '会员称呼', 'birth_date': '出生日期', 'sex': '性别',
           'concern': '会员希望改善的问题'}
-REQUIRED = {**{s: {IDENTITY[s]} for s in TABLE_FIELDS if s != '最近用药'},
-            '基础资料': {'display_name'}, '生活方式': {'睡眠', '烟草', '饮酒'},
-            '环境与暴露': {'空气污染'}, '会员重点关注': {'concern'}}
 QUESTIONS = {('过敏史', '名称'): '是否存在药物或其他过敏？请记录会员的实际回答。',
              ('生活方式', '睡眠'): '最近一个月平均睡眠时间是多少？',
              ('家族健康史', '具体疾病'): '家族成员有哪些疾病与健康背景？',
@@ -34,7 +31,8 @@ def state(row):
 
 
 def enable(row):
-    row.review = {**(row.review or {}), 'exception_intake': {**state(row), 'enabled': True}}
+    from executive_health_ai.services.intake_requirement_policy import IntakeRequirementPolicy
+    row.review = {**(row.review or {}), 'exception_intake': {**state(row), 'enabled': True,'requirement_policy':IntakeRequirementPolicy.VERSION}}
 
 
 def signature(group):
@@ -59,90 +57,123 @@ def put(answers, section, field, value, identity=''):
 
 
 def project(session, row):
-    view = imports.project(session, row.patient_id, row.id)
-    saved = state(row)
-    decisions = saved.get('decisions', {})
-    answers = deepcopy(row.responses or {})
-    member = session.get(Patient, row.patient_id)
-    answers['基础资料'] = {f: str(getattr(member, f) or '') for f in CATALOG['基础资料']}
-    queue, accepted, auto, confirmed = [], [], 0, 0
+    from collections import Counter
+    from executive_health_ai.services.intake_requirement_policy import IntakeRequirementPolicy
+    policy=IntakeRequirementPolicy(state(row).get('requirement_policy',IntakeRequirementPolicy.VERSION))
+    view=imports.project(session,row.patient_id,row.id);saved=state(row)
+    decisions=saved.get('decisions',{});answers=deepcopy(row.responses or {})
+    member=session.get(Patient,row.patient_id)
+    answers['基础资料']={f:str(getattr(member,f) or '') for f in CATALOG['基础资料']}
+    queue=[];fields={};confirmed=0;auto_sources=0;resolved_decisions=[];valid_answers=[]
+    def slot(section,identity,field):return (section,identity,field)
+    def identity_for(section,record):
+        identity=str(record.get(IDENTITY[section],'')).strip() if section in TABLE_FIELDS else ''
+        if section=='家族健康史' and record.get('患病家属'):identity+=' / '+record['患病家属']
+        return identity
     for group in view['groups']:
-        key, sig = group['key'], signature(group)
-        decision = decisions.get(key, {})
-        valid = decision.get('signature') == sig
-        semantic = any(r.extraction_method == 'LLM' for r in group['rows'])
-        # Independent source validation also protects imported or legacy candidates.
-        evidence_ok = all(r.evidence_text and str(r.structured_data_json['value']) in r.evidence_text
-                          and r.structured_data_json.get('source_document_id') == str(r.document_id)
-                          for r in group['rows'])
-        value = group['values'][0] if len(group['values']) == 1 else ''
+        key,sig=group['key'],signature(group);decision=decisions.get(key,{})
+        valid=decision.get('signature')==sig
+        evidence_ok=policy.evidence_ok(group)
+        value,historical=policy.source_resolution(group)
+        # Negative-versus-positive history records are still conflicting even
+        # when a single value exists inside each individual source group.
+        conflict=group['conflict'] and value is None
+        if group['conflict'] and len(group['values'])==1 and not group['current'] and group['section'] in TABLE_FIELDS:conflict=True
+        if group['section'] in TABLE_FIELDS:
+            identities={g['identity'].split(' / ')[0] for g in view['groups'] if g['section']==group['section'] and g['identity']}
+            identities.update(str(r.get(IDENTITY[group['section']],'')).strip() for r in row.responses.get(group['section'],[]))
+            if identities & policy.NEGATIVE and identities-policy.NEGATIVE-{''}:conflict=True
         reviewed=next(s for s in view['steps'] if s['step']==step_for(group['section']))['checked']
+        identity=(decision.get('identity') if valid else None) or (group['identity'] if not group['ambiguous'] else 'unbound:'+key)
+        target=slot(group['section'],identity,group['field'])
+        status='AUTO_FILLED';origin='SOURCE';resolved=None
         if reviewed:
-            # Advanced editing remains authoritative after its existing source check.
-            if group['current']:confirmed += 1;accepted.append(key)
+            resolved=group['current'];origin='HUMAN'
         elif valid:
-            if decision['action'] != 'IGNORE':
-                put(answers, group['section'], group['field'], decision['value'], group['identity'])
-                confirmed += 1
-                accepted.append(key)
-        elif group['safe'] and evidence_ok and not semantic:
-            put(answers, group['section'], group['field'], value, group['identity'])
-            auto += 1
+            resolved_decisions.append(decision)
+            resolved=decision['value'] if decision['action']!='IGNORE' else None;origin='HUMAN'
+            confirmed+=int(decision['action']!='IGNORE')
+        elif not conflict and policy.can_prefill(group,value,evidence_ok):
+            resolved=value;auto_sources+=1
         else:
-            dated = [(r.structured_data_json.get('source_date'), r.structured_data_json['value'])
-                     for r in group['rows']]
-            # A date orders source statements; it does not establish clinical truth.
-            dates_valid = all(d and len(d) == 10 for d, _ in dated)
-            latest = max((d for d, _ in dated), default='') if dates_valid else ''
-            latest_values = {v for d, v in dated if d == latest} if latest else set()
-            suggestion = next(iter(latest_values)) if len(latest_values) == 1 else value
-            queue.append(dict(key=key, signature=sig, kind='CONFLICT' if group['conflict'] else 'CONFIRM',
-                section=group['section'], field=group['field'], identity=group['identity'],
-                label=LABELS.get(group['field'], group['field']), value=suggestion,
-                current=group['current'], sources=group['rows'], evidence_ok=evidence_ok,
-                dated=bool(latest and len(latest_values) == 1)))
-    for answer in saved.get('answers', {}).values():
+            status='CONFLICT' if conflict else 'NEEDS_CONFIRMATION'
+        if status=='AUTO_FILLED' and resolved:
+            put(answers,group['section'],group['field'],resolved,decision.get('identity',group['identity']) if valid else group['identity'])
+        elif status!='AUTO_FILLED':
+            item=dict(key=key,signature=sig,kind='CONFLICT' if status=='CONFLICT' else 'CONFIRM',state=status,
+                section=group['section'],field=group['field'],identity=group['identity'],
+                label=LABELS.get(group['field'],group['field']),value=value or '',current=group['current'],
+                sources=group['rows'],evidence_ok=evidence_ok,dated=historical,ambiguous=group['ambiguous'])
+            queue.append(item)
+        if status!='AUTO_FILLED' or resolved:
+            fields[target]=dict(section=group['section'],identity=identity,field=group['field'],state=status,
+                value=resolved,origin=origin,sources=group['rows'],historical_change=historical)
+    for answer in saved.get('answers',{}).values():
         if answer.get('base_hash',digest(row.responses.get(answer['section'])))==digest(row.responses.get(answer['section'])):
-            put(answers, answer['section'], answer['field'], answer['value'], answer.get('identity', ''))
-    # Count actual schema slots (including each additional table record), not sections.
-    total, missing, filled = 0, [], 0
-    blocked = {(q['section'], q['identity'], q['field']) for q in queue}
-    for section, fields in CATALOG.items():
-        records = (answers.get(section) or [{}]) if section in TABLE_FIELDS else [answers.get(section, {})]
+            valid_answers.append(answer)
+            put(answers,answer['section'],answer['field'],answer['value'],answer.get('identity',''))
+    missing=[]
+    # Allocate each real record once, including unresolved candidates. An unnamed
+    # candidate is its own source-bound slot, not a second empty field to fill.
+    for section,catalog in CATALOG.items():
+        records=list(answers.get(section) or []) if section in TABLE_FIELDS else [answers.get(section,{})]
+        identities={identity_for(section,r) for r in records}
+        for g in view['groups']:
+            decision=decisions.get(g['key'],{})
+            if decision.get('action')=='IGNORE' and decision.get('signature')==signature(g):continue
+            if g['section']!=section or section not in TABLE_FIELDS or not g['identity'] or g['identity'] in identities:continue
+            name,_,relative=g['identity'].partition(' / ')
+            record={IDENTITY[section]:name}
+            if relative:record['患病家属']=relative
+            records.append(record);identities.add(g['identity'])
+        if not records:records=[{}]
         for record in records:
-            identity = str(record.get(IDENTITY[section], '')) if section in TABLE_FIELDS else ''
-            if section == '家族健康史' and record.get('患病家属'): identity += ' / ' + record['患病家属']
-            for field in fields:
-                total += 1
-                if record.get(field): filled += 1; continue
-                if (section, identity, field) in blocked or any(q['kind'] in {'CONFIRM','CONFLICT'} and
-                    q['section'] == section and q['field'] == field and not identity for q in queue):
-                    continue
-                item = dict(key='missing:' + digest([section, identity, field]), kind='MISSING',
-                    section=section, field=field, identity=identity, label=LABELS.get(field, field),
-                    question=QUESTIONS.get((section, field), '请补充' + section + '的' + LABELS.get(field, field) + '。'),
-                    value='', required=field in REQUIRED.get(section, set()))
-                missing.append(item)
-                if item['required']: queue.append(item)
+            identity=identity_for(section,record)
+            for field in catalog:
+                target=slot(section,identity,field)
+                if target in fields:continue
+                if not identity and any(f['section']==section and f['field']==field and f['identity'].startswith('unbound:') for f in fields.values()):continue
+                value=record.get(field)
+                requirement=policy.requirement(section,field,record)
+                status='AUTO_FILLED' if value else 'NOT_APPLICABLE' if requirement=='NOT_APPLICABLE' else 'REQUIRED_MISSING' if requirement=='REQUIRED' else 'OPTIONAL_MISSING'
+                fields[target]=dict(section=section,identity=identity,field=field,state=status,value=value,origin='EXISTING')
+                if status in {'REQUIRED_MISSING','OPTIONAL_MISSING'}:
+                    item=dict(key='missing:'+digest([section,identity,field]),kind='MISSING',state=status,
+                        section=section,identity=identity,field=field,label=LABELS.get(field,field),value='',
+                        question=QUESTIONS.get((section,field),'请补充'+section+'的'+LABELS.get(field,field)+'。'),required=status=='REQUIRED_MISSING')
+                    missing.append(item)
+                    if item['required']:queue.append(item)
+    # File validation is one explicit review unit, never dozens of schema nulls.
+    # It belongs to NEEDS_CONFIRMATION; doctor waits are separate responsibility
+    # gates and are not counted as assessment fields.
+    document_units=[]
     for file in view['files']:
         if file['needs_check'] and not file['checked']:
-            queue.append(dict(key='file:' + str(file['goal'].id), signature=file['signature'], kind='FILE',
-                section='资料核对', field='', label=file['document'].title, value='', file=file))
-    medical = any(g.status == 'WAITING_DOCTOR' for g in view['goals'])
-    counts = dict(total=total, auto_filled=auto + sum(q['kind'] in {'CONFIRM','CONFLICT'} for q in queue)
-                  + len(accepted), confirmed=confirmed,
-                  pending=sum(q['kind']=='CONFIRM' for q in queue),
-                  conflicts=sum(q['kind']=='CONFLICT' for q in queue), missing=len(missing),
-                  required_missing=sum(q['kind']=='MISSING' for q in queue), exceptions=len(queue),
-                  manual_fields=len(saved.get('answers', {})), filled=filled,
-                  sources=len(view['files']))
-    return dict(view=view, answers=answers, queue=queue, missing=missing, counts=counts,
-                processing=view['processing'], medical=medical,
-                ready=not queue and not view['processing'] and not medical,
-                submitted=row.status != 'DRAFT')
+            item=dict(key='file:'+str(file['goal'].id),signature=file['signature'],kind='FILE',state='NEEDS_CONFIRMATION',
+                section='资料核对',field='',label=file['document'].title,value='',file=file)
+            queue.append(item);document_units.append(item)
+    doctors=[]
+    for g in view['goals']:
+        if g.status=='WAITING_DOCTOR':
+            item=dict(key='doctor:'+str(g.id),kind='DOCTOR',state='DOCTOR_REQUIRED',section='医生判断',field='',
+                label='等待医生判断',value='',goal_id=g.id)
+            doctors.append(item);queue.append(item)
+    states=Counter(f['state'] for f in [*fields.values(),*document_units])
+    # TOTAL = six disjoint result states. Human work = confirmation + conflict +
+    # required missing + external doctor gates. There is no AUTO/pending overlap.
+    counts=dict(total=len(fields)+len(document_units),field_total=len(fields),document_reviews=len(document_units),
+        auto_filled=states['AUTO_FILLED'],pending=states['NEEDS_CONFIRMATION'],conflicts=states['CONFLICT'],
+        required_missing=states['REQUIRED_MISSING'],optional_missing=states['OPTIONAL_MISSING'],not_applicable=states['NOT_APPLICABLE'],
+        doctor_required=len(doctors),missing=len(missing),exceptions=len(queue),confirmed=confirmed,
+        manual_fields=len(valid_answers),filled=states['AUTO_FILLED'],sources=len(view['files']),
+        auto_sources=auto_sources,human_confirmed=sum(d['action']!='IGNORE' and d.get('kind')!='CONFLICT' for d in resolved_decisions),
+        conflicts_resolved=sum(d.get('kind')=='CONFLICT' for d in resolved_decisions),
+        processed=len(resolved_decisions)+len(valid_answers)+sum(f['checked'] for f in view['files']))
+    return dict(view=view,answers=answers,queue=queue,missing=missing,fields=list(fields.values()),counts=counts,
+        processing=view['processing'],medical=bool(doctors),ready=not queue and not view['processing'],submitted=row.status!='DRAFT')
 
 
-def decide(session, row, key, action, actor, value='', note='', expected_signature=None):
+def decide(session, row, key, action, actor, value='', note='', expected_signature=None, identity=''):
     from executive_health_ai.services.profile_ingestion import manager
     manager('HEALTH_MANAGER', actor)
     data = project(session, row)
@@ -152,7 +183,10 @@ def decide(session, row, key, action, actor, value='', note='', expected_signatu
     if expected_signature and item.get('signature') != expected_signature: raise ValueError('来源已变化，请重新核对。')
     saved = state(row)
     saved.setdefault('initial_counts', data['counts'])
-    if action in {'ANSWER','MODIFY'}:
+    if action=='CONFIRM':value=item.get('value','')
+    if item.get('ambiguous') and action in {'CONFIRM','MODIFY'} and not identity.strip():
+        raise ValueError('请明确这条资料属于哪一项记录，或暂不采用并记录原因。')
+    if action in {'ANSWER','MODIFY','CONFIRM'}:
         value=value.strip()
         if len(value)>500:raise ValueError('回答请控制在 500 字以内。')
         if item['section']=='基础资料' and item['field']=='birth_date':
@@ -166,8 +200,10 @@ def decide(session, row, key, action, actor, value='', note='', expected_signatu
             raise ValueError('只能采用原资料提供的 0 至 4 分，不能推算。')
     if item['kind'] == 'FILE':
         if action != 'ACKNOWLEDGE': raise ValueError('请记录原文件及测量候选的处理情况。')
+        row.review={**row.review,'exception_intake':saved}
         imports.acknowledge_file(session, row.patient_id, row.id, item['file']['goal'].id, actor, note)
         return
+    if item['kind']=='DOCTOR':raise ValueError('请等待现有医生判断流程完成。')
     if item['kind'] == 'MISSING':
         if action != 'ANSWER' or not value.strip(): raise ValueError('请填写会员实际回答；不知道时可明确记录“暂不清楚”。')
         saved.setdefault('answers', {})[key] = {k:item[k] for k in ('section','field','identity')}
@@ -180,7 +216,7 @@ def decide(session, row, key, action, actor, value='', note='', expected_signatu
         if action != 'IGNORE' and not value: raise ValueError('请填写采用的回答。')
         if action == 'IGNORE' and not note.strip(): raise ValueError('请说明忽略原因。')
         saved.setdefault('decisions', {})[key] = dict(signature=item['signature'], action=action,
-            value=value, note=note, actor=actor, at=utc_now().isoformat(), kind=item['kind'])
+            value=value, note=note, actor=actor, at=utc_now().isoformat(), kind=item['kind'],identity=identity.strip() or item.get('identity',''))
     row.review = {**row.review, 'exception_intake':saved}
     audit(session, row.patient_id, actor, 'intake_exception_resolved', row)
 
