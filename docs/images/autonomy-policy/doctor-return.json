@@ -1,0 +1,7 @@
+{
+  "same_goal": true,
+  "status": "WAITING_MANAGER",
+  "risk": "RED",
+  "goal_count": 1,
+  "resume_trace": 1
+}

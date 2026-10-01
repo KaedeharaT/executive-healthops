@@ -138,7 +138,7 @@ def pending_doctor_work(session, patient_id=None):
 
 def sorted_work(items, now=None):
     now = local_time(now or datetime.now(LOCAL))
-    return sorted(items, key=lambda x: (not (x.due_at and local_time(x.due_at) < now), x.priority > 1, not (x.due_at and local_time(x.due_at).date() == now.date()), x.status in {"等待医生", "等待成员"}, x.priority, local_time(x.due_at) or datetime.max.replace(tzinfo=LOCAL)))
+    return sorted(items, key=lambda x: (not (getattr(x, 'source_type', None) == 'risk_event' and x.priority == 0), not (x.due_at and local_time(x.due_at) < now), x.priority > 1, not (x.due_at and local_time(x.due_at).date() == now.date()), x.status in {"等待医生", "等待成员"}, x.priority, local_time(x.due_at) or datetime.max.replace(tzinfo=LOCAL)))
 
 
 def upcoming_service(rows, now=None):

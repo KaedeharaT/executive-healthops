@@ -40,6 +40,8 @@ def ingest_health_event(session: Session,**values) -> tuple[HealthEvent,bool]:
 
 def _ingest_health_event(session,*,member_id,event_type,event_category,source_type,source_id,
                         payload_ref=None,occurred_at=None,correlation_id=None,idempotency_key=None,dispatch=True,supervisor=None):
+    if isinstance(payload_ref, dict) and 'risk_evaluation' in payload_ref:
+        raise ValueError('风险评估回执只能由确定性规则服务写入。')
     member_id=UUID(str(member_id));source_id=str(source_id)
     if source_type not in SOURCES or event_category not in CATEGORIES:raise ValueError('事件来源或分类无效。')
     if not source_id or len(source_id)>256 or not event_type or len(event_type)>64:raise ValueError('事件来源标识无效。')
@@ -111,11 +113,18 @@ def dispatch_event(session,event,*,supervisor=None):
     event.route_action=decision.action
     if decision.action in {'IGNORE','STORE_ONLY'}:
         event.status='IGNORED' if decision.action=='IGNORE' else 'STORED';session.flush();return
+    if event.event_category == 'MEANINGFUL_CHANGE':
+        from executive_health_ai.services.risk_autonomy import evaluate_event
+        evaluate_event(session, event)
     agent=ensure_member_agent(session,event.member_id)
     wake(session,agent,event)
     goal=None
     payload=event.payload_ref or {}
-    if event.event_type in {'HEALTH_DOCUMENT_UPLOADED','CHECKUP_REPORT_UPLOADED','DOCTOR_REVIEW_COMPLETED'}:
+    routed_goal = session.get(AgentGoal, decision.goal_id) if decision.goal_id else None
+    if event.event_type == 'DOCTOR_REVIEW_COMPLETED' and routed_goal and routed_goal.goal_type == 'DAILY_CARE':
+        from executive_health_ai.services.risk_autonomy import doctor_return
+        goal = doctor_return(session, event, routed_goal, supervisor)
+    elif event.event_type in {'HEALTH_DOCUMENT_UPLOADED','CHECKUP_REPORT_UPLOADED','DOCTOR_REVIEW_COMPLETED'}:
         legacy=session.get(AgentEvent,UUID(payload['agent_event_id'])) if payload.get('agent_event_id') else None
         if legacy is None:
             from executive_health_ai.services.event_service import EventService

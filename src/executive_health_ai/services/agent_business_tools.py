@@ -54,13 +54,16 @@ class AgentBusinessTools:
         return {"owner": actor, "items": len(risks)}
 
     def _request_doctor(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:
-        existing = session.scalar(select(DoctorReview).where(DoctorReview.patient_id == goal.member_id, DoctorReview.status == "PENDING").order_by(DoctorReview.created_at.desc()))
+        from executive_health_ai.services.autonomy import current_risk
+        risk = session.get(RiskEvent, UUID(goal.context_json['risk_event_id'])) if goal.context_json.get('risk_event_id') else current_risk(session, goal.member_id)
+        if risk and risk.patient_id != goal.member_id:
+            raise ValueError('风险依据不属于当前会员。')
+        if risk is None or risk.risk_level == 'GREEN':
+            return {'needed': False}
+        existing = session.scalar(select(DoctorReview).where(DoctorReview.risk_event_id == risk.id, DoctorReview.status == "PENDING").order_by(DoctorReview.created_at.desc()))
         if existing:
             return {"doctor_review_id": str(existing.id), "created": False}
-        risk = session.scalar(select(RiskEvent).where(RiskEvent.patient_id == goal.member_id, RiskEvent.risk_level == "YELLOW", RiskEvent.status.not_in(("CLOSED", "DISMISSED_DATA_ISSUE"))).order_by(RiskEvent.created_at.desc()))
-        if risk is None:
-            return {"needed": False}
-        review = RiskOperationsService().escalate_to_doctor(session, risk.id, str(context.get("actor") or goal.owner or "健康管理师"), "请结合已确认体检事实完成人工医学复核。")
+        review = RiskOperationsService().escalate_to_doctor(session, risk.id, str(context.get("actor") or goal.owner or "健康管理师"), "请结合已有健康数据、来源资料和历史记录完成人工医学复核。")
         return {"doctor_review_id": str(review.id), "created": True}
 
     def _update_plan(self, session: Session, goal: AgentGoal, context: dict[str, Any]) -> dict[str, Any]:

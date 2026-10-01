@@ -70,6 +70,9 @@ def data_table(rows, records, *, key, label='选择记录', selectable=True, emp
     styled = frame.style.format(na_rep='—')
     if status_columns:
         styled = styled.map(lambda _: 'background-color: #edf4fa; color: #234d70; font-weight: 600', subset=status_columns)
+        # Explicit business escalation only; do not infer risk from arbitrary text.
+        styled = styled.map(lambda value: 'background-color: #f8eeee; color: #a54444; font-weight: 600'
+            if str(value).startswith('优先处理 · ') else '', subset=status_columns)
     if cell_actions:
         for name in cell_actions:
             columns[name]=st.column_config.TextColumn(name,width=65,help='点击删除；不会打开会员详情')

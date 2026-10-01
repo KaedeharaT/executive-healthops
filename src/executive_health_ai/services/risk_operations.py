@@ -34,8 +34,10 @@ class RiskOperationsService:
 
     @staticmethod
     def _audit(session: Session, event: RiskEvent, actor: str, action: str, detail: dict[str, object] | None = None) -> None:
+        if event.risk_level == 'RED' and action.startswith('yellow_'):
+            action = 'red_' + action[len('yellow_'):]
         session.add(AuditLog(
-            patient_id=event.patient_id, actor=actor, actor_role="health_manager",
+            patient_id=event.patient_id, actor=actor, actor_role="doctor" if action.endswith('doctor_review_completed') else "health_manager",
             action=action, entity_type="RiskEvent", entity_id=str(event.id), detail_json=detail or {},
         ))
 
@@ -112,14 +114,20 @@ class RiskOperationsService:
     def escalate_to_doctor(self, session: Session, event_id: UUID, actor: str, question: str, department: str = "全科/健康管理") -> DoctorReview:
         if not question.strip():
             raise ValueError("Question for doctor is required.")
-        event = self.acknowledge(session, event_id, actor, question)
+        event = session.get(RiskEvent, event_id)
+        if event is None or event.risk_level not in {'YELLOW', 'RED'} or event.status in {'CLOSED', 'DISMISSED_DATA_ISSUE'}:
+            raise ValueError('此风险不支持提交医学复核。')
+        if event.risk_level == 'YELLOW':
+            event = self.acknowledge(session, event_id, actor, question)
+        elif not event.acknowledged_by:
+            event.acknowledged_by, event.acknowledged_at = actor, utc_now()
         existing = session.scalar(select(DoctorReview).where(DoctorReview.risk_event_id == event.id, DoctorReview.status == "PENDING").order_by(DoctorReview.created_at.desc()))
         if existing is not None:
             return existing
         problem = session.scalar(select(HealthProblem).where(HealthProblem.patient_id == event.patient_id, HealthProblem.source == "yellow_risk_event", HealthProblem.status != "CLOSED", HealthProblem.description.contains(str(event.id))).order_by(HealthProblem.created_at.desc()))
         if problem is None:
             program = session.scalar(select(HealthProgram).where(HealthProgram.patient_id == event.patient_id, HealthProgram.status == "ACTIVE").order_by(HealthProgram.created_at.desc()))
-            problem = HealthProblem(patient_id=event.patient_id, program_id=program.id if program else None, title="需要医生复核的健康数据风险", description=f"来源：Yellow RiskEvent {event.id}。{self._event_detail(event)}。这不是系统诊断。", severity="MEDIUM", responsible_role="doctor", source="yellow_risk_event")
+            problem = HealthProblem(patient_id=event.patient_id, program_id=program.id if program else None, title="需要医生复核的健康数据风险", description=f"来源：RiskEvent {event.id}。{self._event_detail(event)}。这不是系统诊断。", severity="HIGH" if event.risk_level == 'RED' else "MEDIUM", responsible_role="doctor", source="yellow_risk_event")
             session.add(problem); session.flush()
         review = DoctorReview(patient_id=event.patient_id, program_id=problem.program_id, health_problem_id=problem.id, risk_event_id=event.id, doctor_name="待分配医生", department=department, doctor_brief=self._event_detail(event), question_for_doctor=question, opinion="待医生人工填写", status="PENDING")
         session.add(review); session.flush()
@@ -136,7 +144,9 @@ class RiskOperationsService:
             raise ValueError("DoctorReview is already completed.")
         if not doctor.strip() or not opinion.strip() or not follow_up_instruction.strip():
             raise ValueError("Doctor opinion and follow-up instruction are required.")
-        event = self._event(session, review.risk_event_id)
+        event = session.get(RiskEvent, review.risk_event_id)
+        if event is None or event.risk_level not in {'YELLOW', 'RED'} or event.status in {'CLOSED', 'DISMISSED_DATA_ISSUE'}:
+            raise ValueError('风险已关闭，不能提交复核结果。')
         review.doctor_name, review.department, review.opinion, review.status, review.reviewed_at = doctor, department, opinion, "CONFIRMED", utc_now()
         task = Task(patient_id=event.patient_id, program_id=review.program_id, health_problem_id=review.health_problem_id, risk_event_id=event.id, title="完成医生复核后的跟进", instruction=follow_up_instruction, priority="HIGH", assignee="health_manager", responsible_role="health_manager", due_at=due_at, source="yellow_risk_doctor_followup")
         session.add(task); session.flush()
@@ -147,13 +157,17 @@ class RiskOperationsService:
     def record_follow_up(self, session: Session, event_id: UUID, actor: str, outcome: str, task_id: UUID | None = None) -> FollowUp:
         if not outcome.strip():
             raise ValueError("Follow-up outcome is required.")
-        event = self._event(session, event_id)
+        event = session.get(RiskEvent, event_id)
+        if event is None or event.risk_level not in {'YELLOW', 'RED'} or event.status != 'FOLLOW_UP':
+            raise ValueError('需要已返回的医生意见及开放随访。')
         task = session.get(Task, task_id) if task_id else session.scalar(select(Task).where(Task.risk_event_id == event.id, Task.status.not_in(["COMPLETED", "CANCELLED"])).order_by(Task.created_at.desc()))
-        if task is not None:
-            task.status, task.completed_at = "COMPLETED", utc_now()
         review = session.scalar(select(DoctorReview).where(DoctorReview.risk_event_id == event.id).order_by(DoctorReview.created_at.desc()))
-        if review is None:
+        if review is None or review.status != 'CONFIRMED':
             raise ValueError("A linked doctor review is required before this follow-up.")
+        if task is not None:
+            if task.patient_id != event.patient_id or task.risk_event_id != event.id:
+                raise ValueError('随访事项不属于本次风险。')
+            task.status, task.completed_at = "COMPLETED", utc_now()
         followup = FollowUp(patient_id=event.patient_id, health_problem_id=review.health_problem_id, task_id=task.id if task else None, status="COMPLETED", completed_at=utc_now(), outcome=outcome, reviewed_by=actor, source="yellow_risk_follow_up")
         session.add(followup); session.flush()
         event.status = "FOLLOW_UP"

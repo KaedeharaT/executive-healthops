@@ -66,6 +66,12 @@ def create_item(session, goal, context):
     row = task(session, goal.member_id, p.id, context['title'], context['instruction'],
         context.get('owner') or p.owner, datetime.fromisoformat(context['due_at']),
         'followup:' + str(goal.id) + ':' + context['idempotency_key'])
+    if context.get('management_plan_id'):
+        from executive_health_ai.models import ManagementPlan
+        plan = owned(session, ManagementPlan, context['management_plan_id'], goal.member_id)
+        if plan.program_id is not None and plan.program_id != p.id:
+            raise ValueError('随访来源方案不属于当前年度管理。')
+        row.management_plan_id = plan.id
     return {'task_id': str(row.id), 'due_at': row.due_at}
 
 
@@ -131,6 +137,28 @@ def apply_result(session,goal,context):
     return {'log_id':str(row.id)}
 
 
+def approved_plan_check(session, goal, context):
+    """Only a system-owned plan check can close automatically, never a contact.
+
+    Existing reviewed plan provenance is required. A payload saying 'approved'
+    cannot authorize a task, and no call/email/medical result is fabricated.
+    """
+    from executive_health_ai.models import Task, ManagementPlan
+    from executive_health_ai.services.task_transitions import TaskTransitionService
+    row = owned(session, Task, context['task_id'], goal.member_id)
+    plan = session.get(ManagementPlan, row.management_plan_id) if row.management_plan_id else None
+    review = session.get(DoctorReview, plan.doctor_review_id) if plan and plan.doctor_review_id else None
+    if (row.responsible_role != 'system' or row.source != 'approved_plan_check' or row.risk_event_id
+            or not plan or plan.patient_id != goal.member_id or plan.status != 'ACTIVE'
+            or (plan.program_id is not None and plan.program_id != row.program_id)
+            or row.due_at is None or row.due_at > utc_now()
+            or not (plan.adjusted_by or (review and review.status == 'CONFIRMED'))):
+        raise PermissionError('只有已确认方案中的系统核对事项可以自动完成。')
+    TaskTransitionService().complete(session, row.id, actor='健康管理助手',
+        outcome='已按已确认方案核对当前阶段、开放安排及医生结果；未代替人工联系或医学判断。')
+    return {'task_id': str(row.id), 'plan_id': str(plan.id), 'status': row.status}
+
+
 def register(registry):
     from executive_health_ai.agent.tools import AgentTool, AUTO, MANAGER_APPROVAL
     from executive_health_ai.services.care_memory import longitudinal
@@ -146,6 +174,7 @@ def register(registry):
         ('create_management_item', create_item, MANAGER_APPROVAL),
         ('create_followup', create_item, AUTO), ('create_recheck', recheck, MANAGER_APPROVAL),
         ('write_management_log', write_log, AUTO),
+        ('execute_approved_plan_check', approved_plan_check, AUTO),
         ('apply_management_result', apply_result, MANAGER_APPROVAL),
         ('complete_management_item', complete_item, MANAGER_APPROVAL),
         ('start_next_phase', next_phase, MANAGER_APPROVAL)):

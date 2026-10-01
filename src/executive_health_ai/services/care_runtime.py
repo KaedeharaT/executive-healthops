@@ -56,7 +56,12 @@ def wait(session, goal, state, *, next_action, due=None, expected_event=None, ex
     goal.status=state;goal.next_action=next_action;goal.next_check_at=due
     goal.context_json={**goal.context_json,'wait':{'state':state,'event':expected_event,
         'source':str(expected_source) if expected_source else None,'since':utc_now().isoformat()}}
-    trace(session,goal,'wait',next_action,state=state,due=due.isoformat() if due else None)
+    refs = {}
+    if goal.context_json.get('risk_event_id'):
+        from executive_health_ai.models import RiskEvent
+        risk = session.get(RiskEvent, UUID(goal.context_json['risk_event_id']))
+        if risk: refs = {'risk_event_id': str(risk.id), 'risk_level': risk.risk_level}
+    trace(session,goal,'wait',next_action,state=state,due=due.isoformat() if due else None,**refs)
 
 
 def resume(session, goal, *, event_type, source_id):
@@ -94,8 +99,15 @@ def finish(session, goal):
     goal.context_json={**goal.context_json,'wait':{}}
     goal.success_criteria={'business_result':True}
     goal.next_action='本次管理已完成，继续等待新的资料、结果或计划时间'
+    automatic_green = False
+    if goal.goal_type == 'DAILY_CARE' and ctx.get('risk_event_id') and not ctx.get('automation_failures'):
+        from executive_health_ai.models import RiskEvent
+        risk = session.get(RiskEvent, UUID(ctx['risk_event_id']))
+        automatic_green = bool(risk and risk.patient_id == goal.member_id and risk.risk_level == 'GREEN')
     for step in session.scalars(select(AgentPlanStep).where(AgentPlanStep.plan_id==goal.current_plan_id)):
-        step.status='COMPLETED';step.completed_at=step.completed_at or utc_now()
+        step.status='SKIPPED' if automatic_green and step.requires_approval else 'COMPLETED'
+        if step.status == 'SKIPPED':step.result_summary='根据自主策略，无需人工判断；未伪造人工批准。'
+        step.completed_at=step.completed_at or utc_now()
     trace(session,goal,'goal_completed',goal.next_action,result_references={k:ctx[k] for k in
         ('log_id','review_id','next_phase_id','work_refs','no_action_reason') if k in ctx})
     return goal

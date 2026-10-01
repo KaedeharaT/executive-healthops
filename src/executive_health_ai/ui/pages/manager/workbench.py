@@ -19,7 +19,11 @@ def today(app):
     people = app._patient_map()
     with SessionLocal() as session:
         work = ProductProjectionService().manager(session, now)
+        from executive_health_ai.services.autonomy_projection import oversight
+        automatic = oversight(session, now)
+        from executive_health_ai.models import RiskEvent
         from sqlalchemy import select
+        attention_ids = set(session.scalars(select(RiskEvent.id).where(RiskEvent.risk_level == 'YELLOW')))
         from executive_health_ai.models import Task
         from executive_health_ai.services.operational_worklist import OperationalWorkItem
         history=[OperationalWorkItem(t.patient_id,'task',t.id,9,'已完成',t.title,t.instruction or '',
@@ -48,15 +52,18 @@ def today(app):
         selected_items=groups[bucket]
         with st.container(key='soft-filter-today'):
             a,b,d = st.columns([1,2,1])
-            scope = a.selectbox('工作筛选', ['全部','今天','医疗','复查','服务','管理','逾期','等待医生','等待会员'], key='v5-work-scope')
+            scope = a.selectbox('工作筛选', ['全部','今天','需关注','医疗','复查','服务','管理','逾期','等待医生','等待会员'], key='v5-work-scope')
             search = b.text_input('查找待办', placeholder='搜索会员或需要处理的事情', key='v2-work-search').strip().casefold()
             owner = d.selectbox('负责人', ['全部']+sorted({i.owner or '待分配' for i in items}), key='today-owner')
-        scoped = work_filter(selected_items,scope,now) if scope not in {'医疗','管理'} else [i for i in selected_items if
-            (i.source_type in {'doctor_review','consultation','baseline_review','legacy_medical_review','risk_event'}) == (scope=='医疗')]
+        if scope == '需关注':
+            scoped = [i for i in selected_items if i.source_type == 'risk_event' and i.source_id in attention_ids]
+        else:
+            scoped = work_filter(selected_items,scope,now) if scope not in {'医疗','管理'} else [i for i in selected_items if
+                (i.source_type in {'doctor_review','consultation','baseline_review','legacy_medical_review','risk_event'}) == (scope=='医疗')]
         visible = [i for i in scoped if (owner=='全部' or (i.owner or '待分配')==owner)
             and (not search or search in (app._member_display(people.get(i.member_id))+i.title+i.reason+i.next_action).casefold())]
         item = data_table(visible, [{'会员':app._member_display(people.get(i.member_id)), '事项':i.title, '当前阶段':progress(i), '负责人':i.owner,
-            '时间':ux.local_time(i.due_at), '状态':status_label(i.status,context='service_request') if i.source_type=='service_request' else status_label(i.status)} for i in visible],
+            '时间':ux.local_time(i.due_at), '状态':('优先处理 · ' if i.priority == 0 else '') + (status_label(i.status,context='service_request') if i.source_type=='service_request' else status_label(i.status))} for i in visible],
             key='today-work-grid', auto_select=False, activate_on_cell=True, empty='当前没有需要处理的工作。')
         if item:
             if item.source_type in {'post_checkup','profile_intake'}:
@@ -68,6 +75,7 @@ def today(app):
     with rail,st.container(key='v7-context-today'):
         st.subheader('工作概况')
         c.summary_strip([('待处理',len(items)),('逾期',len(work_filter(items,'逾期',now))),('等待医生',len(work.pending_doctor))])
+        st.caption(f"自动管理 {automatic['managed']} · 无需人工 {automatic['no_human']} · 需关注 {automatic['attention']} · 优先处理 {automatic['urgent']}")
         st.divider()
         st.markdown('**我的待办**')
         for i in items[:3]:

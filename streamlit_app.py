@@ -1191,6 +1191,9 @@ def _render_current_risk_actions(patient: Patient, selected_id=None) -> None:
         return
     event = next((item for item in events if item.risk_level == "RED"), events[0])
     if event.risk_level == "RED":
+        from executive_health_ai.ui.pages.manager.autonomy_risk import render as render_governed_risk
+        if render_governed_risk(patient, event):
+            return
         st.subheader("紧急处置")
         st.error("医疗处置优先。请先确认成员当前安全情况并按实际情况寻求医疗帮助。")
         st.write(f"关键原因：{event.summary}")

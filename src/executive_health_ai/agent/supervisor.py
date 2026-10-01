@@ -402,8 +402,20 @@ class HealthOpsAgentSupervisor:
         self.execute_next_step(session, goal.id, event_id=event.id)
 
     def _run_tool(self, session: Session, goal: AgentGoal, plan: AgentPlan, step: AgentPlanStep, *, event_id: UUID | None, approved_role: str | None = None, context: dict[str, Any] | None = None) -> bool:
+        from executive_health_ai.services.autonomy import AutonomyGate
+        if approved_role is None:
+            approval = session.scalar(select(AgentApprovalRequest).where(AgentApprovalRequest.plan_step_id == step.id,
+                AgentApprovalRequest.approval_type == 'AUTONOMY_GATE', AgentApprovalRequest.status == 'APPROVED',
+                AgentApprovalRequest.required_role == 'HEALTH_MANAGER'))
+            if approval: approved_role = 'HEALTH_MANAGER'
         try:
             result = self.registry.execute(session, step.tool_name or "", goal, context, approved_role=approved_role)
+        except AutonomyGate as exc:
+            step.status = goal.status = 'WAITING_DOCTOR' if exc.decision.required_role == 'DOCTOR' else 'WAITING_MANAGER'
+            goal.next_action = str(exc)
+            self._approval(session, goal, step, 'AUTONOMY_GATE',
+                'DOCTOR' if exc.decision.required_role == 'DOCTOR' else 'HEALTH_MANAGER')
+            return False
         except Exception as exc:
             step.retry_count += 1
             step.error_summary = f"{type(exc).__name__}: {str(exc)[:300]}"
@@ -414,6 +426,8 @@ class HealthOpsAgentSupervisor:
                     "自动跟进暂时停止，需要人工处理",
                     "请由健康管理师接手处理",
                 )
+                from executive_health_ai.services.autonomy_attention import attention
+                attention(session, goal, '自动处理未完成，需要人工检查。')
             else:
                 step.status = "RETRY_WAIT"
                 step.next_retry_at = utc_now() + timedelta(seconds=2 ** step.retry_count)

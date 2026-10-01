@@ -39,6 +39,17 @@ class AgentTool:
     input_schema: str = "goal context"
     output_schema: str = "bounded summary"
     enabled: bool = True
+    autonomy_level: str = ''
+
+    def __post_init__(self):
+        from executive_health_ai.services.autonomy import SAFE_PREPARATION
+        if not self.autonomy_level:
+            level = ('DOCTOR_REQUIRED' if self.permission == DOCTOR_APPROVAL else
+                'MANAGER_REQUIRED' if self.permission == MANAGER_APPROVAL else
+                'AUTO_SAFE' if self.mode == 'read' or self.name in SAFE_PREPARATION else 'AUTO_GOVERNED')
+            object.__setattr__(self, 'autonomy_level', level)
+        if self.autonomy_level not in {'AUTO_SAFE', 'AUTO_GOVERNED', 'MANAGER_REQUIRED', 'DOCTOR_REQUIRED', 'FORBIDDEN'}:
+            raise ValueError('无效的工具自主权限。')
 
     @property
     def responsibility(self):
@@ -97,12 +108,17 @@ class AgentToolRegistry(AgentBusinessTools):
                 if name not in {'confirm_report_preparation','create_doctor_review','create_care_arrangements'}:
                     raise ValueError('此流程只能执行已确认的健康管理安排。')
                 guard(session, goal, actions=name == 'create_care_arrangements')
-        if tool.permission == MANAGER_APPROVAL and approved_role not in {"HEALTH_MANAGER", "ADMIN"}:
-            raise PermissionError("Health manager approval is required.")
-        if tool.permission == DOCTOR_APPROVAL:
-            raise PermissionError("Clinical actions must be completed in DoctorReview.")
+        from executive_health_ai.services.autonomy import evaluate, persist, AutonomyGate
+        decision = evaluate(session, tool, goal, approved_role, context)
+        if decision.decision in {'BLOCK', 'REQUIRE_MANAGER', 'REQUIRE_DOCTOR'}:
+            persist(session, goal, decision)
+            raise AutonomyGate(decision)
         from executive_health_ai.services.tool_execution import execute
-        return execute(session, tool, goal, context or {})
+        try:
+            return execute(session, tool, goal, context or {})
+        finally:
+            # File parsing owns its detached I/O protocol. Audit only afterwards.
+            persist(session, goal, decision)
 
     @property
     def tools(self) -> tuple[AgentTool, ...]:
@@ -133,7 +149,7 @@ class AgentToolRegistry(AgentBusinessTools):
         self.register(AgentTool("create_member_reminder", "Create a platform reminder task.", AUTO, "write", True, 10, self._create_followup))
         self.register(AgentTool("record_goal_progress", "Append an audited orchestration note.", AUTO, "write", True, 10, self._progress))
         self.register(AgentTool("assign_work_item", "Assign existing operational work.", MANAGER_APPROVAL, "write", True, 10, self._assign_work))
-        self.register(AgentTool("request_doctor_review", "Request human medical review through the existing risk workflow.", MANAGER_APPROVAL, "write", True, 10, self._request_doctor))
+        self.register(AgentTool("request_doctor_review", "Prepare a human review under an approved responsibility route.", AUTO, "write", True, 10, self._request_doctor))
         self.register(AgentTool("update_plan_status", "Update a management plan after manager approval.", MANAGER_APPROVAL, "write", True, 10, self._update_plan))
         self.register(AgentTool("create_service_request", "Create a service request draft after manager approval.", MANAGER_APPROVAL, "write", True, 10, self._service_request))
         self.register(AgentTool("record_management_note", "Record an operational note after manager approval.", MANAGER_APPROVAL, "write", True, 10, self._progress))

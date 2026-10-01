@@ -174,11 +174,15 @@ def member_detail(app, patient):
     from executive_health_ai.services.management_action_loop import ManagementActionLoop
     with SessionLocal() as session:
         action_state=ManagementActionLoop().project(session,patient.id,management_view.program.id if management_view.program else None)
+        from executive_health_ai.services.autonomy_projection import member as autonomy_member
+        autonomy = autonomy_member(session, patient.id)
     next_work=action_state['next']
     from executive_health_ai.services.member_management_projection import onboarding_next
     onboarding=onboarding_next(management_view)
     next_text=(next_work.title+' · '+next_work.owner+' · '+ux.when(next_work.due)) if next_work else ('确认并进入下一阶段' if action_state['review'] else '开始阶段复盘' if action_state['review_ready'] else '新增管理记录或创建随访')+' · '+view.owner
     if onboarding and not next_work:next_text=onboarding[0]+' · '+view.owner
+    if autonomy['level'] == 'RED':
+        next_text = autonomy['next_action'] + ' · ' + autonomy['owner']
     updated = [r.observed_at for r in rows]+[r.occurred_at for r in management_view.logs]
     if management_view.intake: updated.append(management_view.intake.updated_at)
     cycle=view.cycle+(f' · {program.start_date:%m/%d}—{program.end_date:%Y/%m/%d}' if program and program.end_date else '')
@@ -193,6 +197,8 @@ def member_detail(app, patient):
         main,rail=st.columns([2.4,1],gap='large')
         with main,st.container(key='v7-main-overview'):
             st.subheader('当前健康状态')
+            tone = {'GREEN': 'green', 'YELLOW': 'orange', 'RED': 'red'}.get(autonomy['level'], 'gray')
+            st.caption(f":{tone}[管理状态：{autonomy['label']}]")
             st.write(ux.business_text(professional))
             st.caption('会员关注：'+ux.business_text(concern or '待填写'))
             from executive_health_ai.ui.pages.health_visualization import render_previews

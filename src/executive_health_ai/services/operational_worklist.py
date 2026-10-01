@@ -10,7 +10,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from executive_health_ai.models import DoctorReview, ManagementSignal, RiskEvent, ServiceCatalogItem, ServiceRequest, Task
+from executive_health_ai.models import AgentGoal, DoctorReview, ManagementSignal, RiskEvent, ServiceCatalogItem, ServiceRequest, Task
 
 
 ACTIVE_RISK_STATUSES = (
@@ -63,8 +63,12 @@ def _risk_state(event: RiskEvent, review: DoctorReview | None, task: Task | None
     """Translate persistence status into the single operational state users act on."""
     owner = (task.assignee if task and task.assignee else None) or event.acknowledged_by or "健康管理师"
     if event.risk_level == "RED":
+        if review and review.status == 'PENDING':
+            return 0, '等待医生', '优先跟踪医生判断，资料已准备', review.doctor_name if review.doctor_name != '待分配医生' else '内部医生'
+        if event.status == 'FOLLOW_UP':
+            return 0, '待随访', task.instruction if task else '按医生意见确认下一步', owner
         if event.status == "NEW":
-            return 0, "高风险", "立即人工核实并记录已接手", "待分配"
+            return 0, "高风险", "立即人工核实并记录已接手", owner
         return 0, "处理中", "确认人工紧急处置与后续医疗安排", owner
     if event.status == "NEW":
         return 1, "中风险", "接手并核实", "待分配"
@@ -106,9 +110,20 @@ class OperationalWorklistService:
         active_risks = list(session.scalars(select(RiskEvent).where(RiskEvent.status.in_(ACTIVE_RISK_STATUSES)).order_by(RiskEvent.created_at.desc()).limit(None if include_scheduled else 100)))
         active_risk_ids = {event.id for event in active_risks}
         active_risk_metrics = {(event.patient_id, event.canonical_code) for event in active_risks}
+        risk_goals = {g.context_json.get('risk_event_id'): g for g in session.scalars(select(AgentGoal).where(
+            AgentGoal.goal_type == 'DAILY_CARE', AgentGoal.status.not_in(('COMPLETED', 'CANCELLED'))))
+            if g.context_json.get('risk_event_id')}
         for event in active_risks:
+            if event.risk_level == 'GREEN':
+                continue
+            goal = risk_goals.get(str(event.id))
+            if event.risk_level == 'YELLOW' and goal and goal.status == 'RUNNING' and not goal.context_json.get('preparation_complete'):
+                continue
             task, review = tasks_by_risk.get(event.id), reviews_by_risk.get(event.id)
             priority, status, next_action, owner = _risk_state(event, review, task)
+            if goal:
+                next_action = goal.next_action or next_action
+                if goal.status != 'WAITING_DOCTOR': owner = goal.owner or owner
             items.append(OperationalWorkItem(
                 event.patient_id, "risk_event", event.id, priority, status, event.summary,
                 "演示风险规则触发，需由人工核实。" if (event.evidence_json or {}).get("demo_flag") else "健康数据触发了已审核规则，需要人工核实。",
@@ -119,6 +134,8 @@ class OperationalWorklistService:
         # A risk-linked task belongs to its primary risk item. All other tasks
         # remain independently actionable, including report and plan choices.
         for task in active_tasks:
+            if task.responsible_role == 'system' and task.source == 'approved_plan_check':
+                continue
             if task.risk_event_id in active_risk_ids:
                 continue
             if not include_scheduled and task.due_at is not None and task.due_at > now + timedelta(days=1) and task.source != "member_plan_choice":

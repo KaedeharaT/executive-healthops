@@ -15,10 +15,18 @@ service=ManagementActionLoop()
 KINDS={'MANAGEMENT':'管理事项','FOLLOWUP':'随访','RECHECK':'复查','SERVICE':'服务','DOCTOR':'医生协同','RISK':'正式风险','STAGE_REVIEW':'阶段复盘'}
 
 def open_next(app,patient):
+    from executive_health_ai.services.autonomy_projection import member as autonomy_member
+    with SessionLocal() as session:
+        autonomy = autonomy_member(session, patient.id)
+    if autonomy['level'] == 'RED':
+        st.session_state['today-detail'] = ('risk_event', str(autonomy['risk_id']))
+        app.request_navigation(surface='运营后台', ops_page='今日')
+        return
     from executive_health_ai.ui.pages.manager.workflow import view_for
     from executive_health_ai.services.member_management_projection import onboarding_next
     view=view_for(patient.id)
-    with SessionLocal() as session:state=service.project(session,patient.id,view.program.id if view.program else None)
+    with SessionLocal() as session:
+        state=service.project(session,patient.id,view.program.id if view.program else None)
     onboarding=onboarding_next(view)
     if onboarding and not state['next']:
         destination=onboarding[1]
@@ -45,7 +53,10 @@ def clear(patient):
 
 def render(app,patient,view,*,show_recent=True,primary_next=True):
     from executive_health_ai.ui.pages.manager import workflow
-    with SessionLocal() as session:state=service.project(session,patient.id,view.program.id if view.program else None)
+    with SessionLocal() as session:
+        state=service.project(session,patient.id,view.program.id if view.program else None)
+        from executive_health_ai.services.autonomy_projection import member as autonomy_member
+        autonomy = autonomy_member(session, patient.id)
     key=f'action-focus-{patient.id}';selected=st.session_state.get(key)
     if selected=='NEXT':
         selected=state['next'].id if state['next'] else state['state'];st.session_state[key]=selected
@@ -97,7 +108,16 @@ def render(app,patient,view,*,show_recent=True,primary_next=True):
     with rail,st.container(key='v7-context-management'):
         st.subheader('当前行动')
         creation=()
-        if state['next']:
+        if autonomy['level'] == 'YELLOW':
+            st.caption(':orange[需关注] ' + autonomy.get('reason', ''))
+        if autonomy['level'] == 'RED':
+            st.caption(':red[优先人工 / 医生处理]')
+            st.write(autonomy['next_action'])
+            st.caption('当前责任：' + autonomy['owner'])
+            if st.button('处理', type='primary' if primary_next else 'secondary', key='action-immediate'):
+                st.session_state['today-detail'] = ('risk_event', str(autonomy['risk_id']))
+                app.request_navigation(surface='运营后台', ops_page='今日')
+        elif state['next']:
             item=state['next'];st.write(item.title)
             st.caption(item.owner+' · '+ux.when(item.due))
             st.caption(item.next_action)
@@ -114,7 +134,8 @@ def render(app,patient,view,*,show_recent=True,primary_next=True):
                 if st.button('记录管理沟通',key='management-empty-log',type='primary' if primary_next else 'secondary'):focus(patient,'CREATE:新增管理记录')
                 creation=('新增管理记录',)
         st.divider()
-        quick_actions(patient,exclude=creation)
+        if autonomy['level'] != 'RED':
+            quick_actions(patient,exclude=creation)
     return False
 
 
