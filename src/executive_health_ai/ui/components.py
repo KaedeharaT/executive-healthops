@@ -125,8 +125,9 @@ def detail_drawer(title, *, key, table_key):
         yield
 
 
-def member_header(name, *, cycle, owner, phase, concern, focus, next_action, updated):
-    st.markdown(f"<header class='care-member-header'><small>会员 / {escape(name)}</small><h1>{escape(name)}</h1>"
+def member_header(name, *, cycle, owner, phase, concern, focus, next_action, updated, demo=False):
+    badge = " <span class='ux-badge'>演示会员</span>" if demo else ''
+    st.markdown(f"<header class='care-member-header'><small>会员 / {escape(name)}</small><h1>{escape(name)}{badge}</h1>"
         f"<div class='member-meta'><span>责任健管：{escape(owner)}</span><span>{escape(cycle)}</span><span>当前阶段：{escape(phase)}</span></div>"
         f"<div class='care-next'><b>下一步</b>　{escape(next_action)}</div></header>",unsafe_allow_html=True)
 

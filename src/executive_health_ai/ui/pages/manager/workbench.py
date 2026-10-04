@@ -202,7 +202,7 @@ def directory(app, members):
         p,t,phase,log = r['program'],r['task'],r['phase'],r['log']
         person=r['member'];born=person.birth_date
         age=str(now.year-born.year-((now.month,now.day)<(born.month,born.day))) if born else '未记录'
-        records.append({'会员':app._member_display(person), '年龄 / 性别':age+' / '+{'male':'男','female':'女','MALE':'男','FEMALE':'女'}.get(person.sex,'未记录'),
+        records.append({'会员':app._member_display(person)+(' · 演示' if (person.external_id or '').startswith('synthetic-demo-') else ''), '年龄 / 性别':age+' / '+{'male':'男','female':'女','MALE':'男','FEMALE':'女'}.get(person.sex,'未记录'),
             '当前阶段':phase.title if phase else app.display_program_phase(p.current_phase) if p else '待建档',
             '责任健管':p.owner if p else '待分配','当前服务':r['service'],
             '下一行动':'查看历史资料（只读）' if person.archived_at else t.title if t else '待确认安排',

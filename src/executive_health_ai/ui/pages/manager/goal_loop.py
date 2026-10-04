@@ -1,7 +1,7 @@
 """Compact goal/data loop inside the existing Member360 workspace."""
 from uuid import UUID, uuid4
 import streamlit as st
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.models import HealthProgram, Observation
 from executive_health_ai.models.goal_data import ManagementGoal, DailyHealthSummary, CommunicationRecord
@@ -139,6 +139,14 @@ def provenance(member_id):
         with SessionLocal() as session:
             rows=list(session.scalars(goal_metrics.usable(select(Observation).where(Observation.patient_id==member_id))
                 .order_by(Observation.observed_at.desc()).limit(12)))
+            # Keep governed report/correction evidence reachable even after months
+            # of device readings; reuse this source picker, with bounded reads.
+            governed=list(session.scalars(goal_metrics.usable(select(Observation).where(
+                Observation.patient_id==member_id,
+                or_(Observation.source_type=='REPORT',Observation.supersedes_id.is_not(None))))
+                .order_by(Observation.observed_at.desc()).limit(12)))
+            seen={r.id for r in rows}
+            rows.extend(r for r in governed if r.id not in seen)
             if not rows:st.caption('暂无可追溯的正式指标。');return
             row=st.selectbox('健康记录',rows,format_func=lambda r:f'{goal_metrics.METRIC_LABELS.get(r.metric_code,r.metric_code)} {r.value_numeric} {r.unit} · {r.observed_at:%Y-%m-%d}',key='provenance-observation')
             from executive_health_ai.services.data_provenance import detail

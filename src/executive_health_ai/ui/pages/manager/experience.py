@@ -195,7 +195,8 @@ def member_detail(app, patient):
     c.member_header(ux.business_text(patient.display_name), cycle=cycle, owner=ux.business_text(view.owner),
         phase=view.phase_title or management_view.onboarding, concern=concern or '待填写', focus=professional,
         next_action=next_text,
-        updated=ux.when(max(updated)) if updated else '暂无记录')
+        updated=ux.when(max(updated)) if updated else '暂无记录',
+        demo=(patient.external_id or '').startswith('synthetic-demo-'))
     with st.container(key='soft-member-navigation'):
         section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
     if section == "概览":
