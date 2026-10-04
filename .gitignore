@@ -18,6 +18,7 @@ dist/
 htmlcov/
 
 # Secrets and local application configuration
+.agents/
 .env
 .env.*
 !.env.example
@@ -29,6 +30,13 @@ htmlcov/
 *.db-journal
 *.sqlite
 *.sqlite3
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.pid
 data/raw/
 knowledge_uploads/
 report_uploads/
