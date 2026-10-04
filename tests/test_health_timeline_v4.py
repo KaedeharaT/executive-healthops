@@ -241,7 +241,7 @@ def test_member_history_defaults_to_year_and_filters_without_widget_state_error(
     app.run(timeout=30)
     assert not app.exception
     assert next(item for item in app.radio if item.label == '历程筛选').value=='健康变化'
-    assert any('较早 → 最近' in str(item.value) for item in app.caption)
+    assert any('较早 ↓ 最近' in str(item.value) for item in app.caption)
 
 
 def test_member_history_filter_survives_rerun_without_extra_navigation() -> None:
@@ -424,9 +424,9 @@ def test_grid_selection_only_updates_the_single_inspector() -> None:
 
 def test_timeline_component_selection_updates_inline_details_without_view_button(monkeypatch) -> None:
     from executive_health_ai.ui.pages.manager import longitudinal_timeline
-    selected=[]
+    selected=[];payloads=[]
     def select_entry(**kwargs):
-        entries=kwargs['entries'];selected.extend(entries)
+        entries=kwargs['entries'];selected.extend(entries);payloads.append(kwargs)
         return entries[0]['key'] if entries else None
     monkeypatch.setattr(longitudinal_timeline,'_track',select_entry)
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "streamlit_app.py")
@@ -440,8 +440,8 @@ def test_timeline_component_selection_updates_inline_details_without_view_button
 
     assert selected
     assert not app.exception
-    assert any('当时的健康状态' in str(item.value) for item in app.markdown)
-    assert any('数据来源' in str(item.value) for item in app.markdown)
+    assert payloads[-1]['detail']['state']
+    assert 'sources' in payloads[-1]['detail']
     assert not any(item.label=='查看详情' for item in app.button)
 
 

@@ -1,32 +1,71 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>
-*{box-sizing:border-box}body{margin:0;background:transparent;color:#20354c;font:14px/1.5 'Microsoft YaHei',sans-serif}
-.scroll{overflow-x:auto;padding:8px 4px 14px;border-radius:12px;background:#f4f7fa;box-shadow:inset 2px 2px 7px #dde5ed,inset -2px -2px 7px #fff}
-.axis{position:relative;min-height:300px}.label{position:sticky;left:12px;width:max-content;font-weight:600;background:#f4f7fa;padding:0 6px;color:#52677d;z-index:2}
-svg{position:absolute;inset:0;pointer-events:none}.month{position:absolute;top:7px;font-size:12px;color:#52677d}
-button{position:absolute;width:143px;padding:8px 9px 8px 20px;border:0;border-radius:8px;text-align:left;background:transparent;color:#20354c;font:inherit;cursor:pointer;min-height:60px}
-button:before{content:'';position:absolute;left:5px;top:14px;width:8px;height:8px;border-radius:50%;background:#668eae;border:2px solid #f4f7fa;box-shadow:0 0 0 1px #668eae}
-button:hover,button[aria-pressed=true]{background:#eaf1f8;box-shadow:3px 3px 7px #dce5ef,-3px -3px 7px white}button:focus-visible{outline:3px solid #327bc2;outline-offset:2px}
-button b{display:block;font-size:13px;font-weight:600}button small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:11px;color:#52677d}
-button.attention:before{background:#b47523;box-shadow:0 0 0 1px #b47523}button.urgent:before{background:#b64743;box-shadow:0 0 0 1px #b64743}button.normal:before{background:#438264;box-shadow:0 0 0 1px #438264}
-.hint{font-size:12px;color:#52677d;padding:6px 10px}
-</style></head><body><div class="scroll" role="region" aria-label="纵向健康双轨时间轴" tabindex="0"><div class="axis" id="axis"></div></div><div class="hint">上轨：健康状态　下轨：管理行动　·　向右查看近期，点击节点展开下方详情</div><script>
-const send=(type,data={})=>parent.postMessage({isStreamlitMessage:true,type,...data},'*');let selected=null;
-function render(entries){const axis=document.getElementById('axis'),scroll=document.querySelector('.scroll'),oldScroll=scroll.scrollLeft;axis.replaceChildren();
-const months=[...new Set(entries.map(e=>e.date.slice(0,7)))],groups=months.map(m=>({month:m,state:entries.filter(e=>e.date.startsWith(m)&&e.track==='HEALTH_STATE'),care:entries.filter(e=>e.date.startsWith(m)&&e.track==='CARE_ACTION')}));
-const top=65,step=75,stateCount=Math.max(1,...groups.map(g=>g.state.length)),careTop=top+stateCount*step+65,careCount=Math.max(1,...groups.map(g=>g.care.length)),height=careTop+careCount*step+18,width=Math.max(730,months.length*157+30),points={};axis.style.width=width+'px';axis.style.height=height+'px';
-const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('width',width);svg.setAttribute('height',height);axis.append(svg);
-for(const [text,y] of [['健康状态',35],['管理行动',careTop-30]]){const label=document.createElement('div');label.className='label';label.textContent=text;label.style.position='absolute';label.style.top=y+'px';axis.append(label);const line=document.createElementNS(ns,'line');for(const [k,v] of Object.entries({x1:88,x2:width-16,y1:y+12,y2:y+12,stroke:'#c8d6e3','stroke-width':1.5}))line.setAttribute(k,v);svg.append(line)}
-groups.forEach((g,i)=>{let x=14+i*157;const month=document.createElement('span');month.className='month';month.style.left=x+'px';month.textContent=g.month;axis.append(month);for(const [items,y] of [[g.state,top],[g.care,careTop]])items.forEach((e,j)=>{const b=document.createElement('button');b.style.left=x+'px';b.style.top=y+j*step+'px';b.setAttribute('aria-label',e.title+' '+e.date);b.setAttribute('aria-pressed',String(e.key===selected));b.dataset.entry=e.key;if(e.risk)b.className=e.risk==='需关注'?'attention':e.risk==='优先处理'?'urgent':'normal';const title=document.createElement('b');title.textContent=e.title;const desc=document.createElement('small');desc.textContent=e.date.slice(5)+(e.risk?' · '+e.risk:'')+' · '+e.summary;b.append(title,desc);b.onclick=()=>{selected=e.key;render(entries);send('streamlit:setComponentValue',{value:e.key})};axis.append(b);points[e.key]={x:x+9,y:y+j*step+18,episode:e.episode};})});
-const current=entries.find(e=>e.key===selected),ep=current?.episode;
-for(const episode of new Set(entries.map(e=>e.episode).filter(Boolean))){
- const connected=entries.filter(e=>e.episode===episode);
- for(let i=1;i<connected.length;i++){
-  const a=points[connected[i-1].key],b=points[connected[i].key],path=document.createElementNS(ns,'path');
-  path.setAttribute('d',`M ${a.x} ${a.y} C ${a.x-25} ${a.y+25}, ${b.x-25} ${b.y-25}, ${b.x} ${b.y}`);
-  path.setAttribute('stroke',ep===episode?'#789bb8':'#b9cbd9');path.setAttribute('stroke-width','1.5');
-  path.setAttribute('fill','none');path.setAttribute('stroke-dasharray','4 4');svg.append(path);
- }
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box}body{margin:0;background:transparent;color:#20354c;font:14px/1.6 'Microsoft YaHei',sans-serif}
+:root{--line:#c8d6e3;--ink:#20354c;--muted:#52677d;--surface:#f4f7fa;--blue:#327bc2}
+.hint{color:var(--muted);font-size:12px;margin:4px 0 16px}.timeline{padding:0 8px 12px 0}
+.event{display:grid;grid-template-columns:95px 28px minmax(0,1fr);align-items:stretch;position:relative}
+.date{font-size:12px;color:var(--muted);padding-top:15px}.spine{position:relative}
+.spine:before{content:'';position:absolute;left:10px;top:0;bottom:0;border-left:2px solid var(--line)}
+.event:first-child .spine:before{top:21px}.event:last-child .spine:before{bottom:auto;height:21px}
+.dot{position:absolute;left:5px;top:17px;width:12px;height:12px;border-radius:50%;background:#668eae;border:2px solid var(--surface);box-shadow:0 0 0 1px #668eae}
+.attention .dot{background:#b47523;box-shadow:0 0 0 1px #b47523}.urgent .dot{background:#b64743;box-shadow:0 0 0 1px #b64743}.normal .dot{background:#438264;box-shadow:0 0 0 1px #438264}
+.surface{position:relative;margin:0 0 14px;padding:12px 18px;border-radius:12px;background:var(--surface);box-shadow:2px 2px 5px #dde5ed,-2px -2px 5px #fff;min-width:0}
+h3{padding-right:120px;font-size:16px;line-height:1.45;margin:0 0 4px;font-weight:600}.summary{color:var(--ink);margin:0;overflow-wrap:anywhere}
+.meta{color:var(--muted);font-size:12px;margin-top:4px;display:flex;flex-wrap:wrap;gap:12px}.result{margin-top:4px;color:var(--muted)}
+.risk{font-weight:600}.attention .risk{color:#936020}.urgent .risk{color:#a53f3a}.normal .risk{color:#397055}
+button{font:inherit;cursor:pointer;color:#235d8f;background:transparent;border:0;border-radius:6px;min-height:36px;padding:4px 6px;text-align:left}button:hover{background:#eaf1f8}button:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.toggle{position:absolute;right:12px;top:8px;font-size:12px;margin-top:0}.details{margin:12px 0 0;padding-top:8px;border-top:1px solid var(--line)}
+.section{position:relative;margin:0 0 0 5px;padding:8px 0 12px 22px;border-left:1px solid var(--line)}
+.section:before{content:'';position:absolute;left:0;top:21px;width:13px;border-top:1px solid var(--line)}
+.section h4{margin:0 0 7px;font-size:14px;font-weight:600}.section p{margin:4px 0}.section:last-child{padding-bottom:0}
+.steps{list-style:none;padding:0;margin:0}.steps li{margin:4px 0}.check{color:#397055;margin-right:8px}.muted{color:var(--muted);font-size:12px}
+.actions{margin:0;padding:0;list-style:none}.action{border-left:1px solid var(--line);margin-left:4px;padding:3px 0 9px 18px;position:relative}.action:before{content:'';position:absolute;left:0;top:15px;width:12px;border-top:1px solid var(--line)}
+.outcome{border-left:3px solid #84a494;padding:2px 0 2px 12px;margin-bottom:8px}.memory-label{color:#936020;font-size:12px}
+table{border-collapse:collapse;width:100%;font-size:12px;margin:8px 0}th,td{text-align:left;padding:6px;border-bottom:1px solid #dee6ee}th{font-weight:500;color:var(--muted)}
+.source{padding:7px 0;border-bottom:1px solid #dee6ee;overflow-wrap:anywhere}.source strong{font-size:12px}summary{cursor:pointer;color:#235d8f;min-height:36px;padding:5px 0}.drilldown{margin-top:8px}
+@media(max-width:600px){.event{grid-template-columns:72px 21px minmax(0,1fr)}.surface{padding:10px}.date{font-size:11px}.section{padding-left:16px}.spine:before{left:8px}.dot{left:3px}.meta{gap:6px}th,td{padding:4px}body{font-size:14px}}
+</style></head><body>
+<p class="hint">从较早到最近 · 重要变化按同一管理过程合并，展开查看系统准备、人工行动和后续结果。</p>
+<div id="timeline" class="timeline" role="region" aria-label="纵向重要健康事件时间轴"></div>
+<script>
+const send=(type,data={})=>parent.postMessage({isStreamlitMessage:true,type,...data},'*');
+const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n};
+const action=(key,kind)=>send('streamlit:setComponentValue',{value:{key,action:kind,nonce:Date.now()}});
+const lines=(parent,values)=>values.forEach(t=>parent.append(el('p',t)));
+function section(parent,title){const n=el('section',undefined,'section');n.append(el('h4',title));parent.append(n);return n}
+function details(parent,d,key){
+ const box=el('div',undefined,'details');box.id='episode-details';parent.append(box);
+ let s=section(box,'1. 当时的健康状态');lines(s,d.state);
+ if(d.progress!==null&&d.progress!==undefined)s.append(el('p',`目标进度：${d.progress}%`));
+ if(d.metrics.length){const table=el('table');table.setAttribute('aria-label','当时的关键指标');const head=el('tr');['指标','记录值','较年度基线','记录日期'].forEach(t=>head.append(el('th',t)));table.append(head);d.metrics.forEach(r=>{const tr=el('tr');[r.label,r.value,r.comparison,r.date].forEach(t=>tr.append(el('td',t)));table.append(tr)});s.append(table)}
+ s=section(box,'2. 发生了什么变化');lines(s,d.changes);
+ s=section(box,'3. 系统自动完成');const ul=el('ul',undefined,'steps');d.automatic.forEach(t=>{const li=el('li');li.append(el('span','·','check'),document.createTextNode(t));ul.append(li)});s.append(ul);
+ s=section(box,'4. 为什么需要人工');s.append(el('p',d.human_reason));
+ s=section(box,'5. 人工 / 医生做了什么');
+ if(d.care.length){const actions=el('ol',undefined,'actions');d.care.forEach(r=>{const item=el('li',undefined,'action');item.append(el('span',r.date+' · '+r.title,'muted'),el('p',r.text));actions.append(item)});s.append(actions)}else s.append(el('p','暂无关联的人工行动记录。'));
+ s=section(box,'6. 后续结果');
+ if(d.outcomes.length)d.outcomes.forEach(r=>{const item=el('div',undefined,'outcome');item.append(el('strong',r.status),el('p',r.text),el('p',r.date+' · '+r.evidence,'muted'));s.append(item)});
+ else s.append(el('p','结果待观察；尚无可核验的后续健康结果。'));
+ s.append(el('p','观察到的变化不直接证明干预的因果效果；任务完成不等于健康改善。','muted'));
+ s=section(box,'7. 长期管理经验');s.append(el('p',d.memory.status,'memory-label'),el('p',d.memory.text));
+ if(d.memory.range)s.append(el('p','依据时间范围：'+d.memory.range,'muted'));if(d.memory.source)s.append(el('p',d.memory.source,'muted'));
+ const links=el('div',undefined,'drilldown');box.append(links);
+ if(d.metric){const trend=el('button','查看相关趋势');trend.onclick=()=>action(key,'trend');links.append(trend)}
+ const sources=el('details');sources.append(el('summary','查看数据来源'));sources.setAttribute('aria-label','数据来源');
+ d.sources.forEach(r=>{const item=el('div',undefined,'source');item.append(el('strong',r.label),el('p',r.text));if(r.original)item.append(el('p','原始记录：'+r.original,'muted'));sources.append(item)});
+ if(!d.sources.length)sources.append(el('p','暂无完整来源记录。'));links.append(sources);
+ const close=el('button','收起完整过程');close.onclick=()=>action(key,'close');links.append(close);
 }
-scroll.scrollLeft=oldScroll;send('streamlit:setFrameHeight',{height:height+62});}
-window.addEventListener('message',event=>{if(event.data.type==='streamlit:render')render(event.data.args.entries||[])});send('streamlit:componentReady',{apiVersion:1});
+function render(args){const root=document.getElementById('timeline');root.replaceChildren();
+(args.entries||[]).forEach(e=>{const expanded=args.detail?.key===e.key;const row=el('article',undefined,'event '+(e.risk==='需关注'?'attention':e.risk==='优先处理'?'urgent':e.risk==='正常'?'normal':''));row.dataset.current=String(e.current);row.dataset.title=e.title;
+const date=el('time',e.date,'date');date.dateTime=e.date;const spine=el('div',undefined,'spine');spine.setAttribute('aria-hidden','true');spine.append(el('span',undefined,'dot'));
+const body=el('div',undefined,'surface');body.append(el('h3',e.title),el('p',e.summary,'summary'));const meta=el('div',undefined,'meta');meta.append(el('span',e.risk||'管理记录','risk'),el('span',e.human));body.append(meta,el('p',(e.current?'下一步：':'结果：')+e.outcome,'result'));
+const b=el('button',expanded?'收起完整过程':'查看完整过程','toggle');b.setAttribute('aria-label',e.title+' · '+e.date+' · '+(expanded?'收起完整过程':'查看完整过程'));b.setAttribute('aria-expanded',String(expanded));b.onclick=()=>action(e.key,expanded?'close':'select');body.append(b);
+if(expanded)details(body,args.detail,e.key);row.append(date,spine,body);root.append(row)});
+resize();}
+function resize(){send('streamlit:setFrameHeight',{height:Math.ceil(document.body.getBoundingClientRect().height)+12})}
+new ResizeObserver(resize).observe(document.body);
+window.addEventListener('message',event=>{if(event.data.type==='streamlit:render')render(event.data.args)});
+send('streamlit:componentReady',{apiVersion:1});
 </script></body></html>

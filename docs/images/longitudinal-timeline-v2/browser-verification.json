@@ -1,0 +1,16 @@
+{
+  "browser": "151.0.7922.34",
+  "result": "PASS",
+  "groups": 10,
+  "path": "会员 → 搜索小明 → 点击小明 → 历程",
+  "vertical": true,
+  "curved_connectors": 0,
+  "trend_drilldown": "PASS",
+  "sources_drilldown": "PASS",
+  "screenshots": 7,
+  "tests": {
+    "passed": 127,
+    "failed": 0
+  },
+  "baseline_head": "ea6c2faa5808476ad07bb3c70d2fd2a321e56b5f"
+}

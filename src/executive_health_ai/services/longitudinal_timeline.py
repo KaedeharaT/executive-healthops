@@ -356,6 +356,7 @@ class LongitudinalTimelineProjection:
                     latest_summary.completeness if latest_summary else {},active_risk.risk_level if active_risk else None))
             future=sorted((t for t in tasks if t.status not in {'COMPLETED','CANCELLED'} and t.due_at),key=lambda t:t.due_at)
             current.details={'next':f'{future[0].due_at:%Y-%m-%d} · {future[0].title}' if future else '等待后续资料或负责人确认下一步',
+                'open_items':sum(t.status not in {'COMPLETED','CANCELLED'} for t in tasks),
                 'goal':g.title if g else '尚未确认管理目标',
                 'progress':progress(g,metrics.get(g.metric_code,{}).get('value')) if g else {}}
             upcoming=sorted((r for r in rechecks if r.planned_at>=now and r.status not in {'COMPLETED','CANCELLED'}),key=lambda r:r.planned_at)
@@ -436,6 +437,8 @@ class LongitudinalTimelineProjection:
                 text=next((getattr(row,k) for k in ('evidence','raw_note','opinion','content','summary','result','description','title') if getattr(row,k,None)),label)
                 if isinstance(row,DoctorReview):text=f'{row.doctor_name} · {row.department} · {row.reviewed_at:%Y-%m-%d}：{row.opinion}'
                 if isinstance(row,DailyHealthSummary):text=f'{row.summary_date:%Y-%m-%d} · 根据当天有效测量计算的健康摘要'
+                if isinstance(text,dict):
+                    text='；'.join(str(k)+'：'+str(v) for k,v in text.items() if isinstance(v,(str,int,float)))
                 sources.append({'label':label,'text':str(text),'original':'','corrected':False})
         auto=[]
         for source in source_references(e.source_refs):
@@ -454,3 +457,135 @@ class LongitudinalTimelineProjection:
             view.episodes[e.care_episode_id].outcome_status if e.care_episode_id in view.episodes else e.details.get('outcome','结果待观察'))
         return {'entry':e,'related':linked,'sources':sources,'automatic':auto,'outcome':outcome,
             'outcomes':later_outcomes if e.track=='CARE_ACTION' else [r for r in linked if r.entry_type=='OUTCOME']}
+
+    def groups(self, view):
+        """Presentation groups over existing entries, never inferred clinical links.
+
+        Episode membership is authoritative. Phase/goal grouping only organizes
+        their own records; it does not claim that a phase caused an outcome.
+        """
+        buckets = {}
+        key_types = {'ANNUAL_BASELINE','HEALTH_ASSESSMENT','MEANINGFUL_CHANGE','RISK_CHANGE',
+            'DOCTOR_DECISION','PHASE_REVIEW','PHASE_STARTED','CURRENT_STATE','OUTCOME',
+            'GOAL_CONFIRMED','PLAN_CONFIRMED','MEDICATION_CHANGE','MEDICATION_END'}
+        for e in view.entries:
+            if e.care_episode_id:
+                key = e.care_episode_id
+            elif e.entry_type in {'GOAL_CONFIRMED','PLAN_CONFIRMED'} and e.goal_id:
+                key = 'goal:'+e.goal_id
+            elif e.entry_type in {'PHASE_STARTED','PHASE_REVIEW'} and e.phase_id:
+                key = 'phase:'+e.phase_id
+            elif e.entry_type in key_types:
+                key = e.entry_id
+            else:
+                continue  # Ordinary calls/logs remain in episode drill-down.
+            buckets.setdefault(key, []).append(e)
+        # A legacy member may have only narrative records. Keep them accessible
+        # as one archive group rather than inventing a change or an episode.
+        if all(e.entry_type=='CURRENT_STATE' for rows in buckets.values() for e in rows):
+            legacy=[e for e in view.entries if e.entry_type in {'CARE_CONTACT','FOLLOWUP','COMMUNICATION'}]
+            if legacy:buckets['legacy-care']=legacy
+        groups = []
+        for key, visible in buckets.items():
+            members = sorted((e for e in view._all_entries if e.care_episode_id == key),
+                key=lambda e:(e.occurred_at,e.entry_id)) if key in view.episodes else visible
+            members = sorted(members,key=lambda e:(e.occurred_at,e.entry_id))
+            trigger = next((e for e in members if e.entry_type in {'MEANINGFUL_CHANGE','RISK_CHANGE'}), members[0])
+            if key.startswith('phase:'):
+                trigger=next((e for e in reversed(members) if e.entry_type=='PHASE_REVIEW'),trigger)
+            current = next((e for e in members if e.entry_type=='CURRENT_STATE'),None)
+            if current:trigger=current
+            doctor = any(e.entry_type=='DOCTOR_DECISION' for e in members)
+            outcomes = [e for e in members if e.entry_type=='OUTCOME' and e.occurred_at>=trigger.occurred_at]
+            title = trigger.title
+            if key in view.episodes:
+                title = ('睡眠管理事件' if trigger.metric=='sleep_duration' else
+                    '复查与医生协同' if doctor else METRIC_LABELS.get(trigger.metric,'健康变化')+'管理事件')
+            elif key.startswith('goal:'):title='确认目标与年度计划'
+            elif key.startswith('phase:'):
+                phase_title=next((e.summary for e in members if e.entry_type=='PHASE_STARTED'),'')
+                title='阶段复盘 · '+phase_title if trigger.entry_type=='PHASE_REVIEW' else phase_title
+            elif key=='legacy-care':title='历史管理记录'
+            human = '需要医生' if doctor else '需要健管' if trigger.risk_level=='YELLOW' else (
+                '优先人工处理' if trigger.risk_level=='RED' else '系统自动处理' if trigger.risk_level=='GREEN' else '已有管理记录')
+            result = '后续观察到'+outcomes[-1].summary+'（'+outcomes[-1].status+'）' if outcomes else (
+                trigger.details.get('next','继续当前管理') if current else '结果待观察')
+            if not outcomes and not current:
+                result={'ANNUAL_BASELINE':'已确认基线，作为后续比较依据',
+                    'GOAL_CONFIRMED':'管理目标已人工确认',
+                    'PHASE_REVIEW':'已记录阶段复盘，健康结果以测量和医生记录为准',
+                    'PHASE_STARTED':'已进入该阶段，持续记录执行与结果'}.get(trigger.entry_type,result)
+            groups.append({'key':key,'entry':trigger,'members':members,'title':title,'human':human,
+                'outcome':result,'outcomes':outcomes,'current':bool(current),'doctor':doctor})
+        return sorted(groups,key=lambda g:(g['current'],g['entry'].occurred_at,g['key']))
+
+    def overview(self, view):
+        """Deterministic counts and comparable, dated facts from this projection."""
+        current=next((e for e in view.entries if e.entry_type=='CURRENT_STATE'),None)
+        baselines=[e for e in view.entries if e.entry_type=='ANNUAL_BASELINE' and e.snapshot]
+        state=[]
+        if current and current.snapshot:
+            weight=current.snapshot.metric_summary.get('weight')
+            baseline=next((e.snapshot.metric_summary['weight'] for e in reversed(baselines)
+                if 'weight' in e.snapshot.metric_summary and weight and e.snapshot.metric_summary['weight']['unit']==weight['unit']),None)
+            if baseline:state.append('体重：'+number(baseline['value'])+' → '+number(weight['value'])+' '+weight['unit'])
+        sleep=[g for g in self.groups(view) if g['entry'].metric=='sleep_duration']
+        for g in sleep:
+            state.append(f"{g['entry'].occurred_at:%m}月睡眠出现重要变化；"+g['outcome'])
+        if not state:state.append(view.story)
+        counts={label:sum(e.entry_type in kinds for e in view.entries) for label,kinds in {
+            '健管随访':{'CARE_CONTACT','FOLLOWUP'},'医生协同':{'DOCTOR_DECISION'},
+            '计划调整':{'PLAN_ADJUSTMENT'},'阶段复盘':{'PHASE_REVIEW'}}.items()}
+        counts['健管随访']=sum(e.entry_type=='FOLLOWUP' or e.entry_type=='CARE_CONTACT' and e.title=='健管随访' for e in view.entries)
+        # One risk per episode, not one count per risk/action/outcome node.
+        attention=sum(g['entry'].risk_level in {'YELLOW','RED'} for g in self.groups(view)
+            if g['entry'].entry_type in {'MEANINGFUL_CHANGE','RISK_CHANGE'})
+        conclusion=[RISK_LABELS.get(current.risk_level,'尚无正式风险结论') if current else '尚无当前状态记录',
+            current.details.get('goal','尚未确认管理目标') if current else '等待更多健康记录']
+        return {'state':state,'actions':[f'{n} 次{label}' for label,n in counts.items()],
+            'conclusion':conclusion,'attention':attention}
+
+    def group_details(self, session, view, group):
+        """Evidence-backed preparation, human responsibility and memory candidate.
+
+        Candidate memory quotes explicitly linked management decisions and outcomes;
+        it is neither a confirmed fact nor a persistent/LLM-generated memory.
+        """
+        from dataclasses import replace
+        whole=replace(view,entries=view._all_entries)
+        e=group['entry'];base=self.details(session,whole,e.entry_id)
+        look=e.details.get('lookback') or {}
+        automatic=list(base['automatic'])
+        history=look.get('history_30d') or []
+        if history:
+            automatic.append(f"已回溯 {len(history)} 个有记录日期的相关指标（{history[-1]['date']} 至 {history[0]['date']}）")
+        metrics={code for day in history for code in (day.get('metrics') or {})}
+        if metrics.intersection({'steps','exercise_minutes'}):automatic.append('已整理同期活动数据，供对照变化')
+        if look.get('annual_baseline'):automatic.append('已比较留存的个人年度基线')
+        if look.get('goal'):automatic.append('已查看当时目标：'+look['goal']['title'])
+        for field,label in [('management_logs','相关管理记录'),('doctor_opinions','相关医生意见')]:
+            if field in look:automatic.append(f"已检查{label}：找到 {len(look[field] or [])} 条")
+        care=[r for r in group['members'] if r.track=='CARE_ACTION']
+        if group['doctor']:
+            reason=next((r.details.get('question') for r in care if r.entry_type=='DOCTOR_DECISION' and r.details.get('question')), '医学判断需由医生负责。')
+        elif e.risk_level in {'YELLOW','RED'}:
+            reason=(e.details.get('change') or {}).get('reason') or e.summary
+            reason+='；需要人工核实原因并决定后续安排。'
+        elif group['human']=='系统自动处理':reason='已记录为正常管理范围，由系统按获准流程推进。'
+        else:reason='此记录未留存单独的人工介入原因，不补推断。'
+        sources=[];seen=set()
+        for item in group['members']:
+            for source in self.details(session,whole,item.entry_id)['sources']:
+                key=(source['label'],source['text'],source['original'])
+                if key not in seen:sources.append(source);seen.add(key)
+        adjustments=[r for r in care if r.entry_type=='PLAN_ADJUSTMENT' and r.details.get('reason')]
+        memory={'status':'尚未形成','text':'尚无可追溯的长期管理经验记录。','sources':[], 'time_range':None}
+        if adjustments:
+            decision=adjustments[-1]
+            memory={'status':'候选，待后续验证',
+                'text':'可沉淀经验：已记录的执行障碍 / 调整原因「'+decision.details['reason']+'」。'+
+                    group['outcome']+'。这些记录尚不能证明干预因果，也不是已确认的长期经验。',
+                'sources':decision.source_refs+[s for r in group['outcomes'] for s in r.source_refs],
+                'time_range':(e.occurred_at.date().isoformat(),max(r.occurred_at for r in group['members']).date().isoformat())}
+        return {**base,'automatic':list(dict.fromkeys(automatic)), 'human_reason':reason,'care':care,
+            'memory':memory,'sources':sources,'history':history,'outcomes':group['outcomes']}

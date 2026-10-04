@@ -90,7 +90,11 @@ def test_timeline_renderer_no_crash(existing,monkeypatch,kind):
     if kind=='old_log':old_log(db,p)
     db.commit()
     monkeypatch.setattr(ui,'SessionLocal',factory)
-    monkeypatch.setattr(ui,'_track',lambda **kw:kw['entries'][0]['key'] if kw['entries'] else None)
+    payloads=[]
+    def select_first(**kw):
+        payloads.append(kw)
+        return kw['entries'][0]['key'] if kw['entries'] else None
+    monkeypatch.setattr(ui,'_track',select_first)
     app=AppTest.from_string(f'''
 from types import SimpleNamespace
 from uuid import UUID
@@ -99,7 +103,8 @@ render(None,SimpleNamespace(id=UUID('{p.id}')))
 ''').run(timeout=30)
     assert not app.exception and not app.error
     content=' '.join(str(item.value) for item in [*app.markdown, *app.caption])
-    assert '当前还没有足够的纵向健康记录' in content if kind=='empty' else '当时的健康状态' in content
+    if kind=='empty':assert '当前还没有足够的纵向健康记录' in content and not payloads
+    else:assert payloads[-1]['detail']['state'] and payloads[-1]['detail']['sources']
 
 
 def test_timeline_formal_db_schema_upgrade_preserves_old_records(tmp_path,monkeypatch):
