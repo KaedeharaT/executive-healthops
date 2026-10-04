@@ -414,6 +414,9 @@ def specifications(args):
 
 
 def preflight(args, entries):
+    if args.profile != 'qa':
+        from executive_health_ai.services.schema_readiness import require_longitudinal_schema
+        require_longitudinal_schema()
     previous = read_state(state_path(args.instance))
     if alive(previous):
         raise RuntimeError(f"{args.instance} is already running. Stop it first with stop_platform.ps1 -Instance {args.instance}.")

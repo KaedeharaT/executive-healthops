@@ -28,6 +28,12 @@ def identity(source):
     return source['type'] + ':' + source['id']
 
 
+def source_references(sources):
+    """Nullable legacy references are absent evidence, never fabricated links."""
+    return [source for source in (sources or []) if isinstance(source,dict)
+            and source.get('type') and source.get('id')]
+
+
 def at_day(day):
     return datetime.combine(day, time(12), timezone.utc)
 
@@ -106,7 +112,7 @@ def baseline_metrics(row):
         if code in REGISTRY and isinstance(value, (int, float, str)):
             try: result[code] = {'value':number(Decimal(str(value))), 'unit':REGISTRY[code].default_unit}
             except InvalidOperation: pass  # Never guess a unit from free text.
-    for item in data.get('key_metrics', []):
+    for item in data.get('key_metrics') or []:
         code = item.get('metric') if isinstance(item, dict) else None
         if code in REGISTRY and item.get('value') is not None:
             result[code] = {'value':str(item['value']), 'unit':item.get('unit') or REGISTRY[code].default_unit}
@@ -179,11 +185,12 @@ class LongitudinalTimelineProjection:
         for event in sorted(events,key=lambda e:e.received_at):
             data=event.payload_ref or {}
             if event.event_type=='CARE_EPISODE_LINK':
-                for source in data.get('links',[]): episode_refs[identity(source)]='change:'+data['trigger_id']
+                if data.get('trigger_id'):
+                    for source in source_references(data.get('links')):episode_refs[identity(source)]='change:'+data['trigger_id']
         risk_episodes = {}; agent_episodes = {}
         for event in events:
             if event.event_type!='MEANINGFUL_CHANGE':continue
-            data=event.payload_ref or {}; change=data.get('change',{}); look=data.get('lookback',{})
+            data=event.payload_ref or {}; change=data.get('change') or {}; look=data.get('lookback') or {}
             code=change.get('metric'); episode='change:'+str(event.id)
             risk_data=data.get('risk_evaluation') or {}
             risk_id=data.get('risk_event_id') or risk_data.get('risk_event_id')
@@ -194,15 +201,16 @@ class LongitudinalTimelineProjection:
             if risk:risk_episodes[str(risk.id)]=episode
             if event.goal_id:agent_episodes[str(event.goal_id)]=episode
             metrics={code:{'value':change.get('today'),'unit':REGISTRY[code].default_unit}} if code in REGISTRY and change.get('today') is not None else {}
-            version=int(data.get('summary_version',1))
+            version=int(data.get('summary_version') or 1)
             if data.get('summary_id'):
                 summary=session.get(DailyHealthSummary,UUID(data['summary_id']))
                 if summary and summary.patient_id==member_id:
                     revision=session.scalar(select(DailySummaryRevision).where(DailySummaryRevision.summary_id==summary.id,DailySummaryRevision.version==version))
-                    metrics=(revision.snapshot if revision else {}).get('metrics',metrics)
+                    metrics=(revision.snapshot or {} if revision else {}).get('metrics') or metrics
                     metrics={k:v for k,v in metrics.items() if k==code}
             refs=[ref(event)]
-            for oid in data.get('observation_ids',[]):
+            for oid in data.get('observation_ids') or []:
+                if not oid:continue
                 obs=session.get(Observation,UUID(str(oid)))
                 if obs and obs.patient_id==member_id:refs.append(ref(obs))
             goal_id=data.get('goal_id')
@@ -404,7 +412,7 @@ class LongitudinalTimelineProjection:
         sources=[]
         from executive_health_ai.services.care_episodes import MODELS
         models={**MODELS, 'HealthAssessment':HealthAssessment,'MedicationPlan':MedicationPlan,'DailyHealthSummary':DailyHealthSummary,'ProgramPhase':ProgramPhase}
-        for source in e.source_refs:
+        for source in source_references(e.source_refs):
             model=models.get(source['type'])
             row=session.get(model,UUID(source['id'])) if model else None
             if not row:continue
@@ -416,7 +424,7 @@ class LongitudinalTimelineProjection:
                 from executive_health_ai.services.data_provenance import detail
                 provenance=detail(session,row)
                 raw=session.get(RawData,row.raw_record_id) if row.raw_record_id else None
-                payload=raw.payload_json if raw and raw.patient_id==view.member_id else {}
+                payload=(raw.payload_json or {}) if raw and raw.patient_id==view.member_id else {}
                 original=payload.get('original_text') or payload.get('original_value') or (payload.get('payload') or {}).get('original_text') or ''
                 sources.append({'label':METRIC_LABELS.get(row.metric_code,row.metric_code),'text':f'{row.observed_at:%Y-%m-%d} · {row.evidence_ref or row.source_type or "测量记录"} · {number(row.value_numeric)} {row.unit}',
                     'original':str(original),'corrected':provenance['corrected']})
@@ -430,7 +438,7 @@ class LongitudinalTimelineProjection:
                 if isinstance(row,DailyHealthSummary):text=f'{row.summary_date:%Y-%m-%d} · 根据当天有效测量计算的健康摘要'
                 sources.append({'label':label,'text':str(text),'original':'','corrected':False})
         auto=[]
-        for source in e.source_refs:
+        for source in source_references(e.source_refs):
             if source['type']!='HealthEvent':continue
             event=session.get(HealthEvent,UUID(source['id']))
             if not event or event.member_id!=view.member_id or not event.goal_id:continue
