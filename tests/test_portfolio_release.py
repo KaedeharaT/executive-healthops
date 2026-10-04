@@ -14,6 +14,7 @@ LANDING_SHELL = ROOT / "src" / "executive_health_ai" / "ui" / "pages" / "shell.p
 def test_portfolio_release_assets_are_present() -> None:
     for relative_path in (
         "README.md",
+        "README_zh.md",
         "portfolio/RESUME_PROJECT_ENTRY_ZH.md",
         "portfolio/DEMO_VIDEO_SCRIPT_ZH.md",
         "portfolio/PORTFOLIO_RELEASE_NOTES.md",
@@ -37,10 +38,16 @@ def test_portfolio_fixture_version_check_rejects_missing_database(tmp_path) -> N
 
 def test_portfolio_readme_states_non_clinical_and_privacy_boundaries() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "Research / Portfolio Prototype" in readme
-    assert "不自动诊断" in readme
-    assert "Clinical RiskRule" in readme
-    assert "真实成员资料" in readme
+    chinese = (ROOT / "README_zh.md").read_text(encoding="utf-8")
+    assert "Research / portfolio prototype" in readme
+    assert "does not autonomously diagnose disease" in readme
+    assert "An LLM cannot set or downgrade it" in readme
+    assert "not real patient records" in readme
+    assert "HealthOps 不自主诊断疾病" in chinese
+    assert "LLM 不能设置或降低风险" in chinese
+    assert "不是真实患者资料" in chinese
+    assert "[中文文档](README_zh.md)" in readme
+    assert "[English](README.md)" in chinese
 
 
 def test_portfolio_landing_is_opt_in_and_uses_the_isolated_demo_mode() -> None:
