@@ -226,7 +226,7 @@ def test_detailed_spine_is_chronological_without_calendar_day_spacing() -> None:
     assert [index for index, _ in enumerate(clusters)] == [0, 1, 2, 3]
 
 
-def test_timeline_range_slider_changes_the_user_path_without_widget_state_error() -> None:
+def test_member_history_defaults_to_year_and_filters_without_widget_state_error() -> None:
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "streamlit_app.py")
     app.run(timeout=30)
     next(item for item in app.radio if item.label == "工作区").set_value("成员")
@@ -235,16 +235,16 @@ def test_timeline_range_slider_changes_the_user_path_without_widget_state_error(
     app.run(timeout=30)
     next(item for item in app.radio if item.label == "成员页面").set_value("历程")
     app.run(timeout=30)
-    slider = next(item for item in app.slider if item.label == "健康历程时间范围")
-    latest = datetime.fromtimestamp(slider.max / 1_000_000, tz=TOKYO_TIMEZONE).date()
-    slider.set_value((latest - timedelta(days=30), latest))
+    selector = next(item for item in app.radio if item.label == "历程筛选")
+    assert selector.options == ['全部','健康变化','管理行动','医疗','阶段']
+    selector.set_value('健康变化')
     app.run(timeout=30)
     assert not app.exception
-    slider = next(item for item in app.slider if item.label == "健康历程时间范围")
-    assert slider.value[1] - slider.value[0] <= timedelta(days=31)
+    assert next(item for item in app.radio if item.label == '历程筛选').value=='健康变化'
+    assert any('较早 → 最近' in str(item.value) for item in app.caption)
 
 
-def test_timeline_shortcut_and_slider_remain_synchronized() -> None:
+def test_member_history_filter_survives_rerun_without_extra_navigation() -> None:
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "streamlit_app.py")
     app.run(timeout=30)
     next(item for item in app.radio if item.label == "工作区").set_value("成员")
@@ -254,12 +254,13 @@ def test_timeline_shortcut_and_slider_remain_synchronized() -> None:
     next(item for item in app.radio if item.label == "成员页面").set_value("历程")
     app.run(timeout=30)
 
-    next(item for item in app.button if item.label == "近7天").click()
+    next(item for item in app.radio if item.label == '历程筛选').set_value('医疗')
     app.run(timeout=30)
 
     assert not app.exception
-    slider = next(item for item in app.slider if item.label == "健康历程时间范围")
-    assert (slider.value[1] - slider.value[0]).days <= 7
+    app.run(timeout=30)
+    assert next(item for item in app.radio if item.label == '历程筛选').value=='医疗'
+    assert next(item for item in app.radio if item.label == '成员页面').value=='历程'
 
 
 def test_trend_is_data_only_and_major_event_strip_is_removed() -> None:
@@ -421,7 +422,13 @@ def test_grid_selection_only_updates_the_single_inspector() -> None:
     assert timeline.count("with inspector.container(border=True)") >= 2
 
 
-def test_clicking_a_timeline_card_updates_the_inspector_without_a_view_button() -> None:
+def test_timeline_component_selection_updates_inline_details_without_view_button(monkeypatch) -> None:
+    from executive_health_ai.ui.pages.manager import longitudinal_timeline
+    selected=[]
+    def select_entry(**kwargs):
+        entries=kwargs['entries'];selected.extend(entries)
+        return entries[0]['key'] if entries else None
+    monkeypatch.setattr(longitudinal_timeline,'_track',select_entry)
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "streamlit_app.py")
     app.run(timeout=30)
     next(item for item in app.radio if item.label == "工作区").set_value("成员")
@@ -431,13 +438,11 @@ def test_clicking_a_timeline_card_updates_the_inspector_without_a_view_button() 
     next(item for item in app.radio if item.label == "成员页面").set_value("历程")
     app.run(timeout=30)
 
-    cards = [item for item in app.button if item.key and item.key.startswith("timeline-card-select-")]
-    assert cards and all("查看" not in item.label for item in cards)
-    cards[0].click()
-    app.run(timeout=30)
-
+    assert selected
     assert not app.exception
-    assert any("2026-" in str(item.value) for item in app.markdown)
+    assert any('当时的健康状态' in str(item.value) for item in app.markdown)
+    assert any('数据来源' in str(item.value) for item in app.markdown)
+    assert not any(item.label=='查看详情' for item in app.button)
 
 
 def test_range_still_filters_the_rows_without_calendar_spacing() -> None:

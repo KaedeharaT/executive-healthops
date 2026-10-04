@@ -1211,7 +1211,7 @@ class HealthTimelineService:
         risk_query = select(RiskEvent).where(RiskEvent.patient_id == member_id)
         problem_query = select(HealthProblem).where(HealthProblem.patient_id == member_id)
         medication_query = select(MedicationPlan).where(MedicationPlan.patient_id == member_id)
-        health_event_query = select(HealthEvent).where(HealthEvent.patient_id == member_id, HealthEvent.event_category.is_(None))
+        health_event_query = select(HealthEvent).where(HealthEvent.patient_id == member_id, HealthEvent.event_category.is_(None), HealthEvent.event_type != 'CARE_EPISODE_LINK')
         review_query = select(DoctorReview).where(DoctorReview.patient_id == member_id)
         program_query = select(HealthProgram).where(HealthProgram.patient_id == member_id)
         referral_query = select(ExternalReferral).where(ExternalReferral.patient_id == member_id)

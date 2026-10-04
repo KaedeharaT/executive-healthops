@@ -185,7 +185,11 @@ def plan(app, patient, ctx):
 def timeline(app: TimelineAdapter, patient, *, client_view=True):
     """Contain unexpected rendering failures without exposing health data or paths."""
     try:
-        _timeline_content(app, patient, client_view=client_view)
+        if client_view:
+            _timeline_content(app, patient, client_view=True)
+        else:
+            from executive_health_ai.ui.pages.manager.longitudinal_timeline import render
+            render(app, patient)
     except Exception:
         logger.exception("member_timeline_render_failed")
         st.error("健康历程暂时无法加载，请稍后重试。")

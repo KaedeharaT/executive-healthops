@@ -150,13 +150,17 @@ def record_weekly_review(session: Session, program: HealthProgram, week_number: 
     return review
 
 
-def record_outcome_evaluation(session: Session, program: HealthProgram, metric: str, baseline_value: str, current_value: str, unit: str, direction: str, evaluator: str, evidence: str, result: str, target_value: str | None = None, notes: str | None = None, evaluation_date: date | None = None) -> OutcomeEvaluation:
+def record_outcome_evaluation(session: Session, program: HealthProgram, metric: str, baseline_value: str, current_value: str, unit: str, direction: str, evaluator: str, evidence: str, result: str, target_value: str | None = None, notes: str | None = None, evaluation_date: date | None = None, *, care_trigger_id: UUID | None = None) -> OutcomeEvaluation:
     if result not in OUTCOME_RESULTS:
         raise ValueError("Unsupported outcome result.")
     outcome = OutcomeEvaluation(patient_id=program.patient_id, program_id=program.id, metric=metric, baseline_value=baseline_value, current_value=current_value, target_value=target_value, unit=unit, direction=direction, evaluation_date=evaluation_date or date.today(), evaluator=evaluator, evidence=evidence, result=result, notes=notes)
     session.add(outcome)
     session.flush()
     _audit(session, program.patient_id, evaluator, "health_manager", "recorded_outcome_evaluation", outcome, {"result": result, "metric": metric})
+    if care_trigger_id:
+        from executive_health_ai.services.care_episodes import link_care_episode
+        link_care_episode(session, program.patient_id, care_trigger_id,
+            links=[{'type':'OutcomeEvaluation','id':str(outcome.id)}], actor=evaluator, role='HEALTH_MANAGER')
     return outcome
 
 
