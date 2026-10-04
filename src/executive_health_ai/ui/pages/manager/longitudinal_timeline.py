@@ -18,14 +18,14 @@ _track = components.declare_component('health_history_tracks', path=str(Path(__f
 def public_text(value):
     if isinstance(value,dict):
         return '；'.join(public_text(v) for k,v in value.items() if not re.search('[a-zA-Z_]',str(k))) or '已保留原始业务记录'
-    text=ux.business_text(str(value or ''))
+    text=str(value or '')
     text=re.sub(r'\b[0-9a-f]{8}-[0-9a-f-]{27,}\b', '相关记录', text, flags=re.I)
     text=re.sub(r'\b[0-9a-f]{32}\b','相关记录',text,flags=re.I)
     for term in ('correlation_id','Snapshot ID','Trace ID','ToolCall','Tool call','HealthEvent','LLM Provider','LLM provider','Planner','JSON','Goal ID'):
         text=re.sub(re.escape(term),'内部记录',text,flags=re.I)
     # Source records from older modules sometimes serialized a dict as text.
     if text.lstrip().startswith(('{','[')):return '已保留原始业务记录；请通过健康档案核对。'
-    return text
+    return ux.business_text(text)
 
 
 def display_value(value, unit):
@@ -139,7 +139,8 @@ def render(app, patient):
         payload=detail_payload(group,projection.group_details(session,view,group)) if group else None
         entries=[{'key':g['key'],'date':g['entry'].occurred_at.strftime('%Y-%m-%d'),'title':public_text(g['title']),
             'summary':change_text(g['entry']),'risk':RISK_LABELS.get(g['entry'].risk_level,''),
-            'human':g['human'],'outcome':public_text(g['outcome']),'current':g['current']} for g in visible]
+            'human':g['human'],'outcome':public_text(g['outcome']),'current':g['current'],
+            'care_summary':'；'.join(dict.fromkeys(public_text(e.title) for e in g['members'] if e.track=='CARE_ACTION')) or '暂无关联管理动作'} for g in visible]
         if not entries:st.info('本时段没有符合筛选的重要事件。')
         else:
             selected_value=_track(entries=entries,detail=payload,selected=selected,

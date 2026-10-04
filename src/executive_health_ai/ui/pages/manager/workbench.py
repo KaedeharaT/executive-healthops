@@ -43,6 +43,17 @@ def today(app):
             st.success('本次处理已完成，后续需要您处理的事情会重新进入今日工作。')
         return
     c.page_shell('manager', '今日工作','从待办开始，完成后继续下一项。')
+    c.summary_strip([('需要优先处理',sum(c.work_level(i)=='RED' for i in items)),
+                     ('需要您确认',sum(c.work_level(i)=='YELLOW' for i in items)),('已完成',len(history))])
+    first=items[0] if items else None
+    c.priority_strip(c.work_level(first) if first else 'GREEN',
+        app._member_display(people.get(first.member_id))+' · '+first.title if first else '当前没有需要您处理的事项。',
+        next_action=first.next_action if first else '按现有计划继续跟进，新的事项会出现在这里。')
+    if first and st.button('立即处理' if c.work_level(first)=='RED' else '查看并确认',type='primary',key='today-first'):
+        if first.source_type in {'post_checkup','profile_intake'}:
+            st.session_state['care-detail']=str(first.source_id);st.session_state['care-origin']='今日工作'
+        else:st.session_state['today-detail']=(first.source_type,str(first.source_id))
+        st.rerun()
     main,rail=st.columns([3.25,1],gap='large')
     with main,st.container(key='v7-main-today'):
         st.subheader('当前工作队列')
@@ -50,7 +61,7 @@ def today(app):
         groups={'全部':items+history,'待处理':items,'异常':list({(i.source_type,i.source_id):i for i in exceptional+[i for i in items if i.priority<=1]}.values()),'已完成':history}
         bucket=st.radio('事项范围',list(groups),index=1,horizontal=True,format_func=lambda label:label+' '+str(len(groups[label])),key='v7-work-bucket')
         selected_items=groups[bucket]
-        with st.container(key='soft-filter-today'):
+        with st.expander('查找与筛选'):
             a,b,d = st.columns([1,2,1])
             scope = a.selectbox('工作筛选', ['全部','今天','需关注','医疗','复查','服务','管理','逾期','等待医生','等待会员'], key='v5-work-scope')
             search = b.text_input('查找待办', placeholder='搜索会员或需要处理的事情', key='v2-work-search').strip().casefold()
@@ -62,8 +73,10 @@ def today(app):
                 (i.source_type in {'doctor_review','consultation','baseline_review','legacy_medical_review','risk_event'}) == (scope=='医疗')]
         visible = [i for i in scoped if (owner=='全部' or (i.owner or '待分配')==owner)
             and (not search or search in (app._member_display(people.get(i.member_id))+i.title+i.reason+i.next_action).casefold())]
-        item = data_table(visible, [{'会员':app._member_display(people.get(i.member_id)), '事项':i.title, '当前阶段':progress(i), '负责人':i.owner,
-            '时间':ux.local_time(i.due_at), '状态':('优先处理 · ' if i.priority == 0 else '') + (status_label(i.status,context='service_request') if i.source_type=='service_request' else status_label(i.status))} for i in visible],
+        visible=sorted(visible,key=lambda i: {'RED':0,'YELLOW':1,'GREEN':2}[c.work_level(i)])
+        item = data_table(visible, [{'优先级':{'RED':'🔴 优先处理','YELLOW':'🟠 需要确认','GREEN':'🟢 正常跟进'}[c.work_level(i)],
+            '会员':app._member_display(people.get(i.member_id)), '现在发生什么':ux.business_text(i.title), '谁来处理':i.owner,
+            '截止时间':ux.local_time(i.due_at), '当前操作':ux.business_text(i.next_action)} for i in visible],
             key='today-work-grid', auto_select=False, activate_on_cell=True, empty='当前没有需要处理的工作。')
         if item:
             if item.source_type in {'post_checkup','profile_intake'}:
@@ -73,23 +86,11 @@ def today(app):
                 st.session_state['today-detail'] = (item.source_type, str(item.source_id))
             st.rerun()
     with rail,st.container(key='v7-context-today'):
-        st.subheader('工作概况')
-        c.summary_strip([('待处理',len(items)),('逾期',len(work_filter(items,'逾期',now))),('等待医生',len(work.pending_doctor))])
-        st.caption(f"自动管理 {automatic['managed']} · 无需人工 {automatic['no_human']} · 需关注 {automatic['attention']} · 优先处理 {automatic['urgent']}")
-        st.divider()
-        st.markdown('**我的待办**')
-        for i in items[:3]:
-            st.caption(app._member_display(people.get(i.member_id))+' · '+ux.business_text(i.title)+' · '+ux.when(i.due_at))
-        st.divider()
-        st.markdown('**快捷动作**')
-        if st.button('新会员',key='today-enroll'):
-            st.session_state['v7-enroll-open']=True
-            app.request_navigation(surface='运营后台',ops_page='成员')
-        st.divider()
         assistant(app,people)
 
 
 def work_detail(app, item, member):
+    c.priority_strip(c.work_level(item),item.title,next_action=item.next_action)
     from executive_health_ai.ui.pages.manager import workflow
     from executive_health_ai.ui.pages.manager.assistant import progress
     from sqlalchemy import select
@@ -158,9 +159,8 @@ def work_detail(app, item, member):
         if st.button('查看会员相关资料',type='primary'):
             st.session_state['member-return-origin']='今日工作'
             app._open_member_management(member.id)
-    st.subheader('系统已经完成')
-    st.write(progress(item))
     with st.expander('关键信息 / 数据 / 依据'):
+        st.write('已完成：'+ux.business_text(progress(item)))
         st.write(ux.business_text(item.reason))
         data_table(view.documents,[{'报告':d.title,'时间':ux.local_time(d.created_at)} for d in view.documents],key='work-docs',selectable=False)
     st.subheader('接下来')
@@ -178,7 +178,8 @@ def open_directory_member(app, member):
 
 def directory(app, members):
     from executive_health_ai.ui.pages.manager import workflow
-    c.page_shell('manager','会员','搜索和筛选会员，找到某个人，进入 Member360 概览。')
+    c.page_shell('manager','会员','搜索姓名，点击会员查看近况与下一步。')
+    st.caption('列表右侧可删除会员：停止当前流程，保留历史记录。')
     # Always reserve the feedback slot: an optional success message used to
     # shift the filter block's delta path and briefly retain its old DOM copy.
     with st.container(key='member-directory-feedback'):
@@ -204,7 +205,7 @@ def directory(app, members):
         age=str(now.year-born.year-((now.month,now.day)<(born.month,born.day))) if born else '未记录'
         records.append({'会员':app._member_display(person)+(' · 演示' if (person.external_id or '').startswith('synthetic-demo-') else ''), '年龄 / 性别':age+' / '+{'male':'男','female':'女','MALE':'男','FEMALE':'女'}.get(person.sex,'未记录'),
             '当前阶段':phase.title if phase else app.display_program_phase(p.current_phase) if p else '待建档',
-            '责任健管':p.owner if p else '待分配','当前服务':r['service'],
+            '责任健管':p.owner if p else '待分配',
             '下一行动':'查看历史资料（只读）' if person.archived_at else t.title if t else '待确认安排',
             '状态':'已归档' if person.archived_at else status_label(p.status) if p else '待建档',
             '操作':'—' if person.archived_at else '删除'})

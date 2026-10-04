@@ -14,6 +14,8 @@
 h3{padding-right:120px;font-size:16px;line-height:1.45;margin:0 0 4px;font-weight:600}.summary{color:var(--ink);margin:0;overflow-wrap:anywhere}
 .meta{color:var(--muted);font-size:12px;margin-top:4px;display:flex;flex-wrap:wrap;gap:12px}.result{margin-top:4px;color:var(--muted)}
 .risk{font-weight:600}.attention .risk{color:#936020}.urgent .risk{color:#a53f3a}.normal .risk{color:#397055}
+.tracks{display:grid;grid-template-columns:1fr 1fr;gap:24px;position:relative;margin:10px 0}.lane{border-left:3px solid #789bb8;padding:3px 0 3px 12px;position:relative}.lane:before{content:'';position:absolute;left:-3px;top:0;width:13px;border-top:2px solid #789bb8}.lane-care{border-color:#8b9ca9}.lane-title{display:block;font-size:12px;color:#52677d;margin-bottom:4px}.attention .surface{border-left:5px solid #9b6413}.urgent .surface{border-left:5px solid #ad3c36}.event[data-current="true"] .surface{border:2px solid #367652}.attention .risk,.urgent .risk,.normal .risk{padding:3px 9px;border:1px solid currentColor;border-radius:5px}.result{padding:8px 0;border-top:1px solid #dce5ef}
+@media(max-width:650px){.tracks{grid-template-columns:1fr;gap:12px}}
 button{font:inherit;cursor:pointer;color:#235d8f;background:transparent;border:0;border-radius:6px;min-height:36px;padding:4px 6px;text-align:left}button:hover{background:#eaf1f8}button:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .toggle{position:absolute;right:12px;top:8px;font-size:12px;margin-top:0}.details{margin:12px 0 0;padding-top:8px;border-top:1px solid var(--line)}
 .section{position:relative;margin:0 0 0 5px;padding:8px 0 12px 22px;border-left:1px solid var(--line)}
@@ -60,7 +62,12 @@ function details(parent,d,key){
 function render(args){const root=document.getElementById('timeline');root.replaceChildren();
 (args.entries||[]).forEach(e=>{const expanded=args.detail?.key===e.key;const row=el('article',undefined,'event '+(e.risk==='需关注'?'attention':e.risk==='优先处理'?'urgent':e.risk==='正常'?'normal':''));row.dataset.current=String(e.current);row.dataset.title=e.title;
 const date=el('time',e.date,'date');date.dateTime=e.date;const spine=el('div',undefined,'spine');spine.setAttribute('aria-hidden','true');spine.append(el('span',undefined,'dot'));
-const body=el('div',undefined,'surface');body.append(el('h3',e.title),el('p',e.summary,'summary'));const meta=el('div',undefined,'meta');meta.append(el('span',e.risk||'管理记录','risk'),el('span',e.human));body.append(meta,el('p',(e.current?'下一步：':'结果：')+e.outcome,'result'));
+const body=el('div',undefined,'surface');body.append(el('h3',e.title));
+const tracks=el('div',undefined,'tracks');tracks.setAttribute('aria-label','健康与管理双轨');
+const health=el('div',undefined,'lane lane-health');health.append(el('strong','健康状态变化','lane-title'),el('p',e.summary,'summary'));
+const care=el('div',undefined,'lane lane-care');care.append(el('strong','管理动作 / 医疗动作','lane-title'),el('p',e.care_summary||'暂无关联管理动作','summary'));
+tracks.append(health,care);body.append(tracks);
+const meta=el('div',undefined,'meta');meta.append(el('span',({'需关注':'需要您确认','优先处理':'需要优先处理','正常':'正常跟进'})[e.risk]||'管理记录','risk'),el('span',e.human));body.append(meta,el('p',(e.current?'下一步：':'结果：')+e.outcome,'result'));
 const b=el('button',expanded?'收起完整过程':'查看完整过程','toggle');b.setAttribute('aria-label',e.title+' · '+e.date+' · '+(expanded?'收起完整过程':'查看完整过程'));b.setAttribute('aria-expanded',String(expanded));b.onclick=()=>action(e.key,expanded?'close':'select');body.append(b);
 if(expanded)details(body,args.detail,e.key);row.append(date,spine,body);root.append(row)});
 resize();}

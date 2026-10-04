@@ -44,6 +44,23 @@ def business_text(value):
         text = text.replace(code, label)
     for code, label in {"health_manager": "健康管理师", "internal_doctor": "内部医生", "external_doctor": "外部医生", "care_team": "健康管理团队"}.items():
         text = re.sub(r"\b" + code + r"\b", label, text, flags=re.IGNORECASE)
+    terms = {'WAITING_MANAGER':'等待您确认', 'WAIT_MANAGER':'等待您确认', 'WAITING_DOCTOR':'等待医生判断',
+             'WAIT_DOCTOR':'等待医生判断', 'WAITING_TIME':'等待约定时间', 'WAITING_INPUT':'等待补充资料',
+             'COMPLETED':'已完成', 'PROCESSING':'正在整理', 'RUNNING':'正在处理',
+             'GREEN':'正常跟进', 'YELLOW':'需要您确认', 'RED':'需要优先处理',
+             'LLM Provider':'资料整理服务', 'Goal ID':'关联目标', 'Trace ID':'关联记录',
+             'Agent':'系统助手', 'LLM':'资料整理服务', 'Planner':'处理安排', 'runtime':'处理进度',
+             'trace':'处理记录', 'workflow':'处理流程', 'resume':'继续处理', 'goal':'管理目标',
+             'ingestion':'资料接收', 'autonomous':'自动跟进', 'AI candidate':'待确认信息',
+             'AI result':'整理结果', 'model output':'整理结果', 'technical trace':'处理记录',
+             'system generated summary':'健康摘要'}
+    for code in sorted(terms, key=len, reverse=True):
+        text = re.sub(r'\b'+re.escape(code)+r'\b', terms[code], text, flags=re.IGNORECASE)
+    for old, new in {'语义抽取':'整理资料', '解析中':'正在读取资料', '规则命中':'需要关注的变化',
+                     'AI候选':'待确认信息', 'AI结果':'整理结果', '模型输出':'整理结果', '推理':'核对',
+                     '本地AI':'系统助手', 'AI语义整理':'资料整理', '建议路由':'建议由谁处理',
+                     '触发规则':'评估依据', '规则映射':'资料归类'}.items():
+        text = text.replace(old,new)
     return text.strip()
 
 

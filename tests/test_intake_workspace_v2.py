@@ -50,7 +50,7 @@ def test_agent_board_always_visible(env):
     s,p,row=env
     app=AppTest.from_function(board,args=(workspace.project(s,p.id,row),)).run()
     assert not app.exception
-    assert app.subheader[0].value=='健康管理助手'
+    assert app.subheader[0].value=='资料整理进度'
     assert '暂无正在处理的健康资料' in text(app)
 
 
@@ -59,20 +59,20 @@ def test_agent_running_stage_visible(env):
     workspace.upload(s,p,SimpleNamespace(intake=row,owner='QA'),[('history.txt','睡眠：七小时'.encode())])
     app=AppTest.from_function(board,args=(workspace.project(s,p.id,row),)).run()
     assert not app.exception
-    assert app.subheader[0].value=='健康管理助手正在整理资料'
+    assert app.subheader[0].value=='系统助手正在整理资料'
     assert all(phase in text(app) for phase in workspace.project(s,p.id,row)['progress'].labels)
-    assert 'history.txt' in text(app) and '整体进度' in text(app)
+    assert 'history.txt' in text(app) and '整理进度' in text(app)
 
 
 def test_agent_completion_summary_visible(env):
     data=process(env)
     app=AppTest.from_function(board,args=(data,)).run()
     assert not app.exception and data['ready'] and not data['finished']
-    assert app.subheader[0].value=='健康管理助手'
-    assert '必要例外' in text(app) and '健康档案更新' in text(app)
+    assert app.subheader[0].value=='资料整理进度'
+    assert '需要确认' in text(app) and '健康档案更新' in text(app)
     details=next(e for e in app.expander if e.label=='处理记录与来源')
     assert not details.proto.expanded
-    assert 'AI与知识支持' in text(app)  # retained inside the collapsed disclosure
+    assert '资料整理依据' in text(app)  # retained inside the collapsed disclosure
     assert data['stats']['prefilled']>0 and data['exceptions']['counts']['exceptions']>0
     assert all(f['goal'].status=='WAITING_MANAGER' for f in data['files'])
 
@@ -138,7 +138,7 @@ def test_ai_activity_reflects_real_calls_only(env):
     assert events==['AI_REQUEST_STARTED','AI_REQUEST_FINISHED']
     data=process(env)
     app=AppTest.from_function(board,args=(data,)).run()
-    assert 'AI语义整理' in text(app) and '本次未使用' in text(app)
+    assert '内容整理' in text(app) and '本次未使用' in text(app)
     app=AppTest.from_function(board,args=(data,'AI_REQUEST_STARTED')).run()
     assert '● 正在进行' in text(app)
 

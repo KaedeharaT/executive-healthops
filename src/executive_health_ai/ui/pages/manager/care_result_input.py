@@ -33,12 +33,13 @@ def render(patient,view,item,request_key):
         st.write(goal.context_json['text'])
         parsed=goal.context_json.get('parsed',{})
         if parsed.get('warning'):st.warning(parsed['warning'])
-        st.markdown('**准备更新：管理日志与当前事项结果**')
-        rows=[{'准备更新':'生活方式候选 · '+r['field'],'内容':r['value'],'依据':r['source_excerpt']}
+        st.markdown('**请核对本次记录与后续安排**')
+        rows=[{'准备更新':'生活方式记录 · '+r['field'],'内容':r['value'],'依据':r['source_excerpt']}
             for r in parsed.get('facts',[])]
         rows += [{'准备更新':a['operation'],'内容':a['title']+' · '+a['date'],'依据':a['source_excerpt']} for a in proposals]
         if rows:st.dataframe(rows,hide_index=True,width='stretch')
-        st.caption('生活方式记录保留原文来源；正式医疗事实继续通过原有核对流程。没有医疗依据的复查意向只建立协调事项。')
+        with st.expander('记录如何保存'):
+            st.caption('沟通原文会保留。涉及检查或用药的安排，仍需已有医学依据；仅表达复查意向时先联系确认。')
         with st.form('care-result-confirm-'+str(goal.id)):
             follow=st.date_input('下一次跟进日期',value=None) if goal.context_json['outcome']!='已完成' else None
             accepted=st.checkbox('我已核对本次结果与后续安排')

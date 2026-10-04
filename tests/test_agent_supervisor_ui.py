@@ -32,7 +32,7 @@ def test_member_manager_doctor_and_admin_see_business_agent_status_without_techn
         session.add(goal); session.commit()
     try:
         manager = AppTest.from_file(APP); manager.run(timeout=30)
-        assert any("健康管理助手" in item.value for item in manager.subheader) and not manager.exception
+        assert any("系统助手" in item.value for item in manager.subheader) and not manager.exception
 
         member_ui = AppTest.from_file(APP); member_ui.run(timeout=30)
         _radio(member_ui, "当前视图").set_value("成员健康中心"); member_ui.run(timeout=30)

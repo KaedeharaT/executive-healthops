@@ -38,7 +38,9 @@ def test_header_keeps_member_concern_distinct_from_professional_focus():
     import inspect
     overview=inspect.getsource(experience.member_detail)
     assert '会员关注：' in overview and '当前管理重点' in overview
-    assert '确认预约' in value and '9/27' in value and '责任健管' in value
+    assert '责任健管' in value and '第二阶段' in value
+    assert '确认预约' not in value  # Identity header no longer duplicates the action panel.
+    assert "st.write(next_text)" in overview
 
 
 def test_phase_selection_uses_actual_status_and_can_inspect_completed_phase():

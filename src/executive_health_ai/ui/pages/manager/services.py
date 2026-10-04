@@ -10,7 +10,7 @@ from executive_health_ai.ui import components as c, experience as ux
 
 def services(app):
     """A dedicated queue with its service detail in the same page inspector."""
-    app._page_header("服务管理", "方案决定管什么；服务与任务明确谁在什么时候做什么，完成后确认结果与下一步。", eyebrow="健康服务执行")
+    app._page_header("服务管理", "查看服务到了哪一步，完成预约、执行和结果确认。", eyebrow="健康服务执行")
     members = app._patient_map()
     with SessionLocal() as session:
         from executive_health_ai.services.member_archive import active_ids
@@ -33,6 +33,8 @@ def services(app):
         else:st.info('此服务已更新，请返回服务管理。')
         return
     filters = ['全部', *SERVICE_STAGES, '已取消']
+    active=[r for r in requests if r.status not in {'COMPLETED','CANCELLED','DECLINED'}]
+    c.priority_strip('YELLOW' if active else 'GREEN',f'{len(active)} 项服务需要跟进',next_action='选择一项服务，查看当前需要完成的安排。')
     if st.session_state.get('service-operations-filter') not in filters:
         st.session_state.pop('service-operations-filter',None)
     selected_filter = st.radio("服务状态筛选", list(filters), horizontal=True, label_visibility="collapsed", key="service-operations-filter",format_func=lambda label:label+" · "+str(len(requests) if label=="全部" else sum(v==label for v in stages.values())))
@@ -63,7 +65,10 @@ def service_detail(app, selected, member):
         tasks = list(session.scalars(select(Task).where(Task.patient_id == selected.patient_id)))
         logs = list(session.scalars(select(ManagementLog).where(ManagementLog.patient_id == selected.patient_id)))
     st.markdown(f"**{name} · {app._member_display(member)}**")
-    service_steps(selected)
+    c.priority_strip('GREEN' if selected.status in {'COMPLETED','CANCELLED','DECLINED'} else 'YELLOW',
+                     service_stage(selected,tasks,logs),next_action=service_next(selected,tasks,logs))
+    with st.expander('服务进度与安排依据'):
+        service_steps(selected)
     st.caption(f"来源方案：{context['plan']} · 阶段：{context['phase']}")
     st.caption(f"预约：{ux.when(selected.scheduled_at)} · 服务方：{selected.service_provider or '待安排'} · 实际完成：{ux.when(selected.completed_at)}")
     with st.expander("申请原因与完整说明"):

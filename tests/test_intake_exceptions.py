@@ -217,7 +217,7 @@ def test_member360_exception_queue_answers_and_submits_without_wizard(tmp_path,m
         session.commit();row_id=row.id
     app=AppTest.from_function(archive_page,args=(str(member_id),)).run()
     assert not app.exception
-    button(app,'处理1项').click().run()
+    button(app,'处理剩余事项（1项）').click().run()
     next(w for w in app.text_input if w.label=='填写会员实际回答').set_value('改善睡眠')
     button(app,'保存答案并处理下一项').click().run()
     assert not app.exception

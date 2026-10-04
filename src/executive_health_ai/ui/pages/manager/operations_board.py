@@ -89,8 +89,8 @@ def human_history(board):
 
 
 def clinical_boundary(board):
-    st.subheader('正式风险规则')
-    st.caption('来自现有确定性风险规则；与系统整理的数值变化分开记录。')
+    st.subheader('需要关注的健康变化')
+    st.caption('以下分级来自已审核的评估标准，资料摘要不替代医学判断。')
     if board.risks:
         records = [{k: get_risk_display(v) if k=='等级' else status_label(v,context='risk_event') if k=='状态' else v
                     for k,v in row.items() if k != 'new_for_report'} for row in board.risks]
@@ -105,7 +105,7 @@ def clinical_boundary(board):
         if not any(r['new_for_report'] for r in board.risks):
             st.caption('显示会员当前已有的正式风险记录，未认定为本报告新触发的风险。')
     else:
-        st.info('本次没有新的正式风险规则触发。')
+        st.info('本次未发现新的风险提醒。')
     st.divider()
     st.markdown('**医生判断**')
     if board.doctor_opinion:
@@ -170,85 +170,37 @@ def render(app, goal, *, admin=False):
         hours, minutes = divmod(board.elapsed_minutes, 60)
         live = st.empty()
         with live.container():
-            c.summary_strip([('责任健管',goal.owner or '待确认'),('现在轮到',board.owner),
-                ('运行时长（含等待）',f'{hours} 小时 {minutes} 分钟'),('当前状态',activity.current)])
-            st.markdown(f'<div class="board-current"><strong>{escape(activity.headline)}</strong></div>', unsafe_allow_html=True)
+            c.summary_strip([('责任健管',goal.owner or '待确认'),('现在轮到',board.owner)])
     progress = st.empty()
     with progress.container(), st.container(key='soft-board-process'):
         from executive_health_ai.services.agent_progress import load as load_progress
         from executive_health_ai.ui.agent_progress import AgentProgressPanel
         with SessionLocal() as session:progress_data=load_progress(session,goal)
         AgentProgressPanel.render(progress_data,flow_name='健康管理助手 · 体检后管理',next_action=goal.next_action)
-    ai_support.route(goal, support, support_traces)
-    action_approval = goal.current_stage == 'WAITING_ACTION_APPROVAL' and not admin
-    if action_approval:
-        with st.container(border=True, key='care-human-action'):
-            _manager_action(app,goal,activity,(live,progress))
-    with st.container(key='board-first'):
-        left, right = st.columns([1.35, 1], gap='large')
-        with right, st.container(border=True, key='board-routing'):
-            routing(board,goal,activity)
-            st.divider()
-            if board.route.route_type == 'DOCTOR':
-                st.caption('医生需要做：医学判断。AI只整理资料，知识库只提供已审核依据。')
-        with left, st.container(border=True, key='board-activity'):
-            st.subheader('助手现在在做什么')
-            st.caption('输入：本次报告、已有健康资料与年度基线 → 产出：已确认的后续安排' if goal.status == 'COMPLETED'
-                else '输入：本次报告、已有健康资料与年度基线 → 产出：待核对摘要与行动草稿')
-            if goal.status == 'COMPLETED':
-                st.write('本次整理与确认已完成。最终产出及下一节点见下方，后续执行进入会员360与今日工作。')
-            elif action_approval:
-                st.write(activity.next_action)
-                st.caption(activity.after_confirmation)
-            else:
-                st.divider()
-                if admin:
-                    st.write('业务下一步：'+activity.next_action)
-                    st.caption('人工确认在对应健管或医生工作台完成。')
-                else:
-                    with st.container(key='care-human-action'):
-                        _manager_action(app, goal, activity, (live, progress))
-    ai_support.panel(goal, support)
-    with st.container(key='board-clinical'):
-        left, right = st.columns([1.35,1], gap='large')
-        with left, st.container(border=True, key='board-findings'):
-            st.subheader('系统发现')
-            st.caption('报告整理与数值比较，待人工核对；不是诊断或正式风险分级。')
-            st.caption('责任路径针对整份报告，不将单项数值变化解释为医学结论。')
-            data_table(board.findings, list(board.findings), key=f'board-findings-{goal.id}',selectable=False,
-                       empty='暂无可可靠整理的指标，请人工查看报告。')
-        with right, st.container(border=True, key='board-risk'):
-            clinical_boundary(board)
-    with st.container(key='board-history'):
-        left, right = st.columns([1.35,1], gap='large')
-        with left, st.container(border=True, key='board-timeline'):
-            care_activity.timeline(activity)
-        with right, st.container(key='soft-board-human-column'):
-            human_history(board)
-    with st.container(border=True, key='board-support'):
-        st.subheader('智能辅助')
-        names = {w.title for w in activity.done}
-        c.summary_strip([('报告整理','已完成' if ctx.get('structured') else '需人工核对'),
-            ('历史比较','已核对可用资料' if any('历史' in n for n in names) else '尚未完成'),
-            ('已审核知识',f"{len(ctx.get('knowledge',[]))} 条"),
-            ('医生资料','已准备' if ctx.get('review_id') else '需要时准备')])
-        evidence(goal, show_findings=False)
-    with st.container(border=True, key='board-exit'):
-        if goal.status == 'COMPLETED' and not admin:
-            _manager_action(app,goal,activity,(live,progress))
+    levels={r.get('等级') for r in board.risks}
+    level='RED' if 'RED' in levels or '高风险' in levels else 'YELLOW' if goal.status in {'WAITING_MANAGER','WAITING_DOCTOR','WAITING_INPUT','ESCALATED'} or 'YELLOW' in levels else 'GREEN' if goal.status=='COMPLETED' else 'UNKNOWN'
+    c.priority_strip(level,activity.headline,next_action=goal.next_action)
+    left,right=st.columns([2.5,1],gap='large')
+    with left,st.container(border=True,key='care-human-action'):
+        st.subheader('当前需要处理')
+        if admin:
+            st.write(ux.business_text(activity.next_action))
+            st.caption('请在健管或医生工作台完成确认。')
         else:
-            st.subheader('最终产出' if goal.status == 'COMPLETED' else '本流程的业务出口')
-            if goal.status == 'COMPLETED':
-                refs=ctx.get('created',{})
-                c.summary_strip([(label,len(refs.get(key,[]))) for label,key in [('管理事项','tasks'),('复查计划','rechecks'),('随访','followups'),('服务','services')]])
-                st.write('下一节点：'+activity.next_action)
-            else:
-                st.write('管理事项 · 复查计划（有医生建议时） · 随访 · 服务安排（如需要）')
-                st.caption('人工确认、负责人、日期和下一节点全部明确，并正式建立安排后，本流程才会完成。')
-        if board.route_history:
-            path=[]
-            for r in board.route_history:
-                if not path or path[-1] != LABELS[r.route_type]:path.append(LABELS[r.route_type])
-            st.caption('已记录责任路径：'+' → '.join(path))
+            _manager_action(app,goal,activity,(live,progress))
+    with right,st.container(key='board-routing'):
+        st.subheader('谁来处理')
+        routing(board,goal,activity)
+    with st.expander('相关健康变化与医生意见'):
+        data_table(board.findings,list(board.findings),key=f'board-findings-{goal.id}',selectable=False,
+                   empty='暂无可核对的指标，请查看原始报告。')
+        clinical_boundary(board)
+    with st.expander('已经完成的工作与后续安排'):
+        care_activity.timeline(activity)
+        human_history(board)
+    with st.expander('资料来源与整理依据'):
+        ai_support.panel(goal,support)
+        evidence(goal,show_findings=False)
     if admin:
+        ai_support.route(goal,support,support_traces)
         technical(goal)

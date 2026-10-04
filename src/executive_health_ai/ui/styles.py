@@ -10,6 +10,10 @@ def role_styles(role="manager"):
 
 
 ROLE_STYLES = """<style>
+.care-priority{display:flex;align-items:flex-start;gap:16px;border:1px solid var(--priority);border-left:7px solid var(--priority);background:var(--priority-bg);border-radius:12px;padding:18px 22px;margin:12px 0 18px;box-shadow:2px 3px 8px #20354c0a}
+.priority-green{--priority:#367652;--priority-bg:#edf6ef}.priority-yellow{--priority:#9b6413;--priority-bg:#fff5df}.priority-red{--priority:#ad3c36;--priority-bg:#fff0ed}.priority-unknown{--priority:#52677d;--priority-bg:#edf2f7}
+.care-priority strong{font-size:1.2rem;color:var(--priority)}.care-priority p{margin:3px 0!important}.priority-icon{background:var(--priority);color:white;font-size:21px;font-weight:700;min-width:34px;height:34px;text-align:center;border-radius:50%}.priority-next{font-size:.9rem;margin-top:8px;padding-top:8px;border-top:1px solid #20354c20}
+.assistant-steps{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.assistant-steps span{padding:5px 8px;border:1px solid #dce5ef;border-radius:6px;color:#52677d}.assistant-steps .current{background:#e3eef8;border:2px solid #185da8;color:#185da8;font-weight:600}
 [data-testid="stAppDeployButton"], [data-testid="stMainMenu"] {display:__DEVELOPER_CONTROLS__!important}
 .care-member-header {border-left:4px solid #185da8;padding:14px 20px;background:white;border-radius:8px;line-height:1.7}
 .care-member-header small {color:#52677d;font-size:12px}

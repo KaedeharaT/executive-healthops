@@ -2,6 +2,7 @@
 from datetime import date
 from html import escape
 import streamlit as st
+from sqlalchemy import select
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.services import annual_portfolio as portfolio
 from executive_health_ai.ui import components as c
@@ -26,7 +27,6 @@ def render(app):
         all_rows = portfolio.load(session)
     with st.container(key='soft-annual-header'):
         c.page_shell('manager', '年度管理', '管理一批会员的全年进度：基线、阶段推进、复盘与待处理事项。')
-        st.caption('我负责的会员，今年管理到哪了？选择年度周期，进入同一个 Member360 的管理页。')
     summary_surface = st.container(key='soft-annual-summary')
     saved = st.session_state.get('annual-saved-filters', {})
     def choose(column, label, options, key, default='全部', **kwargs):
@@ -51,11 +51,23 @@ def render(app):
     rows = portfolio.filter_rows(all_rows, year=year, stage=stage, owner=owner, overdue=overdue,
                                  doctor=doctor, review=review, status=status, query=query)
     with summary_surface:
-        c.summary_strip(portfolio.summary(rows))
-        st.caption(f'{len(rows)} 个年度周期 · 汇总按筛选范围内会员去重；阶段分布按周期计数。')
+        totals=portfolio.summary(rows)
+        c.summary_strip([totals[0],totals[4],totals[5]])
+        with st.expander('各阶段会员数量'):
+            c.summary_strip(totals[1:4])
+        needs=sum(bool(r.overdue or r.waiting_doctor or r.review_due) for r in rows)
+        from executive_health_ai.models import RiskEvent
+        from executive_health_ai.services.operational_worklist import ACTIVE_RISK_STATUSES
+        with SessionLocal() as session:
+            urgent=set(session.scalars(select(RiskEvent.patient_id).where(RiskEvent.patient_id.in_([r.member.id for r in rows]),
+                RiskEvent.risk_level=='RED',RiskEvent.status.in_(ACTIVE_RISK_STATUSES))))
+        rows.sort(key=lambda r:(r.member.id not in urgent,not r.overdue))
+        c.priority_strip('RED' if urgent else 'YELLOW' if needs else 'GREEN',f'{len(urgent)} 位会员需要优先人工处理。' if urgent else f'{needs} 个年度周期需要跟进' if needs else '所选年度暂无逾期或待复盘事项。',
+                         next_action='选择会员，处理当前阶段的下一步。')
     with st.container(key='soft-annual-table'):
         st.subheader('年度进度工作表')
-        st.caption('阶段进度按已完成入组节点或阶段内已排期事项计算，不代表健康改善比例。开放事项统计本周期任务、复查与服务。阶段复盘窗口 14 天；年度复盘窗口 30 天。')
+        with st.expander('进度怎么算'):
+            st.caption('进度表示资料与安排的完成情况，不代表健康改善比例。阶段结束前14天、年度结束前30天提醒复盘。')
         records = []
         for row in rows:
             view, p = row.view, row.view.program

@@ -100,7 +100,7 @@ def test_rendered_bar_has_accessible_percent_and_correct_spinner(status):
     assert not app.exception
     html='\n'.join(w.value for w in app.markdown)
     assert f'aria-valuenow="{p.progress_percent}"' in html
-    assert ('aria-label="正在执行"' in html)==(status=='PROCESSING')
+    assert ('aria-label="正在整理资料"' in html)==(status=='PROCESSING')
     assert '知识检索' not in html
 
 

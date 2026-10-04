@@ -1196,8 +1196,11 @@ def _render_current_risk_actions(patient: Patient, selected_id=None) -> None:
             return
         st.subheader("紧急处置")
         st.error("医疗处置优先。请先确认成员当前安全情况并按实际情况寻求医疗帮助。")
-        st.write(f"关键原因：{event.summary}")
-        st.caption(f"发现时间：{_fmt_dt(event.created_at)} · {_risk_event_evidence_caption(event)}")
+        from executive_health_ai.ui.experience import business_text
+        st.write("关键原因：" + business_text(event.summary))
+        with st.expander("查看发现时间与评估依据"):
+            st.caption(f"发现时间：{_fmt_dt(event.created_at)}")
+            st.caption(business_text(_risk_event_evidence_caption(event)))
         with SessionLocal() as session:
             _render_evidence_action(_risk_evidence_payload(session, patient.id, event.id), key_scope=f"risk-red-{event.id}")
         contacts: list[EmergencyContact]

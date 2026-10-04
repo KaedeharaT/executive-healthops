@@ -72,18 +72,24 @@ def assistant(app, people):
     groups = project_assistant(goals)
     active, recent = groups.active, groups.recent
     pending = active + groups.attention
-    st.subheader('健康管理助手')
+    st.subheader('系统助手')
     st.caption(f'正在运行 {sum(g.status in {"RUNNING","PROCESSING"} for g in active)} · 等待我确认 {sum(g.status in {"WAITING_MANAGER","WAITING_INPUT"} for g in pending)}')
     st.caption(f'等待医生 {sum(g.status=="WAITING_DOCTOR" for g in active)} · 最近完成 {len(groups.completed)}')
     if not pending:st.caption('当前没有需要您处理的自动流程。')
-    for goal in pending[:3]:
-        st.caption(app._member_display(people.get(goal.member_id))+' · '+ux.business_text(goal.next_action))
+    if pending:
+        from executive_health_ai.services.agent_progress import load
+        from executive_health_ai.ui.agent_progress import AgentProgressPanel
+        goal=next((g for g in pending if g.status in {'RUNNING','PROCESSING'}),pending[0])
+        st.markdown('**'+app._member_display(people.get(goal.member_id))+'**')
+        with SessionLocal() as session:
+            board=load(session,goal)
+        AgentProgressPanel.render(board,next_action=goal.next_action)
     if recent:st.caption('最近完成：'+app._member_display(people.get(recent[0].member_id))+' · '+completed_values(recent[0],'')[2])
     with st.expander('自动整理记录'):
         available=list(pending)+list(groups.completed)
         if available:
             goal=st.selectbox('选择处理记录',available,format_func=lambda g:app._member_display(people.get(g.member_id))+' · '+('资料导入' if g.goal_type=='PROFILE_INTAKE' else '体检后管理')+' · '+ux.when(g.updated_at),key='assistant-history-choice')
-            st.button('查看完整运行',key='assistant-open',on_click=open_care,args=(app,goal))
+            st.button('查看处理详情',key='assistant-open',on_click=open_care,args=(app,goal))
         else:st.caption('上传资料后，将在会员健康档案中开始自动整理。')
 
 

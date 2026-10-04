@@ -37,7 +37,7 @@ def history(app,patient):
         for goal in goals:
             doc=session.get(Document,UUID(goal.source_id));run=session.get(ReportExtractionRun,UUID(goal.context_json['run_id']))
             rows.append({'时间':ux.when(goal.started_at),'资料类型':TYPES[goal.context_json['document_type']],
-                '文件':doc.title,'解析状态':'已整理' if run.status=='COMPLETED' else STATUS.get(goal.status,'待处理'),
+                '文件':doc.title,'整理进度':'已整理' if run.status=='COMPLETED' else STATUS.get(goal.status,'待处理'),
                 '识别数量':run.candidate_count,'确认状态':STATUS.get(goal.status,'待处理'),'上传人':goal.created_by})
     st.subheader('资料导入记录')
     chosen=data_table(goals,rows,key=f'profile-history-{patient.id}',auto_select=False,activate_on_cell=True,empty='上传的资料及处理进度会保留在这里。')
@@ -94,7 +94,7 @@ def review_updates(app,session,goal):
         with st.container(border=True, key='neu-profile-current'):
             st.subheader('现在需要您处理' if goal.status=='WAITING_MANAGER' else '当前正在处理')
             st.write(goal.next_action)
-            st.caption('输入：本次资料、已有健康档案与测量记录。核对新增、一致、时间变化及冲突；年度基线保持原有确认语义。')
+            st.caption('已对照本次资料与原有档案，请重点核对有冲突或不完整的信息。')
             if route:st.caption('为什么：'+route.reason_summary)
     if goal.context_json.get('review_id'):
         review=session.get(DoctorReview,UUID(goal.context_json['review_id']))
@@ -145,25 +145,26 @@ def review_updates(app,session,goal):
                     try:
                         flow.request_doctor(session,goal,question=question,actor=goal.owner,role='HEALTH_MANAGER');session.commit();st.rerun()
                     except (ValueError,PermissionError) as exc:st.error(str(exc))
-        else:st.dataframe(pd.DataFrame(table).drop(columns='处理'),hide_index=True,width='stretch')
+        else:
+            with st.expander('查看已整理信息'):
+                st.dataframe(pd.DataFrame(table).drop(columns='处理'),hide_index=True,width='stretch')
         with st.expander('查看提取依据'):
             st.dataframe(pd.DataFrame([{'项目':FIELD_LABELS.get(r.raw_name,r.raw_name) or '原文结论','原文依据':business_evidence(r),
                 '资料日期':r.structured_data_json.get('source_date') or '未注明','页码':r.source_page} for r in rows]),hide_index=True,width='stretch')
 
     left,right=st.columns([1.15,1])
-    with left,st.container(border=True, key='neu-profile-history'):
-        st.subheader('助手工作记录')
+    with left,st.expander('查看资料整理记录'):
         for item in traces:
             marker='! ' if item.status=='FAILED' or item.action=='profile_exception' else '✓ '
-            st.write(marker+ux.when(item.started_at)+' · '+item.result_summary)
+            st.write(marker+ux.when(item.started_at)+' · '+ux.business_text(item.result_summary))
         for item in support:
             if item.at and item.status in {'SUCCESS','UNAVAILABLE','UNUSABLE'}:
-                st.write(item.mark+' '+ux.when(item.at)+' · '+item.title+'：'+item.result)
+                st.write(item.mark+' '+ux.when(item.at)+' · '+ux.business_text(item.title+'：'+item.result))
     with right,st.container(border=True, key='neu-profile-next'):
         st.subheader('接下来')
         st.write('请先核对原文件，重新上传可读取版本或人工补充；处理完成后再继续档案确认。' if goal.status=='ESCALATED' else
             '医生提交后自动继续，健管确认最终档案更新。' if goal.status=='WAITING_DOCTOR' else
-            '确认来源与冲突 → 写入健康档案 → 更新现有健康趋势 → 同步会员360和成员端')
+            '确认后，资料会进入健康档案；您和会员都能查看最新记录。')
         st.caption('自述、原文医学结论和客观测量分开保留；系统不推断诊断、开药或决定风险。')
         path=Path(doc.storage_reference)
         if path.is_file():st.download_button('查看原文件',path.read_bytes(),file_name=doc.title,key='profile-source-'+str(goal.id))

@@ -409,6 +409,7 @@ def recheck_detail(patient,view,row):
         if submit:write(lambda s:service.advance_recheck(s,patient.id,row.id,status=target,actor=view.owner,result=result,document_id=document.id if document else None,next_recheck_at=datetime.combine(next_date,time(9),ux.LOCAL) if next_date else None))
 
 def stage_review(patient,view):
+    c.priority_strip('YELLOW','确认这一阶段的执行结果与未解决问题。',next_action='确认复盘结论后，再决定继续、调整或进入下一阶段。')
     phase=view.current_phase
     if phase:
         stage_metrics(patient,view,phase)
@@ -423,7 +424,7 @@ def stage_review(patient,view):
             write(lambda s:service.advance_phase(s,patient.id,phase.id,view.owner))
         return
     st.write('本阶段目标：'+phase.goal)
-    st.caption('记录实际执行与观察变化，不自动作因果归因。数值结果仍沿用原阶段结果入口。')
+    st.caption('记录实际做了什么、后来观察到什么，再决定下一阶段。指标变化不直接说明干预有效。')
     with st.expander('记录阶段评估',expanded=False), st.form(f'stage-review-{phase.id}'):
         content={}
         fields=['实际完成','关键指标变化','用药执行','检查完成','生活方式执行','服务完成','未解决问题','下一阶段建议']

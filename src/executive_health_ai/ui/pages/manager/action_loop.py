@@ -106,13 +106,12 @@ def render(app,patient,view,*,show_recent=True,primary_next=True):
         st.markdown('### '+(state['phase'].title if state['phase'] else '待安排阶段'))
         st.write(state['phase'].goal if state['phase'] else '建立阶段目标，并安排具体工作。')
         st.caption(f"核心事项完成 {sum(t.status=='COMPLETED' for t in state['planned'])} / {len(state['planned'])} · 表示执行进度，不是健康改善程度")
-        st.subheader('开放事项')
-        item=data_table(state['items'],[{'事项':i.title,'类型':KINDS[i.kind],'计划时间':ux.local_time(i.due),'负责人':i.owner,'状态':status_label(i.status)} for i in state['items']],key=f'action-open-{patient.id}',auto_select=False,activate_on_cell=True,empty='本阶段没有开放事项，请在右侧继续。')
+        st.subheader('待处理事项')
+        item=data_table(state['items'],[{'事项':i.title,'类型':KINDS[i.kind],'计划时间':ux.local_time(i.due),'负责人':i.owner,'状态':status_label(i.status)} for i in state['items']],key=f'action-open-{patient.id}',auto_select=False,activate_on_cell=True,empty='当前还没有待处理事项。可记录本次沟通，或按阶段安排复盘。')
         if item:focus(patient,item.id)
         if show_recent:
-            st.divider()
-            st.subheader('最近管理记录')
-            workflow.log_rows(view.logs[:3],key=f'action-recent-{patient.id}')
+            with st.expander('最近管理记录'):
+                workflow.log_rows(view.logs[:3],key=f'action-recent-{patient.id}')
     with rail,st.container(key='v7-context-management'):
         st.subheader('当前行动')
         creation=()
@@ -174,7 +173,8 @@ def detail(app,patient,view,item):
         st.markdown('### '+item.title)
         c.summary_strip([('来源',item.source),('负责人',item.owner),('截止时间',ux.when(item.due)),('状态',status_label(item.status))])
         st.write('为什么需要处理：'+item.reason)
-        st.write('相关数据 / 依据：'+(getattr(item.record,'evidence','') or getattr(item.record,'doctor_brief','') or item.reason))
+        with st.expander('相关资料与依据'):
+            st.write(ux.business_text(getattr(item.record,'evidence','') or getattr(item.record,'doctor_brief','') or item.reason))
         st.subheader('现在需要你做')
         if item.kind=='STAGE_REVIEW':
             with SessionLocal() as session:state=service.project(session,patient.id,view.program.id)
@@ -250,6 +250,7 @@ def stage_detail(patient,state):
     phase=state['phase'];view=state['view']
     if not phase:st.info('先在年度方案与阶段中建立当前阶段。');quick_actions(patient);return
     st.subheader('阶段复盘 · '+phase.title)
+    c.priority_strip('YELLOW','核对本阶段结果，再确认后续安排。',next_action='有未解决的医学问题时提交医生，其余按确认后的阶段计划继续。')
     from executive_health_ai.ui.pages.manager.care_runtime import for_phase
     for_phase(patient.id,phase.id)
     if not state['review']:

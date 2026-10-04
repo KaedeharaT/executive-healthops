@@ -4,6 +4,28 @@ from html import escape
 import streamlit as st
 
 
+PRIORITY_LABELS = {'GREEN': ('✓', '正常跟进'), 'YELLOW': ('!', '需要您确认'),
+                   'RED': ('!', '需要优先处理'), 'UNKNOWN': ('○', '资料待完善')}
+
+
+def priority_strip(level, message='', *, next_action='', label=None):
+    """Presentation only: never infer a clinical risk from missing data."""
+    from executive_health_ai.ui.experience import business_text
+    level = level if level in PRIORITY_LABELS else 'UNKNOWN'
+    icon, title = PRIORITY_LABELS[level]
+    follow = f'<div class="priority-next">下一步：{escape(business_text(next_action))}</div>' if next_action else ''
+    st.markdown(f'<section class="care-priority priority-{level.lower()}" role="status" aria-label="{escape(label or title)}">'
+                f'<span class="priority-icon" aria-hidden="true">{icon}</span><div><strong>{escape(label or title)}</strong>'
+                f'<p>{escape(business_text(message))}</p>{follow}</div></section>', unsafe_allow_html=True)
+
+
+def work_level(item):
+    """Work priority, not a new medical risk classification."""
+    if item.status in {'已完成', 'COMPLETED', 'CANCELLED'}:
+        return 'GREEN'
+    return 'RED' if item.priority == 0 else 'YELLOW'
+
+
 def page_shell(role, title, description="", eyebrow=""):
     """One role density and heading contract; no page-local CSS."""
     from executive_health_ai.ui import experience as ux
@@ -128,8 +150,7 @@ def detail_drawer(title, *, key, table_key):
 def member_header(name, *, cycle, owner, phase, concern, focus, next_action, updated, demo=False):
     badge = " <span class='ux-badge'>演示会员</span>" if demo else ''
     st.markdown(f"<header class='care-member-header'><small>会员 / {escape(name)}</small><h1>{escape(name)}{badge}</h1>"
-        f"<div class='member-meta'><span>责任健管：{escape(owner)}</span><span>{escape(cycle)}</span><span>当前阶段：{escape(phase)}</span></div>"
-        f"<div class='care-next'><b>下一步</b>　{escape(next_action)}</div></header>",unsafe_allow_html=True)
+        f"<div class='member-meta'><span>责任健管：{escape(owner)}</span><span>{escape(cycle)}</span><span>当前阶段：{escape(phase)}</span></div></header>",unsafe_allow_html=True)
 
 
 def stage_stepper(phases, *, key, current_id=None):

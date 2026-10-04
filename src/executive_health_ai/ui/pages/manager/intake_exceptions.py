@@ -16,9 +16,8 @@ def panel(patient, view):
         opened=st.session_state.get(f'exception-open-{row.id}',False)
         counts=saved.get('completion',data['counts']) if data['submitted'] else data['counts']
         if not opened or data['submitted']:
-            st.subheader('初始健康评估准备情况')
-            c.summary_strip([('自动整理',counts.get('auto_sources',counts['auto_filled'])),('需要确认',counts['pending']),
-                ('存在冲突',counts['conflicts']),('必须补充',counts['required_missing'])])
+            st.subheader('还需要您做什么')
+            st.write(f'需要确认 {counts["pending"]} 项 · 冲突 {counts["conflicts"]} 项 · 必须补充 {counts["required_missing"]} 项')
             st.caption(f'可暂缺 {counts.get("optional_missing",counts["missing"])} 项 · 不阻塞提交；未提供不等于“无”。')
         if data['submitted']:
             st.success('初始健康评估已完成资料确认')
@@ -27,10 +26,10 @@ def panel(patient, view):
                 st.button('继续健管确认',type='primary',key=f'intake-professional-{row.id}',
                     on_click=intake_entry.open_intake,args=(patient,view))
             st.write(f'资料来源：{counts["sources"]} 份 · 自动整理：{counts.get("auto_sources",counts["auto_filled"])} 项 · 人工补充：{counts["manual_fields"]} 项')
-            st.caption('健康管理助手已接收确认结果并继续原流程。下一步：健管专业初评，准备年度健康基线；需要医学判断时交由医生。')
+            st.caption('资料已确认。下一步：确认管理重点，准备年度健康基线。')
             return
         if data['processing']:
-            st.write('暂未轮到你。资料整理完成后，待确认、冲突和必需补充项会集中显示在这里。')
+            st.write('正在整理，暂时无需操作。有疑问或必须补充的内容会集中显示在这里。')
             return
         if data['medical']:st.info('存在需要医生判断的事项，请完成原有医生确认流程后提交。')
         queue=data['queue']
@@ -39,10 +38,14 @@ def panel(patient, view):
             st.subheader(f'需要你处理 {len(queue)} 项')
             key=f'exception-open-{row.id}'
             if not st.session_state.get(key):
-                if st.button(f'处理{len(queue)}项',type='primary',key=key+'-start'):
+                for missing in [q for q in queue if q['kind']=='MISSING'][:3]:
+                    if st.button('待补充：'+missing['label'],key=key+'-missing-'+missing['key'],width='stretch'):
+                        st.session_state[key]=True
+                        st.session_state[key+'-selected']=missing['key'];st.rerun()
+                if st.button(f'处理剩余事项（{len(queue)}项）',type='primary',key=key+'-start'):
                     st.session_state[key]=True;st.rerun()
                 return
-            item=queue[0]
+            item=next((q for q in queue if q['key']==st.session_state.get(key+'-selected')),queue[0])
             done=counts['processed'];total=done+len(queue)
             st.progress(done/total,text=f'已完成 {done} / {total} 项')
             st.caption(f'当前 {done+1} / {total} · 保存后自动进入下一项')

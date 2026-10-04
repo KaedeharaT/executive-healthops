@@ -87,6 +87,16 @@ def collaboration(app, patient=None):
     with SessionLocal() as session:
         pending=medical_rows(session,patient.id if patient else None,False)
         completed=medical_rows(session,patient.id if patient else None,True)
+        from executive_health_ai.models import RiskEvent
+        red_ids=set(session.scalars(select(RiskEvent.id).where(RiskEvent.risk_level=='RED')))
+    urgent=any(getattr(r['record'],'risk_event_id',None) in red_ids for r in pending)
+    pending.sort(key=lambda r:getattr(r['record'],'risk_event_id',None) not in red_ids)
+    waiting=sum(r['state']=='待判断' for r in pending)
+    returned=sum(r['state'] in {'待汇总意见','待健管执行'} for r in pending)
+    c.priority_strip('RED' if urgent else 'YELLOW' if pending else 'GREEN',
+        f'等待医生判断 {waiting} 项 · 医生已返回、待继续处理 {returned} 项 · 已完成 {len(completed)} 项',
+        next_action='查看已返回的意见并落实后续安排。' if returned else '跟进医生回复；收到意见后，后续事项会进入今日工作。' if waiting else '可在历史中查看医生正式意见。',
+        label='需要优先处理' if urgent else '需要健管继续处理' if returned else '等待医生判断' if waiting else '医疗记录已更新')
     if patient:
         scope=st.radio('医疗记录',['进行中','历史'],horizontal=True,key=key+'-scope')
         rows=completed if scope=='历史' else pending

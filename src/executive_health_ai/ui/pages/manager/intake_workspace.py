@@ -5,6 +5,7 @@ import streamlit as st
 from executive_health_ai.database import SessionLocal
 from executive_health_ai.services import intake_workspace as projection
 from executive_health_ai.ui import components as c
+from executive_health_ai.ui.experience import business_text
 
 
 def continue_intake(patient,view,step=None):
@@ -15,10 +16,10 @@ def continue_intake(patient,view,step=None):
 
 
 def support(data, event=None):
-    st.markdown('**AI与知识支持**')
+    st.markdown('**资料整理依据**')
     activities=[a for f in data['files'] for a in f['support']]
     cols=st.columns(3)
-    for col,key,title in zip(cols,('mapping','semantic','knowledge'),('规则映射','AI语义整理','知识/术语辅助')):
+    for col,key,title in zip(cols,('mapping','semantic','knowledge'),('文件读取','内容整理','术语核对')):
         rows=[a for a in activities if a.key==key]
         with col:
             st.markdown('**'+title+'**')
@@ -27,13 +28,13 @@ def support(data, event=None):
                 for f in data['files']:ai_timing(f.get('progress'))
             if key=='semantic' and (event=='AI_REQUEST_STARTED' or any(f.get('progress') and f['progress'].ai_running for f in data['files'])):
                 st.write('● 正在进行')
-                st.caption('本地AI正在整理资料 · 用途：从自由文本中提取有原文依据的健康信息')
+                st.caption('正在整理资料中的健康信息，并保留原文依据。')
             elif any(a.used for a in rows):
-                if key=='semantic' and any(a.used and a.status=='SUCCESS' for a in rows):st.caption('✓ 本地AI整理完成')
+                if key=='semantic' and any(a.used and a.status=='SUCCESS' for a in rows):st.caption('✓ 资料整理完成')
                 for result in dict.fromkeys(a.mark+' '+a.label+' · '+a.result for a in rows if a.used):
-                    st.caption(result.replace('仍需健管确认。','已纳入本次初评确认。') if data['finished'] else result)
+                    st.caption(business_text(result.replace('仍需健管确认。','已纳入本次初评确认。') if data['finished'] else result))
             elif key=='mapping' and rows and any(a.status=='SUCCESS' for a in rows):
-                st.caption('✓ 已完成文件读取与规则映射')
+                st.caption('✓ 已读取文件并归入对应资料栏')
             else:
                 st.caption('本流程未使用' if key=='knowledge' else '本次未使用' if key!='mapping' else '尚未执行')
             if key=='semantic' and event!='AI_REQUEST_STARTED':st.caption('用途：从自由文本资料中提取可核对的健康信息')
@@ -55,9 +56,11 @@ def execution_mark(data,event=None):
 def draw(data,event=None,*,assessment_summary=True):
     from executive_health_ai.ui.agent_progress import AgentProgressPanel
     failed=any(f['goal'].status in {'FAILED','ESCALATED','CANCELLED'} for f in data['files'])
-    title='健康管理助手正在整理资料' if data['processing'] else '健康管理助手'
+    title='系统助手正在整理资料' if data['processing'] else '资料整理进度'
     st.subheader(title)
     if not data['files']:
+        c.summary_strip([('资料完成度',str(data['stats'].get('percent',0))+'%'),
+                         ('需要确认',data['stats'].get('pending',0)),('存在冲突',data['stats'].get('conflicts',0))])
         st.write('当前：暂无正在处理的健康资料')
         st.caption('上传资料后，自动整理有依据的信息，再处理少量例外。')
         return
@@ -68,11 +71,13 @@ def draw(data,event=None,*,assessment_summary=True):
         from executive_health_ai.services.intake_exceptions import state
         counts=state(data['imported']['intake']).get('completion',counts)
     next_text=(projection.PHASES[min(p.current_step,6)] if p and p.running else
-        '处理必要例外，然后一次确认完成初评' if not data['finished'] else '健管专业初评，准备年度健康基线')
-    if data['processing']:
-        AgentProgressPanel.render(p,flow_name='健康资料整理',next_action=next_text)
-    else:
-        if p and p.trigger_reason:st.caption('触发原因：'+p.trigger_reason+' · 来源：'+p.trigger_source)
+        '处理剩余事项，再确认初评' if not data['finished'] else '确认管理重点，准备年度健康基线')
+    c.summary_strip([('已自动整理',counts.get('auto_sources',counts.get('auto_filled',data['stats']['prefilled']))),
+                     ('需要确认',counts.get('pending',data['stats'].get('pending',0))),
+                     ('存在冲突',counts.get('conflicts',data['stats'].get('conflicts',0))),
+                     ('资料完成度',str(data['stats'].get('percent',0))+'%')])
+    AgentProgressPanel.render(p,flow_name='健康资料整理',next_action=next_text)
+    if not data['processing'] and not p:
         st.write(f'✓ 已接收 {len(data["files"])} 份资料 · 已读取 {sum(f["run"].status=="COMPLETED" for f in data["files"])} 份')
         if failed:st.warning('部分资料未能完整整理，请核对原文件或重试。')
         st.write('✓ 已整理有来源依据的健康信息' if data['count'] else '尚无可用的整理结果')
@@ -81,12 +86,11 @@ def draw(data,event=None,*,assessment_summary=True):
         st.write(f'● 等待处理 {remaining} 项必要例外' if remaining else '✓ 必要资料已准备完成' if not data['finished'] else '✓ 本次资料整理完成')
         st.caption('下一步：'+next_text)
     with st.expander('处理记录与来源',expanded=False):
-        if not data['processing']:AgentProgressPanel.render(p,flow_name='健康资料整理',next_action=next_text)
         support(data,event)
         st.caption('健康档案更新：'+str(data['updates'])+' 项；正式医疗事实继续遵守现有确认规则。')
         for at,name,text in data['events']:
             at=(at.replace(tzinfo=timezone.utc) if at.tzinfo is None else at).astimezone()
-            st.caption(at.strftime('%H:%M')+' · 《'+name+'》'+text)
+            st.caption(at.strftime('%H:%M')+' · 《'+name+'》'+business_text(text))
 
 
 def workspace(app,patient,view, *, uploader=True, show_actions=True):
@@ -158,7 +162,7 @@ def upload_area(patient,view):
     key=f'workspace-upload-{patient.id}'
     with st.container(border=True,key='intake-upload-area'):
         st.subheader('上传健康资料',anchor='intake-upload')
-        st.caption('上传该会员现有的体检、问卷、病历、用药记录或其他健康资料。健康管理助手会自动识别内容，优先用于完善初始健康评估，并同步准备健康档案更新。')
+        st.caption('体检、问卷、病历和用药记录都可在这里上传。助手会整理到对应档案，您只需处理缺失或有疑问的内容。')
         epoch=st.session_state.get(key+'-epoch',0)
         files=st.file_uploader('选择文件',type=['pdf','docx','xlsx','csv','txt','json','png','jpg','jpeg'],accept_multiple_files=True,key=key+'-'+str(epoch))
         st.caption('PDF / DOCX / XLSX / CSV / TXT / JSON / PNG / JPG · 每批最多 20 份、100 MB')

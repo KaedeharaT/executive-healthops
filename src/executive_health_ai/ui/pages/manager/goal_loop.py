@@ -157,7 +157,7 @@ def provenance(member_id):
             if st.checkbox('查看原始记录',key='provenance-original'):
                 raw=info['raw'] or {}
                 st.write(raw.get('original_text') or str(raw.get('original_value',raw.get('value','历史记录未保存原文'))))
-                for candidate in info['candidates']:st.caption('解析候选：'+str(candidate.get('normalized_value'))+' '+str(candidate.get('unit') or ''))
+                for candidate in info['candidates']:st.caption('曾整理为：'+str(candidate.get('normalized_value'))+' '+str(candidate.get('unit') or ''))
 
 
 def communication(patient,view):

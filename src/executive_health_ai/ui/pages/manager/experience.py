@@ -197,42 +197,33 @@ def member_detail(app, patient):
         next_action=next_text,
         updated=ux.when(max(updated)) if updated else '暂无记录',
         demo=(patient.external_id or '').startswith('synthetic-demo-'))
+    c.priority_strip(autonomy['level'],autonomy['label'])
     with st.container(key='soft-member-navigation'):
         section = st.radio("成员页面", ["概览", "健康", "管理", "医疗", "历程"], horizontal=True, label_visibility="collapsed", key=f"member-section-{patient.id}",format_func=lambda x:"健康档案" if x=="健康" else x)
     if section == "概览":
         from executive_health_ai.ui.pages.manager.action_loop import open_next
         main,rail=st.columns([2.4,1],gap='large')
         with main,st.container(key='v7-main-overview'):
-            st.subheader('当前健康状态')
-            tone = {'GREEN': 'green', 'YELLOW': 'orange', 'RED': 'red'}.get(autonomy['level'], 'gray')
-            st.caption(f":{tone}[管理状态：{autonomy['label']}]")
+            st.subheader('当前管理重点')
             st.write(ux.business_text(professional))
             st.caption('会员关注：'+ux.business_text(concern or '待填写'))
             from executive_health_ai.ui.pages.health_visualization import render_previews
-            st.subheader('最近健康变化')
             from executive_health_ai.ui.pages.manager.goal_loop import summary,goal_status
-            summary(patient.id)
-            render_previews(patient.id,key=f'manager-overview-trend-{patient.id}',maximum=2,series=view.health.series,
-                open_trend=lambda:app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='健康',archive_view='健康数据'))
-            st.subheader('当前管理重点')
             goal_status(patient.id,program.id if program else None,compact=True)
-            st.write(ux.business_text(management_view.current_phase.goal if management_view.current_phase else program.main_goal if program else '先完善资料，建立初始评估。'))
+            if not program:st.write('先完善资料，建立初始评估。')
             from executive_health_ai.ui.pages.manager.service_progress import member_progress
-            member_progress(management_view,compact=True)
+            with st.expander('健康变化与服务进度'):
+                summary(patient.id)
+                render_previews(patient.id,key=f'manager-overview-trend-{patient.id}',maximum=2,series=view.health.series,
+                    open_trend=lambda:app.request_navigation(surface='运营后台',ops_page='成员',member_id=patient.id,member_section='健康',archive_view='健康数据'))
+                member_progress(management_view,compact=True)
+            with st.expander('最近记录 · 更多请查看历程'):
+                workflow.log_rows(management_view.logs[:3],key=f'overview-recent-{patient.id}')
         with rail,st.container(key='v7-context-member'):
             st.subheader('下一步')
             st.write(next_text)
             st.button('处理下一步',key=f'360-next-{patient.id}',type='primary',on_click=open_next,args=(app,patient))
-            st.divider()
-            st.subheader('开放事项')
-            st.caption(f'{len(tasks)} 项待处理 · 详情见管理')
-            for task in tasks[:3]:st.caption(ux.business_text(task.title)+' · '+ux.when(task.due_at))
-            st.divider()
-            st.markdown('**责任健管**')
-            st.write(ux.business_text(view.owner))
-            st.caption('医生负责医学判断；管理任务由责任健管协调。')
-            from executive_health_ai.ui.pages.manager.post_checkup import compact_member_status
-            compact_member_status(patient.id)
+            st.caption('完成后，后续安排会出现在今日工作；完整待办见管理。')
     elif section == "健康":
         from executive_health_ai.ui.pages.manager.workbench import archive
         archive(app,patient,management_view)

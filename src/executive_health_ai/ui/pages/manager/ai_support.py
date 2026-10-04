@@ -26,22 +26,22 @@ def knowledge_detail(citations):
 
 @st.dialog('健管确认摘要', width='large')
 def summary_detail(text):
-    st.caption('非临床资料整理；需健管核对。AI 摘要不等于正式风险或医学判断。')
+    st.caption('这是资料摘要，请结合原文核对；医学结论以医生意见为准。')
     st.write(text)
 
 
 def panel(goal, activities, *, key='board-ai-support'):
     with st.container(border=True,key=key):
-        st.subheader('AI与知识支持')
-        st.caption('AI摘要 ≠ 正式风险 · 知识依据 ≠ 会员事实 · 医生意见 ≠ Agent推断')
+        st.subheader('整理依据与参考资料')
+        st.caption('会员情况以原始资料为准；参考资料不会自动变成会员的诊断。')
         ai, knowledge = st.columns([1.35,1], gap='large')
         for index, activity in enumerate(activities):
             with knowledge if activity.key == 'knowledge' else ai:
-                st.markdown(f'**{activity.title}**　{activity.mark} {activity.label}')
-                st.caption('用途：'+activity.purpose)
+                st.markdown(f'**{ux.business_text(activity.title)}**　{activity.mark} {ux.business_text(activity.label)}')
+                st.caption('用途：'+ux.business_text(activity.purpose))
                 if not activity.used:
                     st.caption('未使用：本步骤没有已发起的调用记录。')
-                st.write('结果：'+activity.result)
+                st.write('结果：'+ux.business_text(activity.result))
                 if activity.at: st.caption('记录时间：'+ux.when(activity.at))
                 if activity.citations and st.button('查看依据',key=f'{key}-knowledge-{goal.id}-{index}'):
                     knowledge_detail(activity.citations)

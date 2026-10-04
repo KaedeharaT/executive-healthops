@@ -13,6 +13,16 @@ from executive_health_ai.services.product_projection import ProductProjectionSer
 
 
 def detail(app, patient, review, *, read_only=False):
+    from executive_health_ai.models import RiskEvent, RiskRule
+    with SessionLocal() as session:
+        risk=session.get(RiskEvent,review.risk_event_id) if review.risk_event_id else None
+        rule=session.get(RiskRule,risk.risk_rule_id) if risk and risk.risk_rule_id else None
+        brief_text=review.doctor_brief or '资料待补充，请联系健康管理师。'
+        if rule and rule.code:brief_text=brief_text.replace(rule.code,rule.name)
+    urgent=review.status=='PENDING' and risk and risk.risk_level=='RED'
+    c.priority_strip('RED' if urgent else 'YELLOW' if review.status=='PENDING' else 'GREEN',
+        ux.business_text(review.question_for_doctor),label='需要优先处理 · 等待医生判断' if urgent else '等待医生判断' if review.status=='PENDING' else '医生已返回',
+        next_action='核对相关依据，提交医学意见。' if review.status=='PENDING' else '健管将按医生意见继续安排。')
     st.subheader("需要医生判断的问题")
     st.write(ux.business_text(review.question_for_doctor or "请核实本次健康变化是否需要进一步医学评估。"))
     from executive_health_ai.ui.pages.manager.profile_intake import doctor_context
@@ -32,7 +42,7 @@ def detail(app, patient, review, *, read_only=False):
             c.section_header("关键背景与趋势")
             if problem:
                 st.caption("关联关注事项：" + ux.business_text(problem.title))
-            brief = ux.business_text(review.doctor_brief or "资料待补充，请联系健康管理师。")
+            brief = ux.business_text(brief_text)
             st.write(brief[:120] + ("…" if len(brief) > 120 else ""))
             from executive_health_ai.ui.pages.health_visualization import render_doctor_trend
             render_doctor_trend(patient.id, review)
@@ -42,7 +52,7 @@ def detail(app, patient, review, *, read_only=False):
             else:
                 ux.evidence_summary(payload)
             with c.secondary_details("关键成员背景与提交摘要"):
-                st.write(ux.business_text(review.doctor_brief or "资料待补充，请联系健康管理师。"))
+                st.write(ux.business_text(brief_text))
             with st.expander("重要健康背景与年度基线"):
                 if baseline:
                     snapshot = baseline.baseline_json or {}
@@ -131,9 +141,17 @@ def workspace(app, members, *, patient=None, read_only=False):
     if message:=st.session_state.pop('doctor-flash',None):st.success(message)
     with SessionLocal() as session:
         rows=medical_rows(session,patient.id if patient else None,mode=='历史',doctor=True)
+        from executive_health_ai.models import RiskEvent
+        red_ids=set(session.scalars(select(RiskEvent.id).where(RiskEvent.risk_level=='RED')))
     # Preparation and management execution are not doctor decisions.
     if mode=='待我判断':rows=[r for r in rows if r['state'] in {'待判断','待汇总意见'}]
+    rows.sort(key=lambda r:getattr(r['record'],'risk_event_id',None) not in red_ids)
+    urgent=mode=='待我判断' and any(getattr(r['record'],'risk_event_id',None) in red_ids for r in rows)
     c.summary_strip([('需要判断',len(rows)),('提交以后','系统与健管继续执行')])
+    c.priority_strip('RED' if urgent else 'YELLOW' if rows and mode=='待我判断' else 'GREEN',
+                     f'{len(rows)} 项待判断问题' if mode=='待我判断' else '已提交的医学意见保留在这里。',
+                     next_action='选择一个问题，核对依据并提交意见。' if rows and mode=='待我判断' else '暂无新的医学问题需要处理。',
+                     label='需要优先处理' if urgent else '需要医生判断' if rows and mode=='待我判断' else '正常跟进')
     selected=data_table(rows,[{'会员':people[r['member_id']].display_name,'需要判断的问题':r['question'],'来源':r['source'],
         '关键变化':r['change'],'提交时间':ux.local_time(r['at']),'截止':'未单独设置','状态':r['state']} for r in rows],
         key='doctor-grid-all',search=True,auto_select=False,activate_on_cell=True,empty='当前没有需要您判断的问题。')
