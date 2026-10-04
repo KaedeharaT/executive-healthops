@@ -26,7 +26,7 @@ def test_ops_today_has_one_priority_frame_and_compact_work_items() -> None:
     assert "今日工作" in today and "c.summary_strip(" in today
     assert "st.subheader('当前工作队列')" in today and "data_table(visible" in today
     assert "ux.sorted_work(" in today and "work_filter(" in today
-    assert "work_detail(app, item" in today and "'时间'" in today and 'auto_select=False' in today
+    assert "work_detail(app, item" in today and "'截止时间'" in today and 'auto_select=False' in today
 
 
 def test_member_overview_keeps_the_two_column_focus_then_next_step_structure() -> None:

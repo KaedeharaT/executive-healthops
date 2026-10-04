@@ -55,7 +55,7 @@ def test_no_assessment_entry_starts_same_member_without_member_selector():
     mid = member()
     app = AppTest.from_function(archive_page, args=(str(mid),)).run()
     assert not app.exception
-    assert app.subheader[0].value == '健康管理助手'
+    assert app.subheader[0].value == '资料整理进度'
     button(app, '继续完成初始评估').click().run()
     assert not app.exception
     assert len(app.selectbox[0].options) == 11

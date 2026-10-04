@@ -89,7 +89,7 @@ def test_full_work_queue_remains_searchable_beyond_the_legacy_preview_limit(care
 def test_assistant_remains_visible_without_active_flows():
     app=AppTest.from_file(APP).run(timeout=45)
     assert not app.exception
-    assert any(h.value=='健康管理助手' for h in app.subheader)
+    assert any(h.value=='系统助手' for h in app.subheader)
     assert any('当前没有需要您处理的自动流程' in c.value for c in app.caption)
     assert not any(x.label in {'键盘选择','使用下拉选择','完整标题','Agent模式'} for x in app.checkbox)
 

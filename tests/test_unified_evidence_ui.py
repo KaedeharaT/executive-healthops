@@ -151,23 +151,12 @@ def test_client_evidence_panel_hides_technical_fields() -> None:
     assert "高级信息" in panel
 
 
-def test_member_overview_timeline_opens_evidence_from_normal_navigation() -> None:
-    app_test = AppTest.from_file(Path(__file__).resolve().parents[1] / "streamlit_app.py")
-    app_test.run(timeout=30)
-    next(item for item in app_test.radio if item.label == "工作区").set_value("成员")
-    app_test.run(timeout=30)
-    open_member(app_test)
-    app_test.run(timeout=30)
-    next(item for item in app_test.radio if item.label == "成员页面").set_value("历程")
-    app_test.run(timeout=30)
-    next(item for item in app_test.radio if item.label == "事件筛选").set_value("体检")
-    app_test.run(timeout=30)
-    next(item for item in app_test.button if item.label == "查看依据").click()
-    app_test.run(timeout=30)
+def test_member_overview_timeline_opens_evidence_from_normal_navigation(monkeypatch) -> None:
+    from tests.timeline_navigation import open_sleep_episode
+    app_test, transport, _ = open_sleep_episode(monkeypatch)
     assert not app_test.exception
-    visible = "\n".join(
-        str(item.value)
-        for collection in (app_test.button, app_test.markdown, app_test.subheader, app_test.caption, app_test.text)
-        for item in collection
-    )
-    assert "来源文件" in visible and "确认状态" in visible
+    sources = transport['detail']['sources']
+    assert sources and all(s['label'] for s in sources)
+    assert any(s['original'] for s in sources)
+    assert transport['detail']['changes']
+    assert any('睡眠' in s['label'] or '睡眠' in s['text'] for s in sources)

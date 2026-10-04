@@ -7,6 +7,7 @@ widget key.
 """
 
 from pathlib import Path
+from html.parser import HTMLParser
 
 from streamlit.testing.v1 import AppTest
 from tests.ui_selection import open_member, select_table_row
@@ -34,6 +35,13 @@ def _assert_clean(app: AppTest) -> None:
 
 
 def _visible_text(app: AppTest) -> str:
+    class VisibleHTML(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.parts = []
+        def handle_data(self, data):
+            self.parts.append(data)
+
     values: list[str] = []
     for collection in (app.title, app.subheader, app.caption, app.info, app.warning, app.success, app.error, app.metric):
         for item in collection:
@@ -42,7 +50,9 @@ def _visible_text(app: AppTest) -> str:
     for item in app.markdown:
         value = str(item.value)
         if "<style>" not in value:
-            values.append(value)
+            parsed = VisibleHTML()
+            parsed.feed(value)
+            values.append(" ".join(parsed.parts))
     return "\n".join(values).lower()
 
 
@@ -113,20 +123,14 @@ def test_ops_and_member_navigation_sweep_has_no_visible_placeholder_or_widget_fa
         _assert_no_business_contract_leak(app)
 
 
-def test_timeline_health_data_action_routes_without_mutating_live_widgets() -> None:
+def test_timeline_health_data_action_routes_without_mutating_live_widgets(monkeypatch) -> None:
     """Exercise the real timeline → data handoff, including its route context."""
-    app = AppTest.from_file(APP)
-    app.run(timeout=30)
-    _radio(app, "工作区").set_value("成员")
-    app.run(timeout=30)
-    open_member(app)
-    app.run(timeout=30)
-    next(item for item in app.radio if item.label == "成员页面").set_value("历程")
-    app.run(timeout=30)
-    action = next(button for button in app.button if button.key and button.key.startswith("timeline-data-"))
-    action.click()
+    from tests.timeline_navigation import open_sleep_episode
+    app, transport, member_id = open_sleep_episode(monkeypatch)
+    transport['action'] = 'trend'
     app.run(timeout=30)
     _assert_clean(app)
     assert any(item.value == "健康数据" for item in app.subheader)
     # The trend panel presents this same route context as quiet filter metadata.
     assert any("时间轴选择的时间段" in str(item.value) for item in [*app.info, *app.caption])
+    assert app.session_state[f'health-data-window-{member_id}'] == {'start': '2026-07-30', 'end': '2026-09-30'}

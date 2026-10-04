@@ -88,13 +88,13 @@ def test_today_assistant_always_renders(rendered, state):
     if state == 'NONE':
         session.delete(goal)
     app=render()
-    assert '健康管理助手' in text(app)
+    assert '系统助手' in text(app)
     assert all(label in text(app) for label in ('正在运行','等待我确认','等待医生','最近完成'))
     if state in {'COMPLETED','NONE'}:
         assert '当前没有需要您处理的自动流程。' in text(app)
         assert bool(app.selectbox) == (state!='NONE')
     else:
-        assert any(b.label=='查看完整运行' and not b.disabled for b in app.button)
+        assert any(b.label=='查看处理详情' and not b.disabled for b in app.button)
         assert ('等待医生' if state=='WAITING_DOCTOR' else '等待我确认') in text(app)
 
 
@@ -107,7 +107,7 @@ def test_completed_member_keeps_automatic_followup_and_same_instance(rendered):
     assert '最近结果' in text(app)
     assert not app.button
     app=render('today')
-    next(b for b in app.button if b.label=='查看完整运行').click().run()
+    next(b for b in app.button if b.label=='查看处理详情').click().run()
     assert app.session_state['care-detail']==str(goal.id)
     assert app.session_state['care-origin']=='今日工作'
     assert session.scalar(select(func.count(AgentGoal.id)))==1
@@ -117,7 +117,7 @@ def test_today_and_member_links_open_same_goal_without_creating_one(rendered):
     session,goal,sup,render=rendered
     for surface in ('today','today'):
         app=render(surface)
-        next(b for b in app.button if b.label=='查看完整运行').click().run()
+        next(b for b in app.button if b.label=='查看处理详情').click().run()
         assert app.session_state['care-detail']==str(goal.id)
     assert session.scalar(select(func.count(AgentGoal.id)))==1
 
@@ -133,7 +133,7 @@ def test_member_without_goals_keeps_honest_empty_followup(rendered):
 def test_support_panel_reflects_real_calls_and_unused_model(rendered):
     session,goal,sup,render=rendered
     app=render('support')
-    assert 'AI与知识支持' in text(app) and '知识依据检索' in text(app)
+    assert '整理依据与参考资料' in text(app) and '知识依据检索' in text(app)
     assert '暂无匹配' in text(app) and '暂不可用' in text(app)
     assert '未使用：本步骤没有已发起的调用记录。' in text(app)
     assert '尚未执行' in text(app)
@@ -160,7 +160,7 @@ def test_today_previews_at_most_three_real_active_workflows(rendered, tmp_path):
             ('体检日期：'+date.today().isoformat()+f'\n体重  {70+index} kg').encode(),'王健管')
     app=render()
     assert session.scalar(select(func.count(AgentGoal.id)))==4
-    assert len([b for b in app.button if b.label=='查看完整运行'])==1
+    assert len([b for b in app.button if b.label=='查看处理详情'])==1
     assert len(app.selectbox[0].options)==4
 
 
@@ -184,5 +184,5 @@ def test_profile_followup_progress_reads_same_existing_plan(rendered, tmp_path):
     assert not app.button
     app=render('today')
     app.selectbox[0].select_index(0).run()
-    next(b for b in app.button if b.label=='查看完整运行').click().run()
+    next(b for b in app.button if b.label=='查看处理详情').click().run()
     assert app.session_state[f'intake-workspace-goal-{goal.member_id}']==str(profile.id)

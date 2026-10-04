@@ -36,7 +36,7 @@ def test_ops_today_uses_prioritized_table_and_selected_detail() -> None:
 def test_members_and_member_overview_have_distinct_visual_components() -> None:
     members = _source("render_members_workspace", "KNOWLEDGE_CATEGORIES")
     overview = _source("render_simple_member_overview", "def render_simple_health_problems")
-    assert "data_table(rows" in members and "当前服务" in members and '年龄 / 性别' in members
+    assert "data_table(rows" in members and "下一行动" in members and '年龄 / 性别' in members
     assert "当前重点" in overview and "最近健康历程" in overview
     assert "section_frame(" in overview
     assert "render_longitudinal_timeline(patient, key_scope=\"overview\")" not in overview

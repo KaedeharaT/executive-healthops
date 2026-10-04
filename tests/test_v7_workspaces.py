@@ -25,7 +25,7 @@ def test_agent_panel_progress_and_waiting(state):
     html=''.join(m.value for m in app.markdown)
     assert html.count('role="progressbar"')==1
     assert f'aria-valuenow="{p.progress_percent}"' in html
-    assert ('aria-label="正在执行"' in html)==(state=='PROCESSING')
+    assert ('aria-label="正在整理资料"' in html)==(state=='PROCESSING')
     assert '核对实际资料' in str([c.value for c in app.caption])
 
 
