@@ -119,7 +119,7 @@ def summary(member_id):
         row=session.scalar(select(DailyHealthSummary).where(DailyHealthSummary.patient_id==member_id)
             .order_by(DailyHealthSummary.summary_date.desc()).limit(1))
         if not row:return
-        st.markdown('**最近健康摘要 · '+str(row.summary_date)+'**')
+        st.markdown('**最近健康概况 · '+str(row.summary_date)+'**')
         if row.change_status=='INSUFFICIENT_DATA':
             st.caption('来源或质量修正后暂无可用数据，等待新的有效记录。')
             return
@@ -130,7 +130,7 @@ def summary(member_id):
         st.caption(' · '.join(parts))
         if row.changes:
             for change in row.changes[:2]:st.write(change['reason'])
-        else:st.caption('未检测到达到已配置规则的有意义变化。')
+        else:st.caption('近期状态平稳，本次无需因数据变化新增处理事项。')
         if row.completeness.get('percent') is not None:st.caption('目标核心数据完整度：'+str(row.completeness['percent'])+'%')
 
 

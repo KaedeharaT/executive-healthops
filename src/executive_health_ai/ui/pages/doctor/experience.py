@@ -29,6 +29,8 @@ def detail(app, patient, review, *, read_only=False):
     uploaded_context = doctor_context(review)
     st.caption(f"{patient.display_name} · 提交于 {ux.when(review.created_at)} · {'已完成' if review.status != 'PENDING' else '待我复核'}")
     st.caption("为什么现在：这项医学问题已由健康管理团队提交，需要人工判断后才能继续安排。")
+    from executive_health_ai.ui.change_review import render_for_risk
+    render_for_risk(patient.id,risk)
     clinical, decision = st.columns([1.5,1])
     with clinical:
         with st.container(key="v2-context-doctor"):
@@ -45,7 +47,8 @@ def detail(app, patient, review, *, read_only=False):
             brief = ux.business_text(brief_text)
             st.write(brief[:120] + ("…" if len(brief) > 120 else ""))
             from executive_health_ai.ui.pages.health_visualization import render_doctor_trend
-            render_doctor_trend(patient.id, review)
+            with st.expander('查看依据 · 相关趋势'):
+                render_doctor_trend(patient.id, review)
             c.section_header("本次判断的依据")
             if uploaded_context:
                 st.caption("本次原始文件、资料日期和逐项提取依据已列在上方，可直接打开核对。")

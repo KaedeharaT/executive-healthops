@@ -1241,9 +1241,12 @@ def render_yellow_risk_operations(patient: Patient, event: RiskEvent) -> None:
     st.subheader("需要关注")
     st.caption(f"{_risk_event_source(event)} · {_label(event.status)}")
     st.write(ux.business_text(event.summary))
-    st.caption(f"触发时间：{_fmt_dt(event.created_at)} · {_risk_event_evidence_caption(event)}")
-    with SessionLocal() as session:
-        _render_evidence_action(_risk_evidence_payload(session, patient.id, event.id), key_scope=f"risk-yellow-{event.id}")
+    from executive_health_ai.ui.change_review import render_for_risk
+    render_for_risk(patient.id,event)
+    with st.expander('查看依据'):
+        st.caption(f"发现时间：{_fmt_dt(event.created_at)} · {ux.business_text(_risk_event_evidence_caption(event))}")
+        with SessionLocal() as session:
+            _render_evidence_action(_risk_evidence_payload(session, patient.id, event.id), key_scope=f"risk-yellow-{event.id}")
     st.markdown("#### 建议下一步")
     action = st.radio("处理方式", ["继续观察", "记录联系成员", "数据有误", "调整健康管理", "请医生复核"], horizontal=True, key=f"yellow-action-{event.id}")
     with st.form(f"yellow-action-form-{event.id}"):

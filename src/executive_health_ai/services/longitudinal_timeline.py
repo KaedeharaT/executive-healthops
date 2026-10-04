@@ -193,10 +193,13 @@ class LongitudinalTimelineProjection:
             data=event.payload_ref or {}; change=data.get('change') or {}; look=data.get('lookback') or {}
             code=change.get('metric'); episode='change:'+str(event.id)
             risk_data=data.get('risk_evaluation') or {}
+            agent_context={}
             risk_id=data.get('risk_event_id') or risk_data.get('risk_event_id')
-            if not risk_id and event.goal_id:
+            if event.goal_id:
                 ag=session.get(AgentGoal,event.goal_id)
-                if ag and ag.member_id==member_id:risk_id=(ag.context_json or {}).get('risk_event_id')
+                if ag and ag.member_id==member_id:
+                    agent_context=ag.context_json or {}
+                    risk_id=risk_id or agent_context.get('risk_event_id')
             risk=next((r for r in risks if str(r.id)==str(risk_id)),None)
             if risk:risk_episodes[str(risk.id)]=episode
             if event.goal_id:agent_episodes[str(event.goal_id)]=episode
@@ -219,7 +222,8 @@ class LongitudinalTimelineProjection:
             e=add(event,event.occurred_at,'MEANINGFUL_CHANGE','HEALTH_STATE',title,change.get('reason') or event.description,
                 risk=risk.risk_level if risk else None, goal=goal_id, metric=code, episode=episode,refs=refs,
                 snap=snapshot(event.occurred_at,'MEANINGFUL_CHANGE',metrics,refs,version,risk=risk.risk_level if risk else None),
-                details={'change':change,'lookback':look,'state':change.get('reason') or event.description})
+                details={'change':change,'lookback':look,'handling':agent_context,
+                    'state':change.get('reason') or event.description})
             if risk:e.source_refs.append(ref(risk))
             baseline,_,_=context(event.occurred_at)
             if baseline:

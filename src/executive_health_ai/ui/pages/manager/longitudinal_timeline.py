@@ -9,6 +9,7 @@ from executive_health_ai.database import SessionLocal
 from executive_health_ai.models.base import utc_now
 from executive_health_ai.services.longitudinal_timeline import LongitudinalTimelineProjection, FILTERS, RISK_LABELS, number
 from executive_health_ai.services.goal_metrics import METRIC_LABELS
+from executive_health_ai.services.change_review import review_summary
 from executive_health_ai.ui import components as c
 from executive_health_ai.ui import experience as ux
 
@@ -21,7 +22,7 @@ def public_text(value):
     text=str(value or '')
     text=re.sub(r'\b[0-9a-f]{8}-[0-9a-f-]{27,}\b', '相关记录', text, flags=re.I)
     text=re.sub(r'\b[0-9a-f]{32}\b','相关记录',text,flags=re.I)
-    for term in ('correlation_id','Snapshot ID','Trace ID','ToolCall','Tool call','HealthEvent','LLM Provider','LLM provider','Planner','JSON','Goal ID'):
+    for term in ('Meaningful Change','Context Assembly','Lookback','Query','Retrieval','correlation_id','Snapshot ID','Trace ID','ToolCall','Tool call','HealthEvent','LLM Provider','LLM provider','Planner','JSON','Goal ID'):
         text=re.sub(re.escape(term),'内部记录',text,flags=re.I)
     # Source records from older modules sometimes serialized a dict as text.
     if text.lstrip().startswith(('{','[')):return '已保留原始业务记录；请通过健康档案核对。'
@@ -91,7 +92,12 @@ def detail_payload(group, detail):
             return '；'.join(k+'：'+public_text(v)[:160] for k,v in row.details['phase'].items()
                 if k in {'阶段目标','实际完成','会员反馈','未解决问题','下一阶段'} and v)
         return public_text(row.details.get('human') or row.details.get('result') or row.summary)
-    return {'key':group['key'],'state':state,'metrics':metrics,'changes':changes,
+    history=[]
+    for day in detail.get('history',[]):
+        for code,value in (day.get('metrics') or {}).items():
+            history.append({'date':day['date'],'label':METRIC_LABELS.get(code,'相关指标'),
+                'value':display_value(value.get('value'),value.get('unit'))})
+    return {'key':group['key'],'state':state,'metrics':metrics,'changes':changes,'history':history,
         'automatic':[public_text(v) for v in detail['automatic']] or ['没有留存可核验的自动准备记录。'],
         'human_reason':public_text(detail['human_reason']),
         'care':[{'date':r.occurred_at.strftime('%Y-%m-%d'),'title':public_text(r.title),
@@ -138,6 +144,8 @@ def render(app, patient):
         group=next((g for g in visible if g['key']==selected),None)
         payload=detail_payload(group,projection.group_details(session,view,group)) if group else None
         entries=[{'key':g['key'],'date':g['entry'].occurred_at.strftime('%Y-%m-%d'),'title':public_text(g['title']),
+            'review':review_summary(g['entry'].details,g['entry'].risk_level,g['entry'].details.get('handling'))
+                if g['entry'].entry_type=='MEANINGFUL_CHANGE' else None,
             'summary':change_text(g['entry']),'risk':RISK_LABELS.get(g['entry'].risk_level,''),
             'human':g['human'],'outcome':public_text(g['outcome']),'current':g['current'],
             'care_summary':'；'.join(dict.fromkeys(public_text(e.title) for e in g['members'] if e.track=='CARE_ACTION')) or '暂无关联管理动作'} for g in visible]

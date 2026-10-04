@@ -18,7 +18,8 @@ def render(patient, event):
     st.subheader('优先处理')
     st.caption(':red[需要人工 / 医学判断]')
     st.write(ux.business_text(event.summary))
-    st.caption('已核对资料、当前阶段和既有安排；正式风险不会因摘要内容改变。')
+    from executive_health_ai.ui.change_review import render_for_risk
+    render_for_risk(patient.id,event)
     if review and review.status=='PENDING':
         st.info('等待医生判断 · 当前责任：'+(review.doctor_name if review.doctor_name!='待分配医生' else '内部医生'))
         st.write(review.question_for_doctor)

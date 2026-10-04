@@ -26,6 +26,7 @@ button{font:inherit;cursor:pointer;color:#235d8f;background:transparent;border:0
 .outcome{border-left:3px solid #84a494;padding:2px 0 2px 12px;margin-bottom:8px}.memory-label{color:#936020;font-size:12px}
 table{border-collapse:collapse;width:100%;font-size:12px;margin:8px 0}th,td{text-align:left;padding:6px;border-bottom:1px solid #dee6ee}th{font-weight:500;color:var(--muted)}
 .source{padding:7px 0;border-bottom:1px solid #dee6ee;overflow-wrap:anywhere}.source strong{font-size:12px}summary{cursor:pointer;color:#235d8f;min-height:36px;padding:5px 0}.drilldown{margin-top:8px}
+.review{margin:10px 0;padding:10px 14px;border-left:2px solid var(--line);background:#edf2f7;border-radius:0 6px 6px 0}.review p{margin:0 0 6px}.checked{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;padding:0;list-style:none;font-size:12px;color:var(--muted)}.decision{padding-top:8px;border-top:1px solid var(--line);font-weight:600}.evidence-table{max-height:320px;overflow:auto}@media(max-width:650px){.checked{grid-template-columns:1fr}}
 @media(max-width:600px){.event{grid-template-columns:72px 21px minmax(0,1fr)}.surface{padding:10px}.date{font-size:11px}.section{padding-left:16px}.spine:before{left:8px}.dot{left:3px}.meta{gap:6px}th,td{padding:4px}body{font-size:14px}}
 </style></head><body>
 <p class="hint">从较早到最近 · 重要变化按同一管理过程合并，展开查看系统准备、人工行动和后续结果。</p>
@@ -35,13 +36,14 @@ const send=(type,data={})=>parent.postMessage({isStreamlitMessage:true,type,...d
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n};
 const action=(key,kind)=>send('streamlit:setComponentValue',{value:{key,action:kind,nonce:Date.now()}});
 const lines=(parent,values)=>values.forEach(t=>parent.append(el('p',t)));
+const disclosureState=new Set();
+function disclosure(key,label){const n=el('details');n.dataset.disclosure=key;n.open=disclosureState.has(key);n.append(el('summary',label));n.addEventListener('toggle',()=>{if(n.isConnected){if(n.open)disclosureState.add(key);else disclosureState.delete(key);resize()}});return n}
 function section(parent,title){const n=el('section',undefined,'section');n.append(el('h4',title));parent.append(n);return n}
 function details(parent,d,key){
  const box=el('div',undefined,'details');box.id='episode-details';parent.append(box);
  let s=section(box,'1. 当时的健康状态');lines(s,d.state);
  if(d.progress!==null&&d.progress!==undefined)s.append(el('p',`目标进度：${d.progress}%`));
- if(d.metrics.length){const table=el('table');table.setAttribute('aria-label','当时的关键指标');const head=el('tr');['指标','记录值','较年度基线','记录日期'].forEach(t=>head.append(el('th',t)));table.append(head);d.metrics.forEach(r=>{const tr=el('tr');[r.label,r.value,r.comparison,r.date].forEach(t=>tr.append(el('td',t)));table.append(tr)});s.append(table)}
- s=section(box,'2. 发生了什么变化');lines(s,d.changes);
+ s=section(box,'2. 发生了什么变化');lines(s,d.changes.slice(0,1));
  s=section(box,'3. 系统自动完成');const ul=el('ul',undefined,'steps');d.automatic.forEach(t=>{const li=el('li');li.append(el('span','·','check'),document.createTextNode(t));ul.append(li)});s.append(ul);
  s=section(box,'4. 为什么需要人工');s.append(el('p',d.human_reason));
  s=section(box,'5. 人工 / 医生做了什么');
@@ -53,13 +55,18 @@ function details(parent,d,key){
  s=section(box,'7. 长期管理经验');s.append(el('p',d.memory.status,'memory-label'),el('p',d.memory.text));
  if(d.memory.range)s.append(el('p','依据时间范围：'+d.memory.range,'muted'));if(d.memory.source)s.append(el('p',d.memory.source,'muted'));
  const links=el('div',undefined,'drilldown');box.append(links);
- if(d.metric){const trend=el('button','查看相关趋势');trend.onclick=()=>action(key,'trend');links.append(trend)}
- const sources=el('details');sources.append(el('summary','查看数据来源'));sources.setAttribute('aria-label','数据来源');
+ const evidence=disclosure(key+'-evidence','查看依据');evidence.className='evidence';links.append(evidence);
+ lines(evidence,d.changes.slice(1));
+ if(d.metrics.length){const table=el('table');table.setAttribute('aria-label','当时的关键指标');const head=el('tr');['指标','记录值','较年度基线','记录日期'].forEach(t=>head.append(el('th',t)));table.append(head);d.metrics.forEach(r=>{const tr=el('tr');[r.label,r.value,r.comparison,r.date].forEach(t=>tr.append(el('td',t)));table.append(tr)});evidence.append(table)}
+ if(d.metric){const trend=el('button','查看相关趋势');trend.onclick=()=>action(key,'trend');evidence.append(trend)}
+ if(d.history?.length){const scroll=el('div',undefined,'evidence-table');const table=el('table');table.setAttribute('aria-label','本次核对的历史记录');const head=el('tr');['日期','指标','记录值'].forEach(t=>head.append(el('th',t)));table.append(head);d.history.forEach(r=>{const tr=el('tr');[r.date,r.label,r.value].forEach(t=>tr.append(el('td',t)));table.append(tr)});scroll.append(table);evidence.append(scroll)}
+ const sources=disclosure(key+'-sources','查看数据来源');sources.setAttribute('aria-label','数据来源');
  d.sources.forEach(r=>{const item=el('div',undefined,'source');item.append(el('strong',r.label),el('p',r.text));if(r.original)item.append(el('p','原始记录：'+r.original,'muted'));sources.append(item)});
- if(!d.sources.length)sources.append(el('p','暂无完整来源记录。'));links.append(sources);
+ if(!d.sources.length)sources.append(el('p','暂无完整来源记录。'));evidence.append(sources);
  const close=el('button','收起完整过程');close.onclick=()=>action(key,'close');links.append(close);
 }
-function render(args){const root=document.getElementById('timeline');root.replaceChildren();
+let lastRender='';
+function render(args){const signature=JSON.stringify(args);if(signature===lastRender){resize();return}lastRender=signature;const root=document.getElementById('timeline');root.querySelectorAll('details[data-disclosure]').forEach(n=>{if(n.open)disclosureState.add(n.dataset.disclosure);else disclosureState.delete(n.dataset.disclosure)});root.replaceChildren();
 (args.entries||[]).forEach(e=>{const expanded=args.detail?.key===e.key;const row=el('article',undefined,'event '+(e.risk==='需关注'?'attention':e.risk==='优先处理'?'urgent':e.risk==='正常'?'normal':''));row.dataset.current=String(e.current);row.dataset.title=e.title;
 const date=el('time',e.date,'date');date.dateTime=e.date;const spine=el('div',undefined,'spine');spine.setAttribute('aria-hidden','true');spine.append(el('span',undefined,'dot'));
 const body=el('div',undefined,'surface');body.append(el('h3',e.title));
@@ -67,6 +74,7 @@ const tracks=el('div',undefined,'tracks');tracks.setAttribute('aria-label','健�
 const health=el('div',undefined,'lane lane-health');health.append(el('strong','健康状态变化','lane-title'),el('p',e.summary,'summary'));
 const care=el('div',undefined,'lane lane-care');care.append(el('strong','管理动作 / 医疗动作','lane-title'),el('p',e.care_summary||'暂无关联管理动作','summary'));
 tracks.append(health,care);body.append(tracks);
+if(e.review){const review=el('div',undefined,'review');review.setAttribute('aria-label','变化后的核对与处理');review.append(el('p',e.review.message));if(e.review.checked.length){review.append(el('strong','已核对','lane-title'));const list=el('ul',undefined,'checked');e.review.checked.forEach(t=>list.append(el('li','✓ '+t)));review.append(list)}review.append(el('p','当时核对后的处理：'+e.review.decision,'decision'));body.append(review)}
 const meta=el('div',undefined,'meta');meta.append(el('span',({'需关注':'需要您确认','优先处理':'需要优先处理','正常':'正常跟进'})[e.risk]||'管理记录','risk'),el('span',e.human));body.append(meta,el('p',(e.current?'下一步：':'结果：')+e.outcome,'result'));
 const b=el('button',expanded?'收起完整过程':'查看完整过程','toggle');b.setAttribute('aria-label',e.title+' · '+e.date+' · '+(expanded?'收起完整过程':'查看完整过程'));b.setAttribute('aria-expanded',String(expanded));b.onclick=()=>action(e.key,expanded?'close':'select');body.append(b);
 if(expanded)details(body,args.detail,e.key);row.append(date,spine,body);root.append(row)});
